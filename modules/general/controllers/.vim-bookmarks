@@ -1,0 +1,3 @@
+let l:bm_file_version = 1
+let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\general\controllers\UserController.php': [{'sign_idx': 9503, 'line_nr': 160, 'content': '  public function actionUpdate()'},],}}
+let l:bm_current_session = 'default'

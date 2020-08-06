@@ -1,0 +1,3 @@
+let l:bm_file_version = 1
+let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\general\controllers\UserController.php': [{'sign_idx': 9500, 'line_nr': 62, 'content': '    $new["nama"]            = $payload["nama"];'},{'sign_idx': 9501, 'line_nr': 70, 'content': '    $new->save();'},],}}
+let l:bm_current_session = 'default'
