@@ -52,6 +52,7 @@ class LoginController extends \yii\rest\Controller
             {
               $status = "ok";
               $pesan = "valid";
+              $result = $test;
             }
             else
             {
@@ -77,6 +78,7 @@ class LoginController extends \yii\rest\Controller
         return array(
           "status" => $status,
           "pesan" => $pesan,
+          "result" => $result,
         );
       }
       else

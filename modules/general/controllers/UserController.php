@@ -62,10 +62,10 @@ class UserController extends \yii\rest\Controller
     $new = new User();
     $new["nama"]            = $payload["nama"];
     $new["username"]        = $payload["username"];
-    $new["password"]        = hash("sha512", "123" .$payload["password"] . "123");
+    $new["password"]        = $payload["password"];
     $new["jenis_kelamin"]   = $payload["jenis_kelamin"];
     $new["id_departments"]  = $payload["id_departments"];
-    $new["time_create"]     = $payload["time_create"];
+    $new["time_create"]     = date("Y-M-j H:i:s");
     $new["id_user_create"]  = $payload["id_user_create"];
     $new["nip"]             = $payload["nip"];
     $new->save();
@@ -170,9 +170,10 @@ class UserController extends \yii\rest\Controller
       if( is_null($user) == false )
       {
         $user["nama"]           = $payload["nama"];
+        $user["username"]       = $payload["username"];
+        $user["password"]       = $payload["password"];
         $user["id_departments"] = $payload["id_departments"];
         $user["jenis_kelamin"]  = $payload["jenis_kelamis"];
-        $user["password"]       = hash("sha512", "123" . $payload["password"] . "123");
         $user->save();
 
         if( $user->hasErrors() == false )
