@@ -55,8 +55,7 @@ class LoginController extends \yii\rest\Controller
             'user.time_last_login AS last_login',
             'roles.id AS id_roles',
             'roles.name AS nama_roles'
-            ]
-            )
+          ])
             ->from('user')
             ->join(
               'INNER JOIN',
@@ -67,7 +66,8 @@ class LoginController extends \yii\rest\Controller
               'INNER JOIN',
               'roles',
               'roles.id =user_roles.id_roles'
-            );
+            )
+            ->LIMIT(1);
           $command = $query->createCommand();
           $data = $command->queryAll();
 

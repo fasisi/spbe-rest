@@ -211,6 +211,58 @@ class UserController extends \yii\rest\Controller
 
   }
 
+  public function actionSavelastlogin()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if( isset($payload["id"]) == true )
+    {
+      $user = User::findOne($payload["id"]);
+
+      if( is_null($user) == false )
+      {
+        $user["time_last_login"]    = date("Y-m-d H:i:s", time());
+        $user["is_login"]           = 1;
+        $user->save();
+
+        if( $user->hasErrors() == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record updated",
+            "result" => $user,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Fail on update record",
+            "result" => $user->getErrors(),
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter not found: id",
+      ];
+    }
+
+  }
+
 
   public function actionDelete()
   {
