@@ -48,31 +48,6 @@ class LoginController extends \yii\rest\Controller
             ])
             ->one();
 
-<<<<<<< HEAD
-          if( is_null($test) == false )
-          {
-            $test = User::find()
-              ->where([
-                "username" => $payload["username"],
-                "password" => $payload["password"],
-              ])
-              ->one();
-
-            if( is_null($test) == false )
-            {
-              $status = "ok";
-              $pesan = "valid";
-              $result = $test;
-            }
-            else
-            {
-              $status = "not ok";
-              $pesan = "invalid";
-            }
-          }
-          else
-          {
-=======
           $query = new Query;
           $query->select([
             'user.id AS id_user',
@@ -101,7 +76,6 @@ class LoginController extends \yii\rest\Controller
             $pesan = "valid";
             $result = $data;
           } else {
->>>>>>> tes_api
             $status = "not ok";
             $pesan = "invalid";
             $result = "empty";
@@ -112,27 +86,12 @@ class LoginController extends \yii\rest\Controller
           $result = "empty";
         }
 
-<<<<<<< HEAD
-        return array(
-          "status" => $status,
-          "pesan" => $pesan,
-          "result" => $result,
-        );
-      }
-      else
-      {
-        return array(
-          "status" => "not ok",
-          "pesan" => "Wrong method.",
-        );
-=======
 
         // kembalikan result dalam format JSON
       } else {
         $status = "not ok";
         $pesan = "Required parameters not found: username, password";
         $result = "empty";
->>>>>>> tes_api
       }
 
       return array(
