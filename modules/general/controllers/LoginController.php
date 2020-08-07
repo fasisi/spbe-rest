@@ -44,7 +44,7 @@ class LoginController extends \yii\rest\Controller
             $test = User::find()
               ->where([
                 "username" => $payload["username"],
-                "password" => hash("sha512", "123" . $payload["password"] . "123"),
+                "password" => $payload["password"],
               ])
               ->one();
 
