@@ -11,6 +11,7 @@ class UserController extends \yii\rest\Controller
 {
   public function behaviors()
   {
+    date_default_timezone_set("Asia/Jakarta");
     $behaviors = parent::behaviors();
     $behaviors['verbs'] = [
       'class' => \yii\filters\VerbFilter::className(),
