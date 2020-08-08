@@ -1,3 +1,3 @@
 let l:bm_file_version = 1
-let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\general\controllers\UserController.php': [{'sign_idx': 9500, 'line_nr': 62, 'content': '    $new = new User();'},{'sign_idx': 9501, 'line_nr': 70, 'content': '    $new["nip"]             = $payload["nip"];'},],}}
+let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\config\web.php': [{'sign_idx': 9510, 'line_nr': 59, 'content': '        ''restconf'' => $restconf,'},],'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\kms\controllers\ArticleController.php': [{'sign_idx': 9507, 'line_nr': 113, 'content': '          ''body'' => Json::encode($request_payload),'},{'sign_idx': 9508, 'line_nr': 37, 'content': '  //    "judul": "",'},{'sign_idx': 9509, 'line_nr': 90, 'content': '            ''value'' => $payload[''body''],'},],}}
 let l:bm_current_session = 'default'
