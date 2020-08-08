@@ -1,3 +1,3 @@
 let l:bm_file_version = 1
-let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\general\controllers\UserController.php': [{'sign_idx': 9500, 'line_nr': 62, 'content': '    $new["nama"]            = $payload["nama"];'},{'sign_idx': 9501, 'line_nr': 70, 'content': '    $new->save();'},],}}
+let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\config\web.php': [{'sign_idx': 9512, 'line_nr': 59, 'content': '        ''restconf'' => $restconf,'},],'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\kms\controllers\ArticleController.php': [{'sign_idx': 9508, 'line_nr': 38, 'content': '  //    "judul": "",'},{'sign_idx': 9511, 'line_nr': 135, 'content': '          $artikel = new KmsArtikel();'},{'sign_idx': 9509, 'line_nr': 91, 'content': '            ''value'' => $payload[''body''],'},],}}
 let l:bm_current_session = 'default'

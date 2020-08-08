@@ -2,6 +2,7 @@
 
 $params = require __DIR__ . '/params.php';
 $db = require __DIR__ . '/db.php';
+$restconf = require __DIR__ . '/restconf.php';
 
 $config = [
     'id' => 'basic',
@@ -55,6 +56,7 @@ $config = [
             ],
         ],
         
+        'restconf' => $restconf,
     ],
     'params' => $params,
 ];
