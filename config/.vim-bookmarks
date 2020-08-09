@@ -1,3 +1,0 @@
-let l:bm_file_version = 1
-let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\config\web.php': [{'sign_idx': 9512, 'line_nr': 59, 'content': '        ''restconf'' => $restconf,'},],'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\kms\controllers\ArticleController.php': [{'sign_idx': 9511, 'line_nr': 143, 'content': ' '},{'sign_idx': 9513, 'line_nr': 8, 'content': ' '},],}}
-let l:bm_current_session = 'default'
