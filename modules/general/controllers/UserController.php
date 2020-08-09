@@ -6,6 +6,7 @@ use Yii;
 use yii\helpers\Json;
 
 use app\models\User;
+use yii\db\Query;
 
 class UserController extends \yii\rest\Controller
 {
@@ -20,6 +21,7 @@ class UserController extends \yii\rest\Controller
         'retrieve'  => ['GET'],
         'update'    => ['PUT'],
         'delete'    => ['DELETE'],
+        'getdata'   => ['GET']
       ]
     ];
     return $behaviors;
@@ -265,5 +267,71 @@ class UserController extends \yii\rest\Controller
       ];
     }
   }
+
+  public function actionGetdata()
+  {
+
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    $query = new Query;
+    $query->select([
+      'user.id AS id_user',
+      'user.nama AS nama_user',
+      'user.jenis_kelamin AS jk',
+      'user.nip AS nip',
+      'departments.name AS nama_departments',
+      'roles.name AS nama_roles'
+      ]
+      )
+      ->from('user')
+      ->join(
+        'INNER JOIN',
+        'user_roles',
+        'user_roles.id_user =user.id'
+      )
+      ->join(
+        'INNER JOIN',
+        'departments',
+        'user.id_departments =departments.id'
+      )
+      ->join(
+        'INNER JOIN',
+        'roles',
+        'roles.id =user_roles.id_roles'
+      );
+    $command = $query->createCommand();
+    $record = $command->queryAll();
+
+    if( !empty($record) )
+    {
+      return [
+        "status" => "ok",
+        "pesan" => "Record found",
+        "result" => $record,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record not found",
+        "result" => "empty"
+      ];
+    }
+  }
+
+  //  Mengambil record User
+  //
+  //  Request type: JSON
+  //  Request format:
+  //  Response type: JSON,
+  //  Response format:
+  //  {
+  //    "status": "",
+  //    "pesan": "",
+  //    "result": "",
+  //  }
 
 }
