@@ -34,6 +34,26 @@ class ArticleController extends \yii\rest\Controller
     return $behaviors;
   }
 
+  private function GetPayload()
+  {
+
+    // pastikan request parameter lengkap
+    $payload = Yii::$app->request->rawBody;
+
+    try
+    {
+      return Json::decode($payload);
+    }
+    catch(yii\base\InvalidArgumentException $e)
+    {
+      return [
+        "status"=> "not ok",
+        "pesan"=> "Failed on JSON parsing",
+        "payload" => $payload
+      ];
+    }
+  }
+
   private function ActivityLog($id_artikel, $id_user, $type_action)
   {
     $log = new KmsArtikelActivityLog();
@@ -75,8 +95,7 @@ class ArticleController extends \yii\rest\Controller
     $tags_valid = true;
 
     // pastikan request parameter lengkap
-    $payload = Yii::$app->request->rawBody;
-    $payload = Json::decode($payload);
+    $payload = $this->GetPayload();
 
     if( isset($payload["judul"]) == false )
       $judul_valid = false;
@@ -234,7 +253,7 @@ class ArticleController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil object berdasarkan filter yang dapat disetup secara dinamis.
+   *  Mengambil kms_artikel_activity_log berdasarkan filter yang dapat disetup secara dinamis.
    *
    *  Method: GET
    *  Request type: JSON
@@ -263,23 +282,10 @@ class ArticleController extends \yii\rest\Controller
    *  }
    * */
 
-  public function actionItemsbyfilter()
+  public function actionLogsbyfilter()
   {
     // pastikan request parameter lengkap
-    $payload = Yii::$app->request->rawBody;
-
-    try
-    {
-      $payload = Json::decode($payload);
-    }
-    catch(yii\base\InvalidArgumentException $e)
-    {
-      return [
-        "status"=> "not ok",
-        "pesan"=> "Failed on JSON parsing",
-        "payload" => $payload
-      ];
-    }
+    $payload = $this->GetPayload();
 
     $q = new Query();
 
@@ -356,6 +362,177 @@ class ArticleController extends \yii\rest\Controller
       "pesan" => "...",
       "result" => $hasil
     ];
+  }
+
+  /*
+   *  Mengambil daftar artikel berdasarkan idkategori, page_no, items_per_page.
+   *  Hasil yang dikembalikan diurutkan desc berdasarkan waktu publish.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_kategori": [1, 2, ...],
+   *    "page_no": 123,
+   *    "items_per_page": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/nor ok",
+   *    "pesan": "",
+   *    "result": 
+   *    {
+   *      "page_no": 123,
+   *      "items_per_page": 123,
+   *      "count": 123,
+   *      "records": 
+   *      [
+   *        {
+   *          "kms_artikel": 
+   *          {
+   *            <object dari record kms_artikel>
+   *          },
+   *          "confluence": 
+   *          {
+   *            <object dari record Confluence>
+   *          }
+   *        },
+   *        ...
+   *      ]
+   *    }
+   *  }
+    * */
+  public function actionItems()
+  {
+    $payload = $this->GetPayload();
+
+    //  cek parameter
+    $is_kategori_valid = isset($payload["id_kategori"]);
+    $is_page_no_valid = isset($payload["page_no"]);
+    $is_items_per_page_valid = isset($payload["items_per_page"]);
+
+    $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
+    $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
+    $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
+
+    if(
+        $is_kategori_valid == true &&
+        $is_page_no_valid == true &&
+        $is_items_per_page_valid == true
+      )
+    {
+      //  lakukan query dari tabel kms_artikel
+      $test = KmsArtikel::find()
+        ->where([
+          "and",
+          "is_delete = 0",
+          "is_publish = 0",
+          ["in", "id_kategori", $payload["id_kategori"]]
+        ])
+        ->orderBy("time_create desc")
+        ->all();
+      $total_rows = count($test);
+
+      $list_artikel = KmsArtikel::find()
+        ->where([
+          "and",
+          "is_delete = 0",
+          "is_publish = 0",
+          ["in", "id_kategori", $payload["id_kategori"]]
+        ])
+        ->orderBy("time_create desc")
+        ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
+        ->limit( $payload["items_per_page"] )
+        ->all();
+
+      //  lakukan query dari Confluence
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+      Yii::info("base_url = $base_url");
+      $client = new \GuzzleHttp\Client([
+        'base_uri' => $base_url
+      ]);
+
+      $hasil = [];
+      foreach($list_artikel as $artikel)
+      {
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$artikel["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"], 
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        //  kembalikan hasilnya
+        switch( $res->getStatusCode() )
+        {
+          case 200:
+            // ambil id dari result
+            $response_payload = $res->getBody();
+            $response_payload = Json::decode($response_payload);
+
+            $temp = [];
+            $temp["kms_artikel"] = $artikel;
+            $temp["confluence"]["status"] = "ok";
+            $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+            $temp["confluence"]["judul"] = $response_payload["title"];
+            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+            $hasil[] = $temp;
+            break;
+
+          default:
+            // kembalikan response
+            $temp = [];
+            $temp["kms_artikel"] = $artikel;
+            $temp["confluence"]["status"] = "not ok";
+            $temp["confluence"]["judul"] = $response_payload["title"];
+            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+            $hasil[] = $temp;
+            break;
+        }
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Query finished",
+        "result" =>
+        [
+          "total_rows" => $total_rows,
+          "page_no" => $payload["page_no"],
+          "items_per_page" => $payload["items_per_page"],
+          "count" => count($list_artikel),
+          "records" => $hasil
+        ]
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak valid.",
+      ];
+    }
+
   }
 
 
