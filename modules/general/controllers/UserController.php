@@ -174,9 +174,8 @@ class UserController extends \yii\rest\Controller
       {
         $user["nama"]           = $payload["nama"];
         $user["username"]       = $payload["username"];
-        $user["password"]       = $payload["password"];
         $user["id_departments"] = $payload["id_departments"];
-        $user["jenis_kelamin"]  = $payload["jenis_kelamis"];
+        $user["jenis_kelamin"]  = $payload["jenis_kelamin"];
         $user->save();
 
         if( $user->hasErrors() == false )
