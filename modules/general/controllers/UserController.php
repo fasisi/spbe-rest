@@ -6,6 +6,7 @@ use Yii;
 use yii\helpers\Json;
 
 use app\models\User;
+use app\models\UserRoles;
 use yii\db\Query;
 
 class UserController extends \yii\rest\Controller
@@ -72,6 +73,15 @@ class UserController extends \yii\rest\Controller
     $new["id_user_create"]  = $payload["id_user_create"];
     $new["nip"]             = $payload["nip"];
     $new->save();
+
+    // Mencari record terakhir
+    $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
+
+    // Insert record ke table user_roles
+    $user_roles = new UserRoles();
+    $user_roles['id_user'] = $last_record['id'];
+    $user_roles['id_roles'] = $payload["roles"];
+    $user_roles->save();
 
     if( $new->hasErrors() == false )
     {
