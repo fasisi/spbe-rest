@@ -73,4 +73,10 @@ class User extends \yii\db\ActiveRecord
             'nip' => 'Nip',
         ];
     }
+
+
+    public function getRoles()
+    {
+      return $this->hasMany(UserRoles::className(), ["id_user" => "id"]);
+    }
 }

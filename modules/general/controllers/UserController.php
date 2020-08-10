@@ -128,10 +128,16 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
+        $roles = $record->getRoles();
+
         return [
           "status" => "ok",
           "pesan" => "Record found",
-          "result" => $record,
+          "result" => 
+          [
+            "record" => $record,
+            "roles" => $roles
+          ]
         ];
       }
       else
@@ -190,10 +196,25 @@ class UserController extends \yii\rest\Controller
 
         if( $user->hasErrors() == false )
         {
+          UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+          foreach($payload["id_roles"] as $id_role)
+          {
+            $new = new UserRoles();
+            $new["id_user"] = $payload["id"];
+            $new["id_role"] = $id_role;
+            $new->save();€ý,€ý,
+          }
+
+          $roles = $record->getRoles();
+
           return [
             "status" => "ok",
             "pesan" => "Record updated",
-            "result" => $user,
+            "result" => 
+            [
+              "record" => $user,
+              "roles" => $roles
+            ]
           ];
         }
         else
