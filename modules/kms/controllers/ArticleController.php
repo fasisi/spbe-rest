@@ -23,9 +23,9 @@ class ArticleController extends \yii\rest\Controller
         'delete'            => ['DELETE'],
         'list'              => ['GET'],
 
-        'items'             => ['GET'],
+        'item, items'       => ['GET'],
         'attachments'       => ['POST'],
-        'itemsbytags'       => ['GET'],
+        'logsbytags'        => ['GET'],
         'categoriesbytags'  => ['GET'],
         'itemtag'           => ['POST'],
         'itemsbyfilter'     => ['GET'],
@@ -535,5 +535,131 @@ class ArticleController extends \yii\rest\Controller
 
   }
 
+  /*
+   *  Mengambil record artikel berdasarkan id_artikel
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_artikel": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/nor ok",
+   *    "pesan": "",
+   *    "result": 
+   *    {
+   *      "record": 
+   *      {
+   *        "kms_artikel": 
+   *        {
+   *          <object dari record kms_artikel>
+   *        },
+   *        "confluence": 
+   *        {
+   *          <object dari record Confluence>
+   *        }
+   *      }
+   *    }
+   *  }
+    * */
+  public function actionItem()
+  {
+    $payload = $this->GetPayload();
+
+    //  cek parameter
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+
+    if(
+        $is_id_artikel_valid == true
+      )
+    {
+      //  lakukan query dari tabel kms_artikel
+      $artikel = KmsArtikel::find()
+        ->where([
+            "and",
+            "id = :id_artikel",
+          ],
+          [
+            ":id_artikel" => $payload["id_artikel"]
+          ]
+        )
+        ->one();
+
+      //  lakukan query dari Confluence
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+      Yii::info("base_url = $base_url");
+      $client = new \GuzzleHttp\Client([
+        'base_uri' => $base_url
+      ]);
+
+      $hasil = [];
+      $res = $client->request(
+        'GET',
+        "/rest/api/content/{$artikel["linked_id_content"]}",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"], 
+            $jira_conf["password"]
+          ],
+          'query' => [
+            'spaceKey' => 'PS',
+            'expand' => 'history,body.view'
+          ],
+        ]
+      );
+
+      //  kembalikan hasilnya
+      switch( $res->getStatusCode() )
+      {
+      case 200:
+        // ambil id dari result
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $hasil = [];
+        $hasil["kms_artikel"] = $artikel;
+        $hasil["confluence"]["status"] = "ok";
+        $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
+        $hasil["confluence"]["judul"] = $response_payload["title"];
+        $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        break;
+
+      default:
+        // kembalikan response
+        $hasil = [];
+        $hasil["kms_artikel"] = $artikel;
+        $hasil["confluence"]["status"] = "not ok";
+        $hasil["confluence"]["judul"] = $response_payload["title"];
+        $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        break;
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Query finished",
+        "result" => $hasil
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak valid.",
+      ];
+    }
+
+  }
 
 }
