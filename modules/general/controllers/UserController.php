@@ -284,34 +284,103 @@ class UserController extends \yii\rest\Controller
     Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
-    $query = new Query;
-    $query->select([
-      'user.id AS id_user',
-      'user.nama AS nama_user',
-      'user.jenis_kelamin AS jk',
-      'user.is_deleted AS is_deleted',
-      'user.is_banned AS is_banned',
-      'user.nip AS nip',
-      'departments.name AS nama_departments',
-      'roles.name AS nama_roles'
-      ]
-      )
-      ->from('user')
-      ->join(
-        'INNER JOIN',
-        'user_roles',
-        'user_roles.id_user =user.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'departments',
-        'user.id_departments =departments.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'roles',
-        'roles.id =user_roles.id_roles'
-      );
+    if($payload['params'] == 0) {
+      $query = new Query;
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'roles.name AS nama_roles'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        );
+    } else if($payload['params'] == 1) {
+      $query = new Query;
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'roles.name AS nama_roles'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where([
+          "is_banned" => 1,
+        ])
+        ;
+    } else if($payload['params'] == 2) {
+      $query = new Query;
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'roles.name AS nama_roles'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where([
+          "is_deleted" => 1,
+        ])
+        ;
+    }
+    
     $command = $query->createCommand();
     $record = $command->queryAll();
 
