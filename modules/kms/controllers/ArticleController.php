@@ -33,6 +33,7 @@ class ArticleController extends \yii\rest\Controller
         'itemtag'               => ['POST'],
         'itemsbyfilter'         => ['GET'],
         'artikeluserstatus'     => ['POST'],
+        'itemkategori'          => ['PUT'],
       ]
     ];
     return $behaviors;
