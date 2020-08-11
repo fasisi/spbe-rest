@@ -6,6 +6,7 @@ use Yii;
 use yii\helpers\Json;
 
 use app\models\User;
+use app\models\UserRoles;
 use yii\db\Query;
 
 class UserController extends \yii\rest\Controller
@@ -73,6 +74,15 @@ class UserController extends \yii\rest\Controller
     $new["nip"]             = $payload["nip"];
     $new->save();
 
+    // Mencari record terakhir
+    $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
+
+    // Insert record ke table user_roles
+    $user_roles = new UserRoles();
+    $user_roles['id_user'] = $last_record['id'];
+    $user_roles['id_roles'] = $payload["roles"];
+    $user_roles->save();
+
     if( $new->hasErrors() == false )
     {
       return array(
@@ -118,10 +128,16 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
+        $roles = $record->getRoles();
+
         return [
           "status" => "ok",
           "pesan" => "Record found",
-          "result" => $record,
+          "result" => 
+          [
+            "record" => $record,
+            "roles" => $roles
+          ]
         ];
       }
       else
@@ -174,17 +190,31 @@ class UserController extends \yii\rest\Controller
       {
         $user["nama"]           = $payload["nama"];
         $user["username"]       = $payload["username"];
-        $user["password"]       = $payload["password"];
         $user["id_departments"] = $payload["id_departments"];
-        $user["jenis_kelamin"]  = $payload["jenis_kelamis"];
+        $user["jenis_kelamin"]  = $payload["jenis_kelamin"];
         $user->save();
 
         if( $user->hasErrors() == false )
         {
+          UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+          foreach($payload["id_roles"] as $id_role)
+          {
+            $new = new UserRoles();
+            $new["id_user"] = $payload["id"];
+            $new["id_role"] = $id_role;
+            $new->save();€ı,€ı,
+          }
+
+          $roles = $record->getRoles();
+
           return [
             "status" => "ok",
             "pesan" => "Record updated",
-            "result" => $user,
+            "result" => 
+            [
+              "record" => $user,
+              "roles" => $roles
+            ]
           ];
         }
         else
@@ -280,6 +310,8 @@ class UserController extends \yii\rest\Controller
       'user.id AS id_user',
       'user.nama AS nama_user',
       'user.jenis_kelamin AS jk',
+      'user.is_deleted AS is_deleted',
+      'user.is_banned AS is_banned',
       'user.nip AS nip',
       'departments.name AS nama_departments',
       'roles.name AS nama_roles'
@@ -333,5 +365,156 @@ class UserController extends \yii\rest\Controller
   //    "pesan": "",
   //    "result": "",
   //  }
+
+  public function actionUpdatepassword()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if( isset($payload["id"]) == true )
+    {
+      $user = User::findOne($payload["id"]);
+
+      if( is_null($user) == false )
+      {
+        $user["password"]           = $payload["password"];
+        $user->save();
+
+        if( $user->hasErrors() == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record updated",
+            "result" => $user,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Fail on update record",
+            "result" => $user->getErrors(),
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter not found: id",
+      ];
+    }
+
+  }
+
+  public function actionBanned()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if( isset($payload["id"]) == true )
+    {
+      $user = User::findOne($payload["id"]);
+
+      if( is_null($user) == false )
+      {
+        $user["is_banned"]       = 1;
+        $user->save();
+
+        if( $user->hasErrors() == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record deleted",
+            "result" => $user,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Fail on delete record",
+            "result" => $user->getErrors(),
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter not found: id",
+      ];
+    }
+  }
+
+  public function actionUnbanned()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if( isset($payload["id"]) == true )
+    {
+      $user = User::findOne($payload["id"]);
+
+      if( is_null($user) == false )
+      {
+        $user["is_banned"]       = 0;
+        $user->save();
+
+        if( $user->hasErrors() == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record deleted",
+            "result" => $user,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Fail on delete record",
+            "result" => $user->getErrors(),
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter not found: id",
+      ];
+    }
+  }
 
 }
