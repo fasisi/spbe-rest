@@ -79,12 +79,19 @@ class UserController extends \yii\rest\Controller
     // Mencari record terakhir
     $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
 
-    // Insert record ke table user_roles
-    $user_roles = new UserRoles();
-    $user_roles['id_user'] = $last_record['id'];
-    $user_roles['id_roles'] = $payload["roles"];
-    $user_roles->save();
-
+    if($last_record->hasErrors() == false)
+    {
+      foreach($payload["roles"] as $id_role) 
+      {
+        // Insert record ke table user_roles
+        $user_roles = new UserRoles();
+        $user_roles['id_user'] = $last_record['id'];
+        $user_roles['id_roles'] = $id_role;
+        $user_roles->save();
+        
+      }
+    }
+   
     if( $new->hasErrors() == false )
     {
       return array(
@@ -324,7 +331,7 @@ class UserController extends \yii\rest\Controller
       'user.is_banned AS is_banned',
       'user.nip AS nip',
       'departments.name AS nama_departments',
-      'roles.name AS nama_roles'
+      'GROUP_CONCAT(roles.name) AS nama_roles'
       ]
       )
       ->from('user')
@@ -342,6 +349,9 @@ class UserController extends \yii\rest\Controller
         'INNER JOIN',
         'roles',
         'roles.id =user_roles.id_roles'
+      )
+      ->groupBy(
+        'id_user'
       );
     $command = $query->createCommand();
     $record = $command->queryAll();
