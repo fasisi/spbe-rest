@@ -797,4 +797,31 @@ class ArticleController extends \yii\rest\Controller
 
   }
 
+  /*
+   *  Mengganti id_kategori atas suatu artikel. Kemudian penyimpan jejak perubahan
+   *  ke dalam tabel kms_artikel_log
+   *
+   *  Method: PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_artikel": 123,
+   *    "id_kategori": 123,
+   *    "id_user": 123
+   *  }
+   *  Response type: JSON,
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    {
+   *      <object record artikel>
+   *    }
+   *  }
+    * */
+  public function actionItemkategori()
+  {
+  }
+
 }
