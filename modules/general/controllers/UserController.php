@@ -7,6 +7,8 @@ use yii\helpers\Json;
 
 use app\models\User;
 use app\models\UserRoles;
+use app\models\Roles;
+
 use yii\db\Query;
 
 class UserController extends \yii\rest\Controller
