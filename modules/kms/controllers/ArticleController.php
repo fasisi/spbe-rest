@@ -8,6 +8,8 @@ use yii\db\Query;
 
 use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
+use app\models\KmsArtikelUserStatus;
+use app\models\User;
 
 class ArticleController extends \yii\rest\Controller
 {
@@ -17,18 +19,19 @@ class ArticleController extends \yii\rest\Controller
     $behaviors['verbs'] = [
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
-        'create'            => ['POST'],
-        'retrieve'          => ['GET'],
-        'update'            => ['PUT'],
-        'delete'            => ['DELETE'],
-        'list'              => ['GET'],
+        'create'                => ['POST'],
+        'retrieve'              => ['GET'],
+        'update'                => ['PUT'],
+        'delete'                => ['DELETE'],
+        'list'                  => ['GET'],
 
-        'item, items'       => ['GET'],
-        'attachments'       => ['POST'],
-        'logsbytags'        => ['GET'],
-        'categoriesbytags'  => ['GET'],
-        'itemtag'           => ['POST'],
-        'itemsbyfilter'     => ['GET'],
+        'item, items'           => ['GET'],
+        'attachments'           => ['POST'],
+        'logsbytags'            => ['GET'],
+        'categoriesbytags'      => ['GET'],
+        'itemtag'               => ['POST'],
+        'itemsbyfilter'         => ['GET'],
+        'artikeluserstatus'     => ['POST'],
       ]
     ];
     return $behaviors;
@@ -68,7 +71,7 @@ class ArticleController extends \yii\rest\Controller
   //
   //  Method : POST
   //  Request type: JSON
-  //  Request format: 
+  //  Request format:
   //  {
   //    "judul": "",
   //    "body": "",
@@ -109,7 +112,7 @@ class ArticleController extends \yii\rest\Controller
     if( isset($payload["tags"]) == false )
       $tags_valid = false;
 
-    if( $judul_valid == true && $body_valid == true && 
+    if( $judul_valid == true && $body_valid == true &&
         $kategori_valid == true && $tags_valid == true )
     {
       // panggil POST /rest/api/content
@@ -150,7 +153,7 @@ class ArticleController extends \yii\rest\Controller
               "accept" => "application/json",
             ],
             'auth' => [
-              $jira_conf["user"], 
+              $jira_conf["user"],
               $jira_conf["password"]
             ],
             'query' => [
@@ -239,7 +242,7 @@ class ArticleController extends \yii\rest\Controller
   //  }
   public function actionDelete()
   {
-    // 
+    //
   }
 
   public function actionRetrieve()
@@ -274,7 +277,7 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "status": "ok",
    *    "pesan" : "",
-   *    "result" : 
+   *    "result" :
    *    {
    *      "count": 123,
    *      "records": []
@@ -381,19 +384,19 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "status": "ok/nor ok",
    *    "pesan": "",
-   *    "result": 
+   *    "result":
    *    {
    *      "page_no": 123,
    *      "items_per_page": 123,
    *      "count": 123,
-   *      "records": 
+   *      "records":
    *      [
    *        {
-   *          "kms_artikel": 
+   *          "kms_artikel":
    *          {
    *            <object dari record kms_artikel>
    *          },
-   *          "confluence": 
+   *          "confluence":
    *          {
    *            <object dari record Confluence>
    *          }
@@ -470,7 +473,7 @@ class ArticleController extends \yii\rest\Controller
               "accept" => "application/json",
             ],
             'auth' => [
-              $jira_conf["user"], 
+              $jira_conf["user"],
               $jira_conf["password"]
             ],
             'query' => [
@@ -549,15 +552,15 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "status": "ok/nor ok",
    *    "pesan": "",
-   *    "result": 
+   *    "result":
    *    {
-   *      "record": 
+   *      "record":
    *      {
-   *        "kms_artikel": 
+   *        "kms_artikel":
    *        {
    *          <object dari record kms_artikel>
    *        },
-   *        "confluence": 
+   *        "confluence":
    *        {
    *          <object dari record Confluence>
    *        }
@@ -609,7 +612,7 @@ class ArticleController extends \yii\rest\Controller
             "accept" => "application/json",
           ],
           'auth' => [
-            $jira_conf["user"], 
+            $jira_conf["user"],
             $jira_conf["password"]
           ],
           'query' => [
@@ -660,6 +663,165 @@ class ArticleController extends \yii\rest\Controller
       ];
     }
 
+  }
+
+  /*
+   *  Menyimpan status antara user dan artikel. Apakah si user menyatakan like,
+   *  dislike terhadap suatu artikel. Informasi disimpan pada tabel kms_artikel_user_status
+   *
+   *  Method: PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_artikel": 123,
+   *    "id_user": 123,
+   *    "status": 0/1/2,
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "",
+   *    "result":
+   *    {
+   *      <object record kms_artikel_user_status>
+   *    }
+   *  }
+    * */
+  public function actionArtikeluserstatus()
+  {
+    $payload = $this->GetPayload();
+
+    // cek apakah parameter lengkap
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_status_valid = isset($payload["status"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_id_user_valid == true &&
+        $is_status_valid == true
+      )
+    {
+      // memastikan id_artikel dan id_user valid
+      $test = KmsArtikel::findOne($payload["id_artikel"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Artikel's record not found",
+        ];
+      }
+
+      $test = User::findOne($payload["id_user"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "User's record not found",
+        ];
+      }
+
+      if( $payload["status"] != 1 && $payload["status"] != 2 && $payload["status"] != 3 )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Status value is not valid.",
+        ];
+      }
+
+      // cek record kms_artikel_user_status. insert/update record
+      $test = KmsArtikelUserStatus::find()
+        ->where(
+          [
+            "and",
+            "id_artikel = :idartikel",
+            "id_user = :iduser"
+          ],
+          [
+            ":idartikel" => $payload["id_artikel"],
+            ":iduser" => $payload["id_user"],
+          ]
+        )
+        ->one();
+
+      if( is_null($test) == true )
+      {
+        $test = new KmsArtikelUserStatus();
+      }
+
+      if( $test["status"] != $payload["status"] )
+      {
+        //  Aktifitas akan direkam jika mengakibatkan perubahan status pada
+        //  artikel.
+
+        $test["id_artikel"] = $payload["id_artikel"];
+        $test["id_user"] = $payload["id_user"];
+        $test["status"] = $payload["status"];
+        $test->save();
+
+        //  simpan history pada tabel kms_artikel_activity_log
+        $log = new KmsArtikelActivityLog();
+        $log["id_artikel"] = $payload["id_artikel"];
+        $log["id_user"] = $payload["id_user"];
+        $log["type_action"] = $payload["status"];
+        $log["time_action"] = date("Y-m-j H:i:s");
+        $log->save();
+
+        // kembalikan response
+        return [
+          "status" => "ok",
+          "pesan" => "Status saved. Log saved.",
+          "result" => $test
+        ];
+      }
+      else
+      {
+        // kembalikan response
+        return [
+          "status" => "ok",
+          "pesan" => "Repeated action. Status not saved.",
+          "result" => $test
+        ];
+      }
+    }
+    else
+    {
+      // kembalikan response
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_artikel, id_user, status",
+      ];
+    }
+
+
+  }
+
+  /*
+   *  Mengganti id_kategori atas suatu artikel. Kemudian penyimpan jejak perubahan
+   *  ke dalam tabel kms_artikel_log
+   *
+   *  Method: PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_artikel": 123,
+   *    "id_kategori": 123,
+   *    "id_user": 123
+   *  }
+   *  Response type: JSON,
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    {
+   *      <object record artikel>
+   *    }
+   *  }
+    * */
+  public function actionItemkategori()
+  {
   }
 
 }

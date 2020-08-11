@@ -7,6 +7,8 @@ use yii\helpers\Json;
 
 use app\models\User;
 use app\models\UserRoles;
+use app\models\Roles;
+
 use yii\db\Query;
 
 class UserController extends \yii\rest\Controller
@@ -128,10 +130,16 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
+        $roles = $record->getRoles()->all();
+
         return [
           "status" => "ok",
           "pesan" => "Record found",
-          "result" => $record,
+          "result" => 
+          [
+            "record" => $record,
+            "roles" => $roles
+          ]
         ];
       }
       else
@@ -162,6 +170,7 @@ class UserController extends \yii\rest\Controller
   //    username: ...,
   //    id_departments: ...,
   //    jenis_kelamin: ...,
+  //    id_roles: [1,2,...]
   //  }
   //  Response type: JSON,
   //  Response format:
@@ -190,10 +199,32 @@ class UserController extends \yii\rest\Controller
 
         if( $user->hasErrors() == false )
         {
+          UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+          foreach($payload["id_roles"] as $id_role)
+          {
+            //periksa validitas id_role
+            $test = Roles::findOne($id_role);
+
+            if( is_null($test) == false )
+            {
+              $new = new UserRoles();
+              $new["id_user"] = $payload["id"];
+              $new["id_roles"] = $id_role;
+              $new["id_system"] = null;
+              $new->save();
+            }
+          }
+
+          $roles = $user->getRoles()->all();
+
           return [
             "status" => "ok",
             "pesan" => "Record updated",
-            "result" => $user,
+            "result" => 
+            [
+              "record" => $user,
+              "roles" => $roles
+            ]
           ];
         }
         else
