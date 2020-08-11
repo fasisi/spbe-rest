@@ -1,3 +1,3 @@
 let l:bm_file_version = 1
-let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\kms\controllers\ArticleController.php': [{'sign_idx': 9500, 'line_nr': 87, 'content': '      ];'},],}}
+let l:bm_sessions = {'default': {'D:\frans\projects\php\citrus\citrusbgr_baru\application\controllers\kasir.php': [{'sign_idx': 9507, 'line_nr': 540, 'content': '				  //bukan nomor bon / barcode / kode artikel / kode bon'},],'D:\utilities\Vim\vim82\vimrc': [{'sign_idx': 9503, 'line_nr': 70, 'content': '" settingan Fuzzy Finder'},],}}
 let l:bm_current_session = 'default'
