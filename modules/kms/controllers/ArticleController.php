@@ -10,6 +10,7 @@ use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
 use app\models\KmsArtikelUserStatus;
 use app\models\User;
+use app\models\KmsKategori;
 
 class ArticleController extends \yii\rest\Controller
 {
@@ -822,6 +823,77 @@ class ArticleController extends \yii\rest\Controller
     * */
   public function actionItemkategori()
   {
+    $payload = $this->GetPayload();
+
+    // cek apakah parameter lengkap
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_id_user_valid == true &&
+        $is_id_kategori_valid == true
+      )
+    {
+      // memastikan id_artikel, id_kategori dan id_user valid
+      $test = KmsArtikel::findOne($payload["id_artikel"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Artikel's record not found",
+        ];
+      }
+
+      $test = KmsKategori::findOne($payload["id_kategori"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Kategori's record not found",
+        ];
+      }
+
+      $test = User::findOne($payload["id_user"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "User's record not found",
+        ];
+      }
+
+      // update kms_artikel
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+      $artikel["id_kategori"] = $payload["id_kategori"];
+      $artikel->save();
+
+      //  simpan history pada tabel kms_artikel_activity_log
+      /* $log = new KmsArtikelActivityLog(); */
+      /* $log["id_artikel"] = $payload["id_artikel"]; */
+      /* $log["id_user"] = $payload["id_user"]; */
+      /* $log["type_action"] = $payload["status"]; */
+      /* $log["time_action"] = date("Y-m-j H:i:s"); */
+      /* $log->save(); */
+
+      return [
+        "status" => "ok",
+        "pesan" => "id_kategori artikel sudah disimpan",
+        "result" => $artikel
+      ];
+    }
+    else
+    {
+      // kembalikan response
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_artikel, id_kategori, id_user",
+      ];
+    }
+
+
+
   }
 
 }
