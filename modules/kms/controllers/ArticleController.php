@@ -822,6 +822,113 @@ class ArticleController extends \yii\rest\Controller
     * */
   public function actionItemkategori()
   {
+    $payload = $this->GetPayload();
+
+    // cek apakah parameter lengkap
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_id_user_valid == true &&
+        $is_id_kategori_valid == true
+      )
+    {
+      // memastikan id_artikel, id_kategori dan id_user valid
+      $test = KmsArtikel::findOne($payload["id_artikel"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Artikel's record not found",
+        ];
+      }
+
+      $test = Kategori::findOne($payload["id_kategori"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Kategori's record not found",
+        ];
+      }
+
+      $test = User::findOne($payload["id_user"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "User's record not found",
+        ];
+      }
+
+      // cek record kms_artikel_user_status. insert/update record
+      $test = KmsArtikelUserStatus::find()
+        ->where(
+          [
+            "and",
+            "id_artikel = :idartikel",
+            "id_user = :iduser"
+          ],
+          [
+            ":idartikel" => $payload["id_artikel"],
+            ":iduser" => $payload["id_user"],
+          ]
+        )
+        ->one();
+
+      if( is_null($test) == true )
+      {
+        $test = new KmsArtikelUserStatus();
+      }
+
+      if( $test["status"] != $payload["status"] )
+      {
+        //  Aktifitas akan direkam jika mengakibatkan perubahan status pada
+        //  artikel.
+
+        $test["id_artikel"] = $payload["id_artikel"];
+        $test["id_user"] = $payload["id_user"];
+        $test["status"] = $payload["status"];
+        $test->save();
+
+        //  simpan history pada tabel kms_artikel_activity_log
+        $log = new KmsArtikelActivityLog();
+        $log["id_artikel"] = $payload["id_artikel"];
+        $log["id_user"] = $payload["id_user"];
+        $log["type_action"] = $payload["status"];
+        $log["time_action"] = date("Y-m-j H:i:s");
+        $log->save();
+
+        // kembalikan response
+        return [
+          "status" => "ok",
+          "pesan" => "Status saved. Log saved.",
+          "result" => $test
+        ];
+      }
+      else
+      {
+        // kembalikan response
+        return [
+          "status" => "ok",
+          "pesan" => "Repeated action. Status not saved.",
+          "result" => $test
+        ];
+      }
+    }
+    else
+    {
+      // kembalikan response
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_artikel, id_user, status",
+      ];
+    }
+
+
+
   }
 
 }
