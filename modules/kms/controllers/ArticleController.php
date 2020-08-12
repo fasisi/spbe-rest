@@ -462,6 +462,7 @@ class ArticleController extends \yii\rest\Controller
       $hasil = [];
       foreach($list_artikel as $artikel)
       {
+        $user = User::findOne($artikel["id_user_create"]);
 
         $res = $client->request(
           'GET',
@@ -495,6 +496,7 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -507,6 +509,7 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
@@ -593,6 +596,8 @@ class ArticleController extends \yii\rest\Controller
         )
         ->one();
 
+      $user = User::findOne($artikel["id_user_create"]);
+
       //  lakukan query dari Confluence
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
@@ -634,6 +639,7 @@ class ArticleController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["user_create"] = $user;
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
@@ -644,6 +650,7 @@ class ArticleController extends \yii\rest\Controller
         // kembalikan response
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["user_create"] = $user;
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
