@@ -496,11 +496,12 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
-            $hasil["user_create"] = $user;
+            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
@@ -513,6 +514,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
