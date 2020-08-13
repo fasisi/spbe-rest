@@ -34,6 +34,7 @@ class ArticleController extends \yii\rest\Controller
         'itemsbyfilter'         => ['GET'],
         'artikeluserstatus'     => ['POST'],
         'itemkategori'          => ['PUT'],
+        'search'                => ['GET'],
       ]
     ];
     return $behaviors;
@@ -901,6 +902,175 @@ class ArticleController extends \yii\rest\Controller
     }
 
 
+
+  }
+
+  /*
+   *  Mencari artikel berdasarkan daftar id_kategori dan keywords. Search keywords
+   *  yang diterima akan dipisah-pisah berdasarkan penggalan kata dan akan dilakukan
+   *  pencarian menggunakan operator '~'.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format :
+   *  {
+   *    "search_keyword": "abc abc abc",
+   *    "id_kategori": [1, 2, ...],
+   *    "start": 123,
+   *    "limit": 123
+   *  }
+   *  Response type: JSON,
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    [
+   *      <object_record_artikel>
+   *    ]
+   *  }
+    * */
+  public function actionSearch()
+  {
+    $payload = $this->GetPayload();
+
+    $is_keyword_valid = isset($payload["search_keyword"]);
+    $is_start_valid = is_numeric($payload["start"]);
+    $is_limit_valid = is_numeric($payload["limit"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["id_kategori"]);
+
+    if(
+        $is_keyword_valid == true &&
+        $is_id_kategori_valid == true
+      )
+    {
+      // pecah keyword berdasarkan kata
+      $daftar_keyword = explode(" ", $payload["search_keyword"]);
+      $keywords = "";
+      foreach($daftar_keyword as $keyword)
+      {
+        if($keywords != "")
+        {
+          $keywords .= " OR ";
+        }
+
+        $keywords .= "(text ~ $keyword)";
+      }
+      $keywords = "($keywords)";
+
+      //ambil daftar linked_id_content berdasarkan array id_kategori
+      $daftar_artikel = KmsArtikel::find()
+        ->where(
+          [
+            "id_kategori" => $payload["id_kategori"],
+            "is_delete" => 0,
+            "is_publish" => 0
+          ]
+        )
+        ->all();
+
+      $daftar_id = "";
+      foreach($daftar_artikel as $artikel)
+      {
+        if($daftar_id != "")
+        {
+          $daftar_id .= ", ";
+        }
+
+        $daftar_id .= $artikel["linked_id_content"];
+      }
+      $daftar_id = "ID IN ($daftar_id)";
+
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+      $client = new \GuzzleHttp\Client([
+        'base_uri' => $base_url
+      ]);
+
+      $res = $client->request(
+        'GET',
+        "/rest/api/content/search",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"],
+            $jira_conf["password"]
+          ],
+          'query' => [
+            'cql' => "$keywords AND $daftar_id",
+            'expand' => 'body.view',
+            'start' => $payload["start"],
+            'limit' => $payload["limit"],
+          ],
+        ]
+      );
+
+      switch( $res->getStatusCode() )
+      {
+      case 200:
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $hasil = array();
+        foreach($response_payload["results"] as $item)
+        {
+          $temp = array();
+          $temp["confluence"]["id"] = $item["id"];
+          $temp["confluence"]["judul"] = $item["title"];
+          $temp["confluence"]["konten"] = $item["body"]["view"]["value"];
+
+          $artikel = KmsArtikel::find()
+            ->where(
+              [
+                "linked_id_content" => $item["id"]
+              ]
+            )
+            ->one();
+          $user = User::findOne($artikel["id_user_create"]);
+          $temp["kms_artikel"]["id"] = $artikel["id"];
+          $temp["kms_artikel"]["user_creator"] = $user;
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "status" => "not ok",
+          "pesan" => "Search berhasil",
+          "cql" => "$keywords AND $daftar_id",
+          "start" => $response_payload["start"],
+          "limit" => $response_payload["limit"],
+          "count" => $response_payload["size"],
+          "result" => $hasil
+        ];
+        break;
+
+      default:
+        // kembalikan response
+        return [
+          'status' => 'not ok',
+          "cql" => "$keywords AND $daftar_id",
+          'pesan' => 'REST API request failed: ' . $res->getBody(),
+          'result' => $artikel
+        ];
+        break;
+      }
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak valid. search_keyword (string), id_kategori (array)",
+        "payload" => Json::encode($payload)
+      ];
+    }
 
   }
 
