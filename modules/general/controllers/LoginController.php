@@ -65,7 +65,8 @@ class LoginController extends \yii\rest\Controller
               'roles.id AS id_roles',
               'roles.name AS nama_roles',
               'is_deleted AS is_deleted',
-              'is_banned AS is_banned'
+              'is_banned AS is_banned',
+              'is_login AS is_login',
               ]
               )
               ->from('user')
