@@ -1009,7 +1009,7 @@ class ArticleController extends \yii\rest\Controller
           'query' => [
             'cql' => "$keywords AND $daftar_id",
             'expand' => 'body.view',
-            'start' => $payload["start"],
+            'start' => ($payload["start"] - 1),
             'limit' => $payload["limit"],
           ],
         ]
