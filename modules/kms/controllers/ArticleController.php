@@ -735,7 +735,7 @@ class ArticleController extends \yii\rest\Controller
         ];
       }
 
-      if( $payload["status"] != 1 && $payload["status"] != 2 && $payload["status"] != 3 )
+      if( $payload["status"] != 0 && $payload["status"] != 1 && $payload["status"] != 2 )
       {
         return [
           "status"=> "not ok",
