@@ -1044,7 +1044,7 @@ class ArticleController extends \yii\rest\Controller
         }
 
         return [
-          "status" => "not ok",
+          "status" => "ok",
           "pesan" => "Search berhasil",
           "cql" => "$keywords AND $daftar_id",
           "start" => $response_payload["start"],
