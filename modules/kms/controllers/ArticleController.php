@@ -9,6 +9,8 @@ use yii\db\Query;
 use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
 use app\models\KmsArtikelUserStatus;
+use app\models\KmsArtikelTag;
+use app\models\KmsTags;
 use app\models\User;
 use app\models\KmsKategori;
 
@@ -81,7 +83,7 @@ class ArticleController extends \yii\rest\Controller
   //    "body": "",
   //    "id_kategori": "",
   //    "tags": [
-  //      id1, id2, ...
+  //      "tag1", "tag2", ...
   //    ],
   //    "": "",
   //  }
@@ -187,7 +189,43 @@ class ArticleController extends \yii\rest\Controller
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
 
-            $this->ActivityLog($id_artikel, 123, 1);
+
+            // menyimpan informasi tags
+            foreach( $payload["tags"] as $tag )
+            {
+              // cek apakah tag sudah ada di dalam tabel
+              $test = KmsTags::find()
+                ->where(
+                  "nama = :nama",
+                  [
+                    ":nama" => $tag
+                  ]
+                )
+                ->one();
+
+              // jika belum ada, insert new record
+              $id_tag = 0;
+              if( is_null($test) == false )
+              {
+                $id_tag = $test["id"];
+              }
+              else
+              {
+                $new = new KmsTags();
+                $new["nama"] = $tag;
+                $new["status"] = 0;
+                $new["id_user_create"] = 123;
+                $new["time_create"] = date("Y-m-j H:i:s");
+                $new->save();
+
+                $id_tag = $new->primaryKey;
+              }
+
+              // relate id_artikel dengan id_tag
+              // kirim tag ke Confluence
+            }
+
+            //$this->ActivityLog($id_artikel, 123, 1);
 
             // kembalikan response
             return [
