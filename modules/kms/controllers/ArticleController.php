@@ -503,6 +503,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
@@ -515,6 +516,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
@@ -1042,7 +1044,7 @@ class ArticleController extends \yii\rest\Controller
         }
 
         return [
-          "status" => "not ok",
+          "status" => "ok",
           "pesan" => "Search berhasil",
           "cql" => "$keywords AND $daftar_id",
           "start" => $response_payload["start"],
