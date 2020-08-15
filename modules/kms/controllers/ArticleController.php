@@ -1112,7 +1112,7 @@ class ArticleController extends \yii\rest\Controller
     else
     {
       return [
-        "status": "not ok",
+        "status" => "not ok",
         "pesan" => "Status gagal tersimpan",
         "result" => $artikel
       ];
