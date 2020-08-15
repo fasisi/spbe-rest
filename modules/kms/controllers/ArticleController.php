@@ -10,6 +10,7 @@ use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
 use app\models\KmsArtikelUserStatus;
 use app\models\User;
+use app\models\KmsKategori;
 
 class ArticleController extends \yii\rest\Controller
 {
@@ -32,6 +33,9 @@ class ArticleController extends \yii\rest\Controller
         'itemtag'               => ['POST'],
         'itemsbyfilter'         => ['GET'],
         'artikeluserstatus'     => ['POST'],
+        'itemkategori'          => ['PUT'],
+        'search'                => ['GET'],
+        'status'                => ['PUT'],
       ]
     ];
     return $behaviors;
@@ -460,6 +464,7 @@ class ArticleController extends \yii\rest\Controller
       $hasil = [];
       foreach($list_artikel as $artikel)
       {
+        $user = User::findOne($artikel["id_user_create"]);
 
         $res = $client->request(
           'GET',
@@ -493,10 +498,12 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
@@ -505,9 +512,11 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
             break;
@@ -591,6 +600,8 @@ class ArticleController extends \yii\rest\Controller
         )
         ->one();
 
+      $user = User::findOne($artikel["id_user_create"]);
+
       //  lakukan query dari Confluence
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
@@ -632,6 +643,7 @@ class ArticleController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["user_create"] = $user;
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
@@ -642,6 +654,7 @@ class ArticleController extends \yii\rest\Controller
         // kembalikan response
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["user_create"] = $user;
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
@@ -722,7 +735,7 @@ class ArticleController extends \yii\rest\Controller
         ];
       }
 
-      if( $payload["status"] != 1 && $payload["status"] != 2 && $payload["status"] != 3 )
+      if( $payload["status"] != 0 && $payload["status"] != 1 && $payload["status"] != 2 )
       {
         return [
           "status"=> "not ok",
@@ -822,6 +835,294 @@ class ArticleController extends \yii\rest\Controller
     * */
   public function actionItemkategori()
   {
+    $payload = $this->GetPayload();
+
+    // cek apakah parameter lengkap
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_id_user_valid == true &&
+        $is_id_kategori_valid == true
+      )
+    {
+      // memastikan id_artikel, id_kategori dan id_user valid
+      $test = KmsArtikel::findOne($payload["id_artikel"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Artikel's record not found",
+        ];
+      }
+
+      $test = KmsKategori::findOne($payload["id_kategori"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "Kategori's record not found",
+        ];
+      }
+
+      $test = User::findOne($payload["id_user"]);
+      if( is_null($test) == true )
+      {
+        return [
+          "status"=> "not ok",
+          "pesan"=> "User's record not found",
+        ];
+      }
+
+      // update kms_artikel
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+      $artikel["id_kategori"] = $payload["id_kategori"];
+      $artikel->save();
+
+      //  simpan history pada tabel kms_artikel_activity_log
+      /* $log = new KmsArtikelActivityLog(); */
+      /* $log["id_artikel"] = $payload["id_artikel"]; */
+      /* $log["id_user"] = $payload["id_user"]; */
+      /* $log["type_action"] = $payload["status"]; */
+      /* $log["time_action"] = date("Y-m-j H:i:s"); */
+      /* $log->save(); */
+
+      return [
+        "status" => "ok",
+        "pesan" => "id_kategori artikel sudah disimpan",
+        "result" => $artikel
+      ];
+    }
+    else
+    {
+      // kembalikan response
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_artikel, id_kategori, id_user",
+      ];
+    }
+
+
+
+  }
+
+  /*
+   *  Mencari artikel berdasarkan daftar id_kategori dan keywords. Search keywords
+   *  yang diterima akan dipisah-pisah berdasarkan penggalan kata dan akan dilakukan
+   *  pencarian menggunakan operator '~'.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format :
+   *  {
+   *    "search_keyword": "abc abc abc",
+   *    "id_kategori": [1, 2, ...],
+   *    "page_no": 123,
+   *    "items_per_page": 123
+   *  }
+   *  Response type: JSON,
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    [
+   *      <object_record_artikel>
+   *    ]
+   *  }
+    * */
+  public function actionSearch()
+  {
+    $payload = $this->GetPayload();
+
+    $is_keyword_valid = isset($payload["search_keyword"]);
+    $is_start_valid = is_numeric($payload["page_no"]);
+    $is_limit_valid = is_numeric($payload["items_per_page"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["id_kategori"]);
+
+    if(
+        $is_keyword_valid == true &&
+        $is_id_kategori_valid == true
+      )
+    {
+      // pecah keyword berdasarkan kata
+      $daftar_keyword = explode(" ", $payload["search_keyword"]);
+      $keywords = "";
+      foreach($daftar_keyword as $keyword)
+      {
+        if($keywords != "")
+        {
+          $keywords .= " OR ";
+        }
+
+        $keywords .= "(text ~ $keyword)";
+      }
+      $keywords = "($keywords)";
+
+      //ambil daftar linked_id_content berdasarkan array id_kategori
+      $daftar_artikel = KmsArtikel::find()
+        ->where(
+          [
+            "id_kategori" => $payload["id_kategori"],
+            "is_delete" => 0,
+            "is_publish" => 0
+          ]
+        )
+        ->all();
+
+      $daftar_id = "";
+      foreach($daftar_artikel as $artikel)
+      {
+        if($daftar_id != "")
+        {
+          $daftar_id .= ", ";
+        }
+
+        $daftar_id .= $artikel["linked_id_content"];
+      }
+      $daftar_id = "ID IN ($daftar_id)";
+
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+      $client = new \GuzzleHttp\Client([
+        'base_uri' => $base_url
+      ]);
+
+      $res = $client->request(
+        'GET',
+        "/rest/api/content/search",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"],
+            $jira_conf["password"]
+          ],
+          'query' => [
+            'cql' => "$keywords AND $daftar_id",
+            'expand' => 'body.view',
+            'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
+            'limit' => $payload["items_per_page"],
+          ],
+        ]
+      );
+
+      switch( $res->getStatusCode() )
+      {
+      case 200:
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $hasil = array();
+        foreach($response_payload["results"] as $item)
+        {
+          $temp = array();
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_content"] = $item["id"];
+          $temp["confluence"]["judul"] = $item["title"];
+          $temp["confluence"]["konten"] = $item["body"]["view"]["value"];
+
+          $artikel = KmsArtikel::find()
+            ->where(
+              [
+                "linked_id_content" => $item["id"]
+              ]
+            )
+            ->one();
+          $user = User::findOne($artikel["id_user_create"]);
+          $temp["kms_artikel"] = $artikel;
+          $temp["data_user"]["user_create"] = $user->nama;
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "status" => "ok",
+          "pesan" => "Search berhasil",
+          "cql" => "$keywords AND $daftar_id",
+          "result" => 
+          [
+            "total_rows" => $response_payload["size"],
+            "page_no" => $payload["page_no"],
+            "Items_per_page" => $payload["items_per_page"],
+            "records" => $hasil
+          ]
+        ];
+        break;
+
+      default:
+        // kembalikan response
+        return [
+          'status' => 'not ok',
+          "cql" => "$keywords AND $daftar_id",
+          'pesan' => 'REST API request failed: ' . $res->getBody(),
+          'result' => $artikel
+        ];
+        break;
+      }
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak valid. search_keyword (string), id_kategori (array)",
+        "payload" => Json::encode($payload)
+      ];
+    }
+
+  }
+
+  /*
+   *  Mengubah status suatu artikel.
+   *  Status artikel:
+   *  1 = new
+   *  2 = publish
+   *  3 = freeze / hold
+   *  4 = un-publish
+    * */
+  public function actionStatus()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_artikel_valid = $is_id_artikel_valid && is_numeric($payload["id_artikel"]);
+    $is_status_valid = isset($payload["status"]);
+    $is_status_valid = $is_status_valid && is_numeric($payload["status"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_status_valid == true
+      )
+    {
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+      $artikel["status"] = $payload["status"];
+      $artikel->save();
+
+      return [
+        "status" => "ok",
+        "pesan" => "Status tersimpan",
+        "result" => $artikel
+      ];
+
+      // tulis log artikel
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Status gagal tersimpan",
+        "result" => $artikel
+      ];
+    }
   }
 
 }
