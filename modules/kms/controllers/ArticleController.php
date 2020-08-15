@@ -35,6 +35,7 @@ class ArticleController extends \yii\rest\Controller
         'artikeluserstatus'     => ['POST'],
         'itemkategori'          => ['PUT'],
         'search'                => ['GET'],
+        'status'                => ['PUT'],
       ]
     ];
     return $behaviors;
@@ -1074,6 +1075,50 @@ class ArticleController extends \yii\rest\Controller
       ];
     }
 
+  }
+
+  /*
+   *  Mengubah status suatu artikel.
+   *  Status artikel:
+   *  1 = new
+   *  2 = publish
+   *  3 = freeze / hold
+   *  4 = un-publish
+    * */
+  public function actionStatus()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_artikel_valid = $is_id_artikel_valid && is_numeric($payload["id_artikel"]);
+    $is_status_valid = isset($payload["status"]);
+    $is_status_valid = $is_status_valid && is_numeric($payload["status"]);
+
+    if(
+        $is_id_artikel_valid == true &&
+        $is_status_valid == true
+      )
+    {
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+      $artikel["status"] = $payload["status"];
+      $artikel->save();
+
+      return [
+        "status" => "ok",
+        "pesan" => "Status tersimpan",
+        "result" => $artikel
+      ];
+
+      // tulis log artikel
+    }
+    else
+    {
+      return [
+        "status": "not ok",
+        "pesan" => "Status gagal tersimpan",
+        "result" => $artikel
+      ];
+    }
   }
 
 }

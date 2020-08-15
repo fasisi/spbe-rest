@@ -315,6 +315,9 @@ class UserController extends \yii\rest\Controller
     }
   }
 
+  /*
+   *  Mengambil daftar user
+    * */
   public function actionGetdata()
   {
 
