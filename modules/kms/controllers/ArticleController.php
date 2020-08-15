@@ -919,8 +919,8 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "search_keyword": "abc abc abc",
    *    "id_kategori": [1, 2, ...],
-   *    "start": 123,
-   *    "limit": 123
+   *    "page_no": 123,
+   *    "items_per_page": 123
    *  }
    *  Response type: JSON,
    *  Response format:
@@ -938,8 +938,8 @@ class ArticleController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     $is_keyword_valid = isset($payload["search_keyword"]);
-    $is_start_valid = is_numeric($payload["start"]);
-    $is_limit_valid = is_numeric($payload["limit"]);
+    $is_start_valid = is_numeric($payload["page_no"]);
+    $is_limit_valid = is_numeric($payload["items_per_page"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
     $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["id_kategori"]);
 
@@ -1009,8 +1009,8 @@ class ArticleController extends \yii\rest\Controller
           'query' => [
             'cql' => "$keywords AND $daftar_id",
             'expand' => 'body.view',
-            'start' => ($payload["start"] - 1),
-            'limit' => $payload["limit"],
+            'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
+            'limit' => $payload["items_per_page"],
           ],
         ]
       );
@@ -1025,7 +1025,8 @@ class ArticleController extends \yii\rest\Controller
         foreach($response_payload["results"] as $item)
         {
           $temp = array();
-          $temp["confluence"]["id"] = $item["id"];
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_content"] = $item["id"];
           $temp["confluence"]["judul"] = $item["title"];
           $temp["confluence"]["konten"] = $item["body"]["view"]["value"];
 
@@ -1037,8 +1038,8 @@ class ArticleController extends \yii\rest\Controller
             )
             ->one();
           $user = User::findOne($artikel["id_user_create"]);
-          $temp["kms_artikel"]["id"] = $artikel["id"];
-          $temp["kms_artikel"]["user_creator"] = $user;
+          $temp["kms_artikel"] = $artikel;
+          $temp["data_user"]["user_create"] = $user->nama;
 
           $hasil[] = $temp;
         }
@@ -1047,10 +1048,13 @@ class ArticleController extends \yii\rest\Controller
           "status" => "ok",
           "pesan" => "Search berhasil",
           "cql" => "$keywords AND $daftar_id",
-          "start" => $response_payload["start"],
-          "limit" => $response_payload["limit"],
-          "count" => $response_payload["size"],
-          "result" => $hasil
+          "result" => 
+          [
+            "total_rows" => $response_payload["size"],
+            "page_no" => $payload["page_no"],
+            "Items_per_page" => $payload["items_per_page"],
+            "records" => $hasil
+          ]
         ];
         break;
 
