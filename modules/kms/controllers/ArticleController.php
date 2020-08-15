@@ -512,7 +512,7 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
-            $hasil["user_create"] = $user;
+            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
