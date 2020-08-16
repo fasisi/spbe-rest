@@ -38,8 +38,9 @@ class KmsTags extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['linked_id_label', 'status', 'is_delete', 'id_user_create', 'id_user_approval', 'id_user_reject', 'id_user_delete'], 'integer'],
-            [['nama', 'deskripsi', 'id_user_create', 'time_create'], 'required'],
+          [['linked_id_label', 'status', 'is_delete', 'id_user_create', 
+          'id_user_approval', 'id_user_reject', 'id_user_delete'], 'integer'],
+            [['nama', 'id_user_create', 'time_create'], 'required'],
             [['deskripsi'], 'string'],
             [['time_create', 'time_approval', 'time_reject', 'time_delete'], 'safe'],
             [['nama'], 'string', 'max' => 100],
