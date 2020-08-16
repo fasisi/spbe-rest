@@ -92,8 +92,10 @@ class ArticleController extends \yii\rest\Controller
   //  {
   //    "status": "",
   //    "pesan": "",
-  //    "result": {
-  //      record_object
+  //    "result": 
+  //    {
+  //      "artikel": record_object,
+  //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
   public function actionCreate()
@@ -191,6 +193,7 @@ class ArticleController extends \yii\rest\Controller
 
 
             // menyimpan informasi tags
+            $tags = array();
             foreach( $payload["tags"] as $tag )
             {
               // cek apakah tag sudah ada di dalam tabel
@@ -222,16 +225,49 @@ class ArticleController extends \yii\rest\Controller
               }
 
               // relate id_artikel dengan id_tag
-              // kirim tag ke Confluence
-            }
+              $new = new KmsArtikelTag();
+              $new["id_artikel"] = $id_artikel;
+              $new["id_tag"] = $id_tag;
+              $new->save();
+
+              $temp = [];
+              $temp["prefix"] = "golbal";
+              $temp["name"] = $tag;
+              $tags[] = $temp;
+            } // loop tags
+
+            // kirim tag ke Confluence
+            $res = $client->request(
+              'POST',
+              "/rest/api/content/$linked_id_artikel/label",
+              [
+                /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                /* 'debug' => true, */
+                'http_errors' => false,
+                'headers' => [
+                  "Content-Type" => "application/json",
+                  "accept" => "application/json",
+                ],
+                'auth' => [
+                  $jira_conf["user"],
+                  $jira_conf["password"]
+                ],
+                'body' => Json::encode($tags),
+              ]
+            );
 
             //$this->ActivityLog($id_artikel, 123, 1);
 
             // kembalikan response
-            return [
+            return 
+            [
               'status' => 'ok',
               'pesan' => 'Record artikel telah dibikin',
-              'result' => $artikel
+              'result' => 
+              [
+                "artikel" => $artikel,
+                "tags" => $tags
+              ]
             ];
             break;
 
