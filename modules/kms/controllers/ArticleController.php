@@ -256,6 +256,15 @@ class ArticleController extends \yii\rest\Controller
               ]
             );
 
+            $tags = KmsArtikelTag::find()
+              ->where(
+                "id_artikel = :id_artikel",
+                [
+                  ":id_artikel" => $id_artikel
+                ]
+              )
+              ->all();
+
             //$this->ActivityLog($id_artikel, 123, 1);
 
             // kembalikan response
