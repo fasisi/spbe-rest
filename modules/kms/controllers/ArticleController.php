@@ -231,8 +231,8 @@ class ArticleController extends \yii\rest\Controller
               $new->save();
 
               $temp = [];
-              $temp["prefix"] = "golbal";
-              $temp["name"] = $tag;
+              $temp["prefix"] = "global";
+              $temp["name"] = $tag["nama"];
               $tags[] = $temp;
             } // loop tags
 
