@@ -33,7 +33,7 @@ class GeneralController extends \yii\rest\Controller
       ->where(
         "status = 1"
       )
-      ->orderBy("name asc")
+      ->orderBy("nama asc")
       ->all();
 
     return [
