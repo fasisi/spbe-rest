@@ -9,6 +9,8 @@ use yii\db\Query;
 use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
 use app\models\KmsArtikelUserStatus;
+use app\models\KmsArtikelTag;
+use app\models\KmsTags;
 use app\models\User;
 use app\models\KmsKategori;
 
@@ -81,7 +83,7 @@ class ArticleController extends \yii\rest\Controller
   //    "body": "",
   //    "id_kategori": "",
   //    "tags": [
-  //      id1, id2, ...
+  //      "tag1", "tag2", ...
   //    ],
   //    "": "",
   //  }
@@ -90,8 +92,10 @@ class ArticleController extends \yii\rest\Controller
   //  {
   //    "status": "",
   //    "pesan": "",
-  //    "result": {
-  //      record_object
+  //    "result": 
+  //    {
+  //      "artikel": record_object,
+  //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
   public function actionCreate()
@@ -187,13 +191,92 @@ class ArticleController extends \yii\rest\Controller
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
 
-            $this->ActivityLog($id_artikel, 123, 1);
+
+            // menyimpan informasi tags
+            $tags = array();
+            foreach( $payload["tags"] as $tag )
+            {
+              // cek apakah tag sudah ada di dalam tabel
+              $test = KmsTags::find()
+                ->where(
+                  "nama = :nama",
+                  [
+                    ":nama" => $tag
+                  ]
+                )
+                ->one();
+
+              // jika belum ada, insert new record
+              $id_tag = 0;
+              if( is_null($test) == false )
+              {
+                $id_tag = $test["id"];
+              }
+              else
+              {
+                $new = new KmsTags();
+                $new["nama"] = $tag;
+                $new["status"] = 0;
+                $new["id_user_create"] = 123;
+                $new["time_create"] = date("Y-m-j H:i:s");
+                $new->save();
+
+                $id_tag = $new->primaryKey;
+              }
+
+              // relate id_artikel dengan id_tag
+              $new = new KmsArtikelTag();
+              $new["id_artikel"] = $id_artikel;
+              $new["id_tag"] = $id_tag;
+              $new->save();
+
+              $temp = [];
+              $temp["prefix"] = "global";
+              $temp["name"] = $tag["nama"];
+              $tags[] = $temp;
+            } // loop tags
+
+            // kirim tag ke Confluence
+            $res = $client->request(
+              'POST',
+              "/rest/api/content/$linked_id_artikel/label",
+              [
+                /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                /* 'debug' => true, */
+                'http_errors' => false,
+                'headers' => [
+                  "Content-Type" => "application/json",
+                  "accept" => "application/json",
+                ],
+                'auth' => [
+                  $jira_conf["user"],
+                  $jira_conf["password"]
+                ],
+                'body' => Json::encode($tags),
+              ]
+            );
+
+            $tags = KmsArtikelTag::find()
+              ->where(
+                "id_artikel = :id_artikel",
+                [
+                  ":id_artikel" => $id_artikel
+                ]
+              )
+              ->all();
+
+            //$this->ActivityLog($id_artikel, 123, 1);
 
             // kembalikan response
-            return [
+            return 
+            [
               'status' => 'ok',
               'pesan' => 'Record artikel telah dibikin',
-              'result' => $artikel
+              'result' => 
+              [
+                "artikel" => $artikel,
+                "tags" => $tags
+              ]
             ];
             break;
 
