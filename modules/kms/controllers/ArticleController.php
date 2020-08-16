@@ -1327,4 +1327,92 @@ class ArticleController extends \yii\rest\Controller
     }
   }
 
+
+  /*
+   *  Mengambil daftar kategori berdasarkan kesamaan tags yang berasal dari
+   *  kategori selain id_kategori yang dikirim.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_kategori": [123, 124, ...]
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "": "",
+   *    "": "",
+   *    "records" :
+   *    [
+   *      {
+   *        <object_of_record_kategori>
+   *      },
+   *      ...
+   *    ]
+   *  }
+    * */
+  public function actionOthercategories()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["id_kategori"]);
+
+
+    if( $is_id_kategori_valid == true )
+    {
+      // ambil daftar tags yang berasal dari id_kategori
+      $q  = new Query();
+      $temp_daftar_tag = 
+        $q->select("t.*")
+          ->from("kms_tags t")
+          ->join("JOIN", "kms_artikel_tag atag", "atag.id_tag = t.id")
+          ->join("JOIN", "kms_artikel a", "a.id = atag.id_artikel")
+          ->where(["in", "a.id_kategori", $payload["id_kategori"]])
+          ->distinct()
+          ->all();
+
+      $daftar_tag = [];
+      foreach($temp_daftar_tag as $item)
+      {
+        $daftar_tag[] = $item["id"];
+      }
+
+      // mengambil daftar kategori terkait
+      $q = new Query();
+      $hasil = 
+        $q->select("k.*")
+          ->from("kms_kategori k")
+          ->join("JOIN", "kms_artikel a", "a.id_kategori = k.id")
+          ->join("JOIN", "kms_artikel_tag atag", "atag.id_artikel = a.id")
+          ->where(
+            ["in", "atag.id_tag", $daftar_tag]
+          )
+          ->andWhere(
+            ["not", ["in", "a.id_kategori", $payload["id_kategori"]]]
+          )
+          ->distinct()
+          ->orderBy("time_create desc")
+          ->limit(10)
+          ->all();
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "records" => $hasil,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_kategori (array)",
+      ];
+        
+
+    }
+  }
+
 }
