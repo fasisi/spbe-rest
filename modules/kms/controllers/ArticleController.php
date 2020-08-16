@@ -187,7 +187,7 @@ class ArticleController extends \yii\rest\Controller
             $artikel['linked_id_content'] = $linked_id_artikel;
             $artikel['time_create'] = date("Y-m-j H:i:s");
             $artikel['id_user_create'] = 123;
-            $artikel['status'] = 1;
+            $artikel['status'] = 0;
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
 
@@ -1194,10 +1194,18 @@ class ArticleController extends \yii\rest\Controller
         if( is_numeric($id_artikel) )
         {
           $artikel = KmsArtikel::findOne($id_artikel);
-          $artikel["status"] = $payload["status"];
-          $artikel->save();
+          if( is_null($artikel) == false )
+          {
+            $artikel["status"] = $payload["status"];
+            $artikel->save();
 
-          $daftar_sukses[] = $artikel;
+            $daftar_sukses[] = $artikel;
+          }
+          else
+          {
+            $daftar_gagal[] = $id_artikel;
+          }
+
         }
         else
         {
