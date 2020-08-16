@@ -1167,17 +1167,18 @@ class ArticleController extends \yii\rest\Controller
   /*
    *  Mengubah status suatu artikel.
    *  Status artikel:
-   *  1 = new
-   *  2 = publish
-   *  3 = freeze / hold
-   *  4 = un-publish
+   *  0 = new
+   *  1 = publish
+   *  2 = un-publish
+   *  3 = reject
+   *  4 = freeze
     * */
   public function actionStatus()
   {
     $payload = $this->GetPayload();
 
     $is_id_artikel_valid = isset($payload["id_artikel"]);
-    $is_id_artikel_valid = $is_id_artikel_valid && is_numeric($payload["id_artikel"]);
+    $is_id_artikel_valid = $is_id_artikel_valid && is_array($payload["id_artikel"]);
     $is_status_valid = isset($payload["status"]);
     $is_status_valid = $is_status_valid && is_numeric($payload["status"]);
 
@@ -1186,14 +1187,32 @@ class ArticleController extends \yii\rest\Controller
         $is_status_valid == true
       )
     {
-      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
-      $artikel["status"] = $payload["status"];
-      $artikel->save();
+      $daftar_sukses = [];
+      $daftar_gagal = [];
+      foreach($payload["id_artikel"] as $id_artikel)
+      {
+        if( is_numeric($id_artikel) )
+        {
+          $artikel = KmsArtikel::findOne($id_artikel);
+          $artikel["status"] = $payload["status"];
+          $artikel->save();
+
+          $daftar_sukses[] = $artikel;
+        }
+        else
+        {
+          $daftar_gagal[] = $id_artikel;
+        }
+      }
+
 
       return [
         "status" => "ok",
         "pesan" => "Status tersimpan",
-        "result" => $artikel
+        "result" => [
+          "berhasil" => $daftar_sukses,
+          "gagal" => $daftar_gagal
+        ]
       ];
 
       // tulis log artikel
@@ -1202,8 +1221,7 @@ class ArticleController extends \yii\rest\Controller
     {
       return [
         "status" => "not ok",
-        "pesan" => "Status gagal tersimpan",
-        "result" => $artikel
+        "pesan" => "Parameter yang diperlukan tidak ada: id_artikel (array), status",
       ];
     }
   }
