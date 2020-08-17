@@ -662,7 +662,7 @@ class ArticleController extends \yii\rest\Controller
 
       $temp = [];
       $temp["prefix"] = "global";
-      $temp["name"] = $tag["nama"];
+      $temp["name"] = $tag;
       $tags[] = $temp;
     } // loop tags
 
