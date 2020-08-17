@@ -621,7 +621,7 @@ class ArticleController extends \yii\rest\Controller
       return $this->render('update');
   }
 
-  private function UpdateTags($id_artikel, $inked_id_lcontent, $payload, $client, $jira_conf)
+  private function UpdateTags($id_artikel, $linked_id_content, $payload, $client, $jira_conf)
   {
     $tags = array();
     foreach( $payload["tags"] as $tag )
@@ -669,9 +669,9 @@ class ArticleController extends \yii\rest\Controller
     // kirim tag ke Confluence
     $res = $client->request(
       'POST',
-      "/rest/api/content/$linked_id_artikel/label",
+      "/rest/api/content/{$linked_id_content}/label",
       [
-        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        'sink' => Yii::$app->basePath . "/guzzledump.txt",
         /* 'debug' => true, */
         'http_errors' => false,
         'headers' => [
