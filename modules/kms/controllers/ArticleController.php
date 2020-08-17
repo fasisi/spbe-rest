@@ -14,6 +14,8 @@ use app\models\KmsTags;
 use app\models\User;
 use app\models\KmsKategori;
 
+use Carbon\Carbon;
+
 class ArticleController extends \yii\rest\Controller
 {
   public function behaviors()
@@ -61,6 +63,32 @@ class ArticleController extends \yii\rest\Controller
         "payload" => $payload
       ];
     }
+  }
+
+  /*
+   * type_log : 1 = status log; 2 = action log
+    * */
+  private function ArtikelLog($id_artikel, $id_user, $type_log, $log_value)
+  {
+    $new = new KmsArtikelActivityLog();
+    $new["id_artikel"] = $id_artikel;
+    $new["id_user"] = $id_user;
+    $new["type_log"] = $type_log;
+
+    $type_name = "";
+    switch($type_log)
+    {
+      case 1: //status log
+        $type_name = "status";
+        break;
+      case 2: //status log
+        $type_name = "action";
+        break;
+    }
+
+    $new["{$type_name}"] = $log_value;
+    $new["time_{$type_name}"] = date("Y=m-j H:i:s");
+    $new->save();
   }
 
   private function ActivityLog($id_artikel, $id_user, $type_action)
@@ -266,6 +294,7 @@ class ArticleController extends \yii\rest\Controller
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
+            $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
             return 
@@ -856,13 +885,8 @@ class ArticleController extends \yii\rest\Controller
         $test["status"] = $payload["status"];
         $test->save();
 
-        //  simpan history pada tabel kms_artikel_activity_log
-        $log = new KmsArtikelActivityLog();
-        $log["id_artikel"] = $payload["id_artikel"];
-        $log["id_user"] = $payload["id_user"];
-        $log["type_action"] = $payload["status"];
-        $log["time_action"] = date("Y-m-j H:i:s");
-        $log->save();
+        // tulis log
+        $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 2, $payload["status"]);
 
         // kembalikan response
         return [
@@ -880,6 +904,7 @@ class ArticleController extends \yii\rest\Controller
           "result" => $test
         ];
       }
+
     }
     else
     {
@@ -1172,6 +1197,26 @@ class ArticleController extends \yii\rest\Controller
    *  2 = un-publish
    *  3 = reject
    *  4 = freeze
+   *
+   *  Method: PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_artikel": [123, 124, ...],
+   *    "status": 123,
+   *    "id_user": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result":
+   *    {
+   *      "berhasil": [],
+   *      "gagal": []
+   *    }
+   *  }
     * */
   public function actionStatus()
   {
@@ -1181,10 +1226,13 @@ class ArticleController extends \yii\rest\Controller
     $is_id_artikel_valid = $is_id_artikel_valid && is_array($payload["id_artikel"]);
     $is_status_valid = isset($payload["status"]);
     $is_status_valid = $is_status_valid && is_numeric($payload["status"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_id_user_valid = $is_id_user_valid && is_numeric($payload["id_user"]);
 
     if(
         $is_id_artikel_valid == true &&
-        $is_status_valid == true
+        $is_status_valid == true &&
+        $is_id_user_valid == true
       )
     {
       $daftar_sukses = [];
@@ -1193,19 +1241,44 @@ class ArticleController extends \yii\rest\Controller
       {
         if( is_numeric($id_artikel) )
         {
-          $artikel = KmsArtikel::findOne($id_artikel);
-          if( is_null($artikel) == false )
+          if( is_numeric($payload["id_user"]) )
           {
-            $artikel["status"] = $payload["status"];
-            $artikel->save();
+            //cek validitas id_user
+            $test = User::findOne($payload["id_user"]);
 
-            $daftar_sukses[] = $artikel;
+            if( is_null($test) == false )
+            {
+              $artikel = KmsArtikel::findOne($id_artikel);
+              if( is_null($artikel) == false )
+              {
+                $artikel["status"] = $payload["status"];
+                $artikel->save();
+
+                $daftar_sukses[] = $artikel;
+
+                // tulis log
+                $this->ArtikelLog($id_artikel, $payload["id_user"], 1, $payload["status"]);
+              }
+              else
+              {
+                $daftar_gagal[] = $id_artikel;
+              }
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Tidak dapat menemukan record user dengan id = {$payload["id_user"]}"
+              ];
+            }
           }
           else
           {
-            $daftar_gagal[] = $id_artikel;
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter id_user harus dalam bentuk numeric"
+            ];
           }
-
         }
         else
         {
@@ -1415,4 +1488,342 @@ class ArticleController extends \yii\rest\Controller
     }
   }
 
+  /*
+   *  Mengembalikan jumlah kejadian harian dalam rentang waktu.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "tanggal_awal": "yyyy-mm-dd",
+   *    "tanggal_akhir": "yyyy-mm-dd",
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    [
+   *      {
+   *        "tanggal": "yyyy-mm-dd",
+   *        "new": 123,
+   *        "publish": 123,
+   *        "unpublish": 123,
+   *        "reject": 123,
+   *        "freeze": 123,
+   *        "like": 123,
+   *        "dislike": 123,
+   *        "neutral": 123,
+   *      }, ...
+   *    ]
+   *  }
+   * */
+  public function actionDailystats()
+  {
+    $payload = $this->GetPayload();
+
+    $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
+    $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("y-m-j", $payload["tanggal_awal"]);
+    $tanggal_aakhir = Carbon::createFromFormat("y-m-j", $payload["tanggal_akhir"]);
+
+    if(
+        $is_tanggal_awal_valid == true &&
+        $tanggal_awal != false &&
+        $is_tanggal_akhir_valid == true &&
+        $tanggal_akhir != false
+      )
+    {
+      // ambil data kejadian dari tanggal_awal hingga tanggal_akhir
+
+      $temp_date = Carbon::createFromTimestamp($tanggal_awal->timestamp);
+      $hasil = [];
+      while($temp_date <= $tanggal_akhir)
+      {
+        // ambil jumlah kejadian
+        $q = new Query();
+        $hasil_status = $q->select("log.status, sum(log.id) as jumlah")
+          ->from("kms_artikel_activity_log log")
+          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.status asc")
+          ->all();
+
+        $hasil_action = $q->select("log.action, sum(log.id) as jumlah")
+          ->from("kms_artikel_activity_log log")
+          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.action asc")
+          ->all();
+
+        $temp = [];
+        $temp["tanggal"] = date("Y-m-j", $temp->timestamp);
+
+        foreach($hasil_status as $record)
+        {
+          switch( $record["status"] )
+          {
+            case 0: //new
+              $temp["new"] = $record["jumlah"];
+              break;
+
+            case 1: //publish
+              $temp["publish"] = $record["jumlah"];
+              break;
+
+            case 2: //unpublish
+              $temp["unpublish"] = $record["jumlah"];
+              break;
+
+            case 3: //reject
+              $temp["reject"] = $record["jumlah"];
+              break;
+
+            case 4: //freeze
+              $temp["freeze"] = $record["jumlah"];
+              break;
+          }
+        }
+
+        foreach($hasil_action as $record)
+        {
+          switch( $record["action"] )
+          {
+            case 0: //neutral
+              $temp["neutral"] = $record["jumlah"];
+              break;
+
+            case 1: //like
+              $temp["like"] = $record["jumlah"];
+              break;
+
+            case 2: //dislike
+              $temp["dislike"] = $record["jumlah"];
+              break;
+          }
+        }
+
+        $hasil[] = $temp;
+
+        $temp_date->addDay();
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak valid: tanggal_awal (yyyy-mm-dd), tanggal_akhir (yyyy-mm-dd)",
+      ];
+    }
+
+  }
+
+  /*
+   *  Mengembalikan total jumlah kejadian saat ini.
+   *
+   *  Method: GET
+   *  Request type: 
+   *  Request format:
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    [
+   *      {
+   *        "kategori"; "nama_kategori", 
+   *        "data": 
+   *        {
+   *          "new" :
+   *          {
+   *            "artikel": 123,
+   *            "user": 123
+   *          }, ...
+   *        }
+   *      }, ...
+   *    ]
+   *  }
+   * */
+  public function actionCurrentstats()
+  {
+    $payload = $this->GetPayload();
+
+    $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
+    $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-j", $payload["tanggal_awal"]);
+    $tanggal_aakhir = Carbon::createFromFormat("Y-m-j", $payload["tanggal_akhir"]);
+
+    // ambil data kejadian dari tiap kategori
+    $daftar_kategori = KmsKategori::GetList();
+
+    foreach($daftar_kategori as $kategori)
+    {
+      // ambil jumlah artikel per kejadian (new, publish, .., freeze)
+      $q = new Query();
+      $artikel_status = 
+        $q->select("log.status, sum(a.id) as jumlah")
+          ->from("kms_artikel a")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.status asc")
+          ->all();
+
+      // ambil jumlah artikel per action (like/dislike)
+      $q = new Query();
+      $artikel_action = 
+        $q->select("log.action, sum(a.id) as jumlah")
+          ->from("kms_artikel a")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.action asc")
+          ->all();
+
+      // ambil jumlah user per kejadian (new, publish, .., freeze)
+      $q = new Query();
+      $user_status = 
+        $q->select("log.status, sum(u.id) as jumlah")
+          ->from("user u")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
+          ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.status asc")
+          ->all();
+
+      // ambil jumlah artikel per action (like/dislike)
+      $q = new Query();
+      $user_action = 
+        $q->select("log.action, sum(u.id) as jumlah")
+          ->from("user u")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
+          ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
+          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->distinct()
+          ->orderBy("log.action asc")
+          ->all();
+
+      $temp = [];
+      $indent = "";
+      for($i = 1; $i < $kategori["level"]; $i++)
+      {
+        $indent .= "&nbsp;&nbsp;";
+      }
+      $index_name = $indent . $kategori["nama"];
+
+      foreach($artikel_status as $record)
+      {
+        switch( $record["status"] )
+        {
+          case 0: //new
+            $temp["new"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 1: //publish
+            $temp["publish"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 2: //unpublish
+            $temp["unpublish"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 3: //reject
+            $temp["reject"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 4: //freeze
+            $temp["freeze"]["artikel"] = $record["jumlah"];
+            break;
+        }
+      }
+
+      foreach($artikel_action as $record)
+      {
+        switch( $record["action"] )
+        {
+          case 0: //neutral
+            $temp["neutral"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 1: //like
+            $temp["like"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 2: //dislike
+            $temp["dislike"]["artikel"] = $record["jumlah"];
+            break;
+        }
+      }
+
+      foreach($user_status as $record)
+      {
+        switch( $record["status"] )
+        {
+          case 0: //new
+            $temp["new"]["user"] = $record["jumlah"];
+            break;
+
+          case 1: //publish
+            $temp["publish"]["user"] = $record["jumlah"];
+            break;
+
+          case 2: //unpublish
+            $temp["unpublish"]["user"] = $record["jumlah"];
+            break;
+
+          case 3: //reject
+            $temp["reject"]["user"] = $record["jumlah"];
+            break;
+
+          case 4: //freeze
+            $temp["freeze"]["user"] = $record["jumlah"];
+            break;
+        }
+      }
+
+      foreach($user_action as $record)
+      {
+        switch( $record["action"] )
+        {
+          case 0: //neutral
+            $temp["neutral"]["user"] = $record["jumlah"];
+            break;
+
+          case 1: //like
+            $temp["like"]["user"] = $record["jumlah"];
+            break;
+
+          case 2: //dislike
+            $temp["dislike"]["user"] = $record["jumlah"];
+            break;
+        }
+      }
+
+      $hasil[] = [
+        "kategori" => $index_name,
+        "id" => $kategori["id"],
+        "data" => $temp
+      ];
+    } //loop kategori
+
+    return [
+      "status" => "ok",
+      "pesan" => "Berhasil",
+      "daftar_kategori" => $daftar_kategori,
+      "result" => $hasil,
+    ];
+  }
 }

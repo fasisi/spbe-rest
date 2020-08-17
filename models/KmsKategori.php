@@ -58,4 +58,75 @@ class KmsKategori extends \yii\db\ActiveRecord
             'is_delete' => 'Is Delete',
         ];
     }
+
+    /*
+     *  Mengembalikan daftar kategori mengikuti struktur parent-child.
+     *  [
+     *    [id, nama, level], ...
+     *  ]
+    * */
+  public static function GetList($id_parent = -1, $level = 1)
+  {
+    $hasil = [];
+
+    if( $id_parent == -1 )
+    {
+      $daftar = KmsKategori::find()
+        ->where("id_parent = -1")
+        ->orderBy("nama asc")
+        ->all();
+
+      foreach($daftar as $item)
+      {
+        $temp = [];
+        $temp["id"] = $item["id"];
+        $temp["nama"] = $item["nama"];
+        $temp["level"] = $level;
+        $hasil[] = $temp;
+
+        $children = KmsKategori::find()
+          ->where("id_parent = {$item["id"]}")
+          ->orderBy("nama asc")
+          ->all();
+
+        // apakah punya children??
+        if( count($children) > 0)
+        {
+          foreach($children as $child)
+          {
+            $hasil = array_merge($hasil, KmsKategori::GetList($child["id"], $level + 1));
+          }
+        }
+      }
+    }
+    else
+    {
+      $current = KmsKategori::find()
+        ->where("id = $id_parent")
+        ->orderBy("nama asc")
+        ->one();
+
+      $temp = [];
+      $temp["id"] = $current["id"];
+      $temp["nama"] = $current["nama"];
+      $temp["level"] = $level;
+      $hasil[] = $temp;
+
+      $children = KmsKategori::find()
+        ->where("id_parent = $id_parent")
+        ->orderBy("nama asc")
+        ->all();
+
+      // apakah punya children??
+      if( count($children) > 0)
+      {
+        foreach($children as $child)
+        {
+          $hasil = array_merge($hasil, KmsKategori::GetList($child["id"], $level + 1));
+        }
+      }
+    }
+
+    return $hasil;
+  }
 }
