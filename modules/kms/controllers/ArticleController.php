@@ -621,7 +621,7 @@ class ArticleController extends \yii\rest\Controller
       return $this->render('update');
   }
 
-  private function UpdateTags($id_artikel, $id_linked_content, $payload, $client, $jira_conf)
+  private function UpdateTags($id_artikel, $inked_id_lcontent, $payload, $client, $jira_conf)
   {
     $tags = array();
     foreach( $payload["tags"] as $tag )
