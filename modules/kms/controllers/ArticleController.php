@@ -366,9 +366,325 @@ class ArticleController extends \yii\rest\Controller
       return $this->render('retrieve');
   }
 
+  //  Mengupdate record artikel
+  //
+  //  Method : POST
+  //  Request type: JSON
+  //  Request format:
+  //  {
+  //    "id": 123,
+  //    "judul": "",
+  //    "body": "",
+  //    "id_kategori": "",
+  //    "tags": [
+  //      "tag1", "tag2", ...
+  //    ],
+  //    "": "",
+  //  }
+  //  Response type: JSON
+  //  Response format:
+  //  {
+  //    "status": "",
+  //    "pesan": "",
+  //    "result": 
+  //    {
+  //      "artikel": record_object,
+  //      "tags": [ <record_of_tag>, .. ]
+  //    }
+  //  }
   public function actionUpdate()
   {
+    $id_valid = true;
+    $judul_valid = true;
+    $body_valid = true;
+    $kategori_valid = true;
+    $tags_valid = true;
+
+    // pastikan request parameter lengkap
+    $payload = $this->GetPayload();
+
+    if( isset($payload["id"]) == false )
+      $id_valid = false;
+
+    if( isset($payload["judul"]) == false )
+      $judul_valid = false;
+
+    if( isset($payload["body"]) == false )
+      $body_valid = false;
+
+    if( isset($payload["id_kategori"]) == false )
+      $kategori_valid = false;
+
+    if( isset($payload["tags"]) == false )
+      $tags_valid = false;
+
+    if( 
+        $id_valid == true && $judul_valid == true && $body_valid == true &&
+        $kategori_valid == true && $tags_valid == true 
+      )
+    {
+      // ambil nomor versi bersadarkan id_linked_content
+          $artikel = KmsArtikel::findOne($payload["id"]);
+          
+          $jira_conf = Yii::$app->restconf->confs['confluence'];
+          $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+          Yii::info("base_url = $base_url");
+          $client = new \GuzzleHttp\Client([
+            'base_uri' => $base_url
+          ]);
+
+          $res = null;
+          $res = $client->request(
+            'GET',
+            "/rest/api/content/{$artikel["linked_id_content"]}",
+            [
+              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+              /* 'debug' => true, */
+              'http_errors' => false,
+              'headers' => [
+                "Content-Type" => "application/json",
+                "accept" => "application/json",
+              ],
+              'auth' => [
+                $jira_conf["user"],
+                $jira_conf["password"]
+              ],
+              'query' => [
+                'status' => 'current',
+                'expand' => 'body.view,version',
+              ],
+              'body' => Json::encode($request_payload),
+            ]
+          );
+          $response = Json::decode($res->getBody());
+          $version = $response["version"]["number"] + 1;
+      // ambil nomor versi bersadarkan id_linked_content
+
+      // update content
+      $request_payload = [
+        'version' => [
+          'number' => $version
+        ],
+        'title' => $payload['judul'],
+        'type' => 'page',
+        'space' => [
+          'key' => 'PS',
+        ],
+        'body' => [
+          'storage' => [
+            'value' => $payload['body'],
+            'representation' => 'storage',
+          ],
+        ],
+      ];
+
+
+      $res = null;
+      try
+      {
+        $res = $client->request(
+          'PUT',
+          "/rest/api/content/{$artikel["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'status' => 'current',
+            ],
+            'body' => Json::encode($request_payload),
+          ]
+        );
+
+        switch( $res->getStatusCode() )
+        {
+          case 200:
+            // ambil id dari result
+            $response_payload = $res->getBody();
+            $response_payload = Json::decode($response_payload);
+
+            $linked_id_artikel = $response_payload['id'];
+
+
+            // bikin record kms_artikel
+            $artikel = KmsArtikel::findOne($payload["id"]);
+            $artikel['time_update'] = date("Y-m-j H:i:s");
+            $artikel['id_user_update'] = 123;
+            $artikel->save();
+
+            // mengupdate informasi tags
+
+                //hapus label pada confluence
+                    $q = new Query();
+                    $daftar_tag = 
+                      $q->select("t.*")
+                        ->from("kms_tags t")
+                        ->join("JOIN", "kms_artikel_tag at", "at.id_tag = t.id")
+                        ->join("JOIN", "kms_artikel a", "a.id = at.id_artikel")
+                        ->where("a.id = :id_artikel", [":id_artikel" => $artikel["id"]])
+                        ->all();
+                    foreach($daftar_tag as $tag)
+                    {
+                      //
+                      $res2 = $client->request(
+                        'DELETE',
+                        "/rest/api/content/{$artikel["linked_id_content"]}/label/{$tag["nama"]}",
+                        [
+                          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                          /* 'debug' => true, */
+                          'http_errors' => false,
+                          'headers' => [
+                            "Content-Type" => "application/json",
+                            "accept" => "application/json",
+                          ],
+                          'auth' => [
+                            $jira_conf["user"],
+                            $jira_conf["password"]
+                          ],
+                        ]
+                      );
+                    }
+                //hapus label pada confluence
+
+                //hapus label pada spbe
+                KmsArtikelTag::deleteAll("id_artikel = {$artikel["id"]}");
+
+
+                // refresh tag/label
+                    $this->UpdateTags($artikel["id"], $artikel["linked_id_content"], $payload, $client, $jira_conf);
+                // refresh tag/label
+                     
+            // mengupdate informasi tags
+
+            $tags = KmsArtikelTag::find()
+              ->where(
+                "id_artikel = :id_artikel",
+                [
+                  ":id_artikel" => $artikel["id"]
+                ]
+              )
+              ->all();
+
+            //$this->ActivityLog($id_artikel, 123, 1);
+            //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
+
+            // kembalikan response
+            return 
+            [
+              'status' => 'ok',
+              'pesan' => 'Record artikel telah diupdate',
+              'result' => 
+              [
+                "artikel" => $artikel,
+                "tags" => $tags
+              ]
+            ];
+            break;
+
+          default:
+            // kembalikan response
+            return [
+              'status' => 'not ok',
+              'pesan' => 'REST API request failed: ' . $res->getBody(),
+              'result' => $artikel
+            ];
+            break;
+        }
+      }
+      catch(\GuzzleHttp\Exception\BadResponseException $e)
+      {
+        // kembalikan response
+        return [
+          'status' => 'not ok',
+          'pesan' => 'REST API request failed: ' . $e->getMessage(),
+        ];
+      }
+
+      // update content
+
+    }
+    else
+    {
+      return [
+        'status' => 'not ok',
+        'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tsgs',
+      ];
+    }
       return $this->render('update');
+  }
+
+  private function UpdateTags($id_artikel, $id_linked_content, $payload, $client, $jira_conf)
+  {
+    $tags = array();
+    foreach( $payload["tags"] as $tag )
+    {
+      // cek apakah tag sudah ada di dalam tabel
+      $test = KmsTags::find()
+        ->where(
+          "nama = :nama",
+          [
+            ":nama" => $tag
+          ]
+        )
+        ->one();
+
+      // jika belum ada, insert new record
+      $id_tag = 0;
+      if( is_null($test) == false )
+      {
+        $id_tag = $test["id"];
+      }
+      else
+      {
+        $new = new KmsTags();
+        $new["nama"] = $tag;
+        $new["status"] = 0;
+        $new["id_user_create"] = 123;
+        $new["time_create"] = date("Y-m-j H:i:s");
+        $new->save();
+
+        $id_tag = $new->primaryKey;
+      }
+
+      // relate id_artikel dengan id_tag
+      $new = new KmsArtikelTag();
+      $new["id_artikel"] = $id_artikel;
+      $new["id_tag"] = $id_tag;
+      $new->save();
+
+      $temp = [];
+      $temp["prefix"] = "global";
+      $temp["name"] = $tag["nama"];
+      $tags[] = $temp;
+    } // loop tags
+
+    // kirim tag ke Confluence
+    $res = $client->request(
+      'POST',
+      "/rest/api/content/$linked_id_artikel/label",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+        'body' => Json::encode($tags),
+      ]
+    );
   }
 
   /*
