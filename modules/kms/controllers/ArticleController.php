@@ -1655,7 +1655,7 @@ class ArticleController extends \yii\rest\Controller
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
     $tanggal_awal = Carbon::createFromFormat("Y-m-j", $payload["tanggal_awal"]);
-    $tanggal_aakhir = Carbon::createFromFormat("Y-m-j", $payload["tanggal_akhir"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-j", $payload["tanggal_akhir"]);
 
     // ambil data kejadian dari tiap kategori
     $daftar_kategori = KmsKategori::GetList();
@@ -1665,55 +1665,63 @@ class ArticleController extends \yii\rest\Controller
       // ambil jumlah artikel per kejadian (new, publish, .., freeze)
       $q = new Query();
       $artikel_status = 
-        $q->select("log.status, sum(a.id) as jumlah")
+        $q->select("log.status, count(a.id) as jumlah")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
+          ->groupBy("log.status")
           ->all();
 
       // ambil jumlah artikel per action (like/dislike)
       $q = new Query();
       $artikel_action = 
-        $q->select("log.action, sum(a.id) as jumlah")
+        $q->select("log.action, count(a.id) as jumlah")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("log.type_log = 2")
+          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.action asc")
+          ->groupBy("log.action")
           ->all();
 
       // ambil jumlah user per kejadian (new, publish, .., freeze)
       $q = new Query();
       $user_status = 
-        $q->select("log.status, sum(u.id) as jumlah")
+        $q->select("log.status, count(u.id) as jumlah")
           ->from("user u")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
+          ->groupBy("log.status")
           ->all();
 
       // ambil jumlah artikel per action (like/dislike)
       $q = new Query();
       $user_action = 
-        $q->select("log.action, sum(u.id) as jumlah")
+        $q->select("log.action, count(u.id) as jumlah")
           ->from("user u")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("log.type_log = 2")
+          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.action asc")
+          ->groupBy("log.action")
           ->all();
 
       $temp = [];
