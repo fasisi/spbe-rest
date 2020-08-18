@@ -482,6 +482,7 @@ class ArticleController extends \yii\rest\Controller
       $res = null;
       try
       {
+        // update kontent artikel pada confluence
         $res = $client->request(
           'PUT',
           "/rest/api/content/{$artikel["linked_id_content"]}",
@@ -514,7 +515,7 @@ class ArticleController extends \yii\rest\Controller
             $linked_id_artikel = $response_payload['id'];
 
 
-            // bikin record kms_artikel
+            // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
             $artikel['time_update'] = date("Y-m-j H:i:s");
             $artikel['id_user_update'] = 123;
@@ -523,70 +524,45 @@ class ArticleController extends \yii\rest\Controller
             // mengupdate informasi tags
 
                 //hapus label pada confluence
-                    $q = new Query();
-                    $daftar_tag = 
-                      $q->select("t.*")
-                        ->from("kms_tags t")
-                        ->join("JOIN", "kms_artikel_tag at", "at.id_tag = t.id")
-                        ->join("JOIN", "kms_artikel a", "a.id = at.id_artikel")
-                        ->where("a.id = :id_artikel", [":id_artikel" => $artikel["id"]])
-                        ->all();
-                    foreach($daftar_tag as $tag)
-                    {
-                      //
-                      $res2 = $client->request(
-                        'DELETE',
-                        "/rest/api/content/{$artikel["linked_id_content"]}/label/{$tag["nama"]}",
-                        [
-                          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-                          /* 'debug' => true, */
-                          'http_errors' => false,
-                          'headers' => [
-                            "Content-Type" => "application/json",
-                            "accept" => "application/json",
-                          ],
-                          'auth' => [
-                            $jira_conf["user"],
-                            $jira_conf["password"]
-                          ],
-                        ]
-                      );
-                    }
+                    $this->DeleteTags($client, $jira_conf, $artikel["linked_id_content"]);
                 //hapus label pada confluence
 
                 //hapus label pada spbe
-                KmsArtikelTag::deleteAll("id_artikel = {$artikel["id"]}");
+                    KmsArtikelTag::deleteAll("id_artikel = {$artikel["id"]}");
+                //hapus label pada spbe
 
 
                 // refresh tag/label
-                    $this->UpdateTags($artikel["id"], $artikel["linked_id_content"], $payload, $client, $jira_conf);
+                    $this->UpdateTags($client, $jira_conf, $artikel["id"], $artikel["linked_id_content"], $payload);
                 // refresh tag/label
                      
             // mengupdate informasi tags
 
-            $tags = KmsArtikelTag::find()
-              ->where(
-                "id_artikel = :id_artikel",
-                [
-                  ":id_artikel" => $artikel["id"]
-                ]
-              )
-              ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
             //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
-            return 
-            [
-              'status' => 'ok',
-              'pesan' => 'Record artikel telah diupdate',
-              'result' => 
-              [
-                "artikel" => $artikel,
-                "tags" => $tags
-              ]
-            ];
+                $tags = KmsArtikelTag::find()
+                  ->where(
+                    "id_artikel = :id_artikel",
+                    [
+                      ":id_artikel" => $artikel["id"]
+                    ]
+                  )
+                  ->all();
+
+                return 
+                [
+                  'status' => 'ok',
+                  'pesan' => 'Record artikel telah diupdate',
+                  'result' => 
+                  [
+                    "artikel" => $artikel,
+                    "tags" => $tags
+                  ]
+                ];
+            // kembalikan response
             break;
 
           default:
@@ -621,7 +597,51 @@ class ArticleController extends \yii\rest\Controller
       return $this->render('update');
   }
 
-  private function UpdateTags($id_artikel, $linked_id_content, $payload, $client, $jira_conf)
+
+  private function DeleteTags($client, $jira_conf, $linked_id_artikel)
+  {
+    $res = $client->request(
+      'GET',
+      "/rest/api/content/{$linked_id_content}/label",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+      ]
+    );
+    $res = Json::decode($res->getBody());
+
+    foreach($res["result"] as $object)
+    {
+      $res2 = $client->request(
+        'DELETE',
+        "/rest/api/content/{$linked_id_content}/label/{$object["name"]}",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"],
+            $jira_conf["password"]
+          ],
+        ]
+      );
+    }
+  }
+
+  private function UpdateTags($client, $jira_conf, $id_artikel, $linked_id_content, $payload)
   {
     $tags = array();
     foreach( $payload["tags"] as $tag )
