@@ -132,6 +132,7 @@ class ArticleController extends \yii\rest\Controller
     $body_valid = true;
     $kategori_valid = true;
     $tags_valid = true;
+    $id_user = true;
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
@@ -143,6 +144,9 @@ class ArticleController extends \yii\rest\Controller
       $body_valid = false;
 
     if( isset($payload["id_kategori"]) == false )
+      $kategori_valid = false;
+
+    if( isset($payload["id_user"]) == false )
       $kategori_valid = false;
 
     if( isset($payload["tags"]) == false )
@@ -214,7 +218,8 @@ class ArticleController extends \yii\rest\Controller
             $artikel = new KmsArtikel();
             $artikel['linked_id_content'] = $linked_id_artikel;
             $artikel['time_create'] = date("Y-m-j H:i:s");
-            $artikel['id_user_create'] = 123;
+            $artikel['id_user_create'] = $payload['id_user'];
+            $artikel['id_kategori'] = $payload['id_kategori'];
             $artikel['status'] = 0;
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
