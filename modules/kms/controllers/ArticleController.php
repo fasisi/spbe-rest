@@ -598,13 +598,13 @@ class ArticleController extends \yii\rest\Controller
   }
 
 
-  private function DeleteTags($client, $jira_conf, $linked_id_artikel)
+  private function DeleteTags($client, $jira_conf, $linked_id_content)
   {
     $res = $client->request(
       'GET',
       "/rest/api/content/{$linked_id_content}/label",
       [
-        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        'sink' => Yii::$app->basePath . "/guzzledump1.txt",
         /* 'debug' => true, */
         'http_errors' => false,
         'headers' => [
@@ -619,13 +619,13 @@ class ArticleController extends \yii\rest\Controller
     );
     $res = Json::decode($res->getBody());
 
-    foreach($res["result"] as $object)
+    foreach($res["results"] as $object)
     {
       $res2 = $client->request(
         'DELETE',
         "/rest/api/content/{$linked_id_content}/label/{$object["name"]}",
         [
-          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          'sink' => Yii::$app->basePath . "/guzzledump2.txt",
           /* 'debug' => true, */
           'http_errors' => false,
           'headers' => [
@@ -691,7 +691,7 @@ class ArticleController extends \yii\rest\Controller
       'POST',
       "/rest/api/content/{$linked_id_content}/label",
       [
-        'sink' => Yii::$app->basePath . "/guzzledump.txt",
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
         /* 'debug' => true, */
         'http_errors' => false,
         'headers' => [

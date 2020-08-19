@@ -72,7 +72,7 @@ class KmsKategori extends \yii\db\ActiveRecord
     if( $id_parent == -1 )
     {
       $daftar = KmsKategori::find()
-        ->where("id_parent = -1")
+        ->where("id_parent = -1 and is_delete = 0")
         ->orderBy("nama asc")
         ->all();
 
@@ -80,12 +80,13 @@ class KmsKategori extends \yii\db\ActiveRecord
       {
         $temp = [];
         $temp["id"] = $item["id"];
+        $temp["id_parent"] = $item["id_parent"];
         $temp["nama"] = $item["nama"];
         $temp["level"] = $level;
         $hasil[] = $temp;
 
         $children = KmsKategori::find()
-          ->where("id_parent = {$item["id"]}")
+          ->where("id_parent = {$item["id"]} and is_delete = 0")
           ->orderBy("nama asc")
           ->all();
 
@@ -108,12 +109,13 @@ class KmsKategori extends \yii\db\ActiveRecord
 
       $temp = [];
       $temp["id"] = $current["id"];
+      $temp["id_parent"] = $current["id_parent"];
       $temp["nama"] = $current["nama"];
       $temp["level"] = $level;
       $hasil[] = $temp;
 
       $children = KmsKategori::find()
-        ->where("id_parent = $id_parent")
+        ->where("id_parent = $id_parent and is_delete = 0")
         ->orderBy("nama asc")
         ->all();
 
