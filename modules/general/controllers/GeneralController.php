@@ -13,8 +13,9 @@ class GeneralController extends \yii\rest\Controller
     $behaviors['verbs'] = [
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
-        'gettags'    => ['GET'],
-        'kategori'   => ['POST, GET, PUT, DELETE'],
+        'gettags'        => ['GET'],
+        'kategori'       => ['POST, GET, PUT, DELETE'],
+        'kategorilist'   => ['GET'],
       ]
     ];
     return $behaviors;
@@ -300,6 +301,13 @@ class GeneralController extends \yii\rest\Controller
       }
       break;
     }
+  }
+
+  /*
+   *  Mengembalikan semua record kategori
+    * */
+  public function actionKategorilist()
+  {
   }
 
 }
