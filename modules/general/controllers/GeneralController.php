@@ -2,7 +2,11 @@
 
 namespace app\modules\general\controllers;
 
+use Yii;
+use yii\helpers\Json;
+
 use app\models\KmsTags;
+use app\models\KmsKategori;
 
 class GeneralController extends \yii\rest\Controller
 {
@@ -14,7 +18,7 @@ class GeneralController extends \yii\rest\Controller
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
         'gettags'        => ['GET'],
-        'kategori'       => ['POST, GET, PUT, DELETE'],
+        'kategori'       => ['POST', 'GET', 'PUT', 'DELETE'],
         'kategorilist'   => ['GET'],
       ]
     ];
@@ -148,13 +152,15 @@ class GeneralController extends \yii\rest\Controller
       if(
           $is_nama_valid == true &&
           $is_deskripsi_valid == true &&
-          $id_id_parent_valid == true
+          $is_id_parent_valid == true
         )
       {
-        $new = new Kategori();
+        $new = new KmsKategori();
         $new["id_parent"] = $payload["id_parent"];
         $new["nama"] = $payload["nama"];
         $new["deskripsi"] = $payload["deskripsi"];
+        $new["id_user_create"] = 123;
+        $new["time_create"] = date("Y-m-j H:i:s");
         $new->save();
         $id = $new->primaryKey;
 
@@ -178,18 +184,13 @@ class GeneralController extends \yii\rest\Controller
       $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
 
       if(
-          $id_id_valid == true
+          $is_id_valid == true
         )
       {
-        $record = Kategori::findOne($payload["id"]);
+        $record = KmsKategori::findOne($payload["id"]);
 
         if( is_null($record) == false )
         {
-          $record["id_parent"] = $payload["id_parent"];
-          $record["nama"] = $payload["nama"];
-          $record["deskripsi"] = $payload["deskripsi"];
-          $record->save();
-
           return [
             "status" => "ok",
             "pesan" => "Record Kategori ditemukan",
@@ -225,10 +226,10 @@ class GeneralController extends \yii\rest\Controller
           $is_nama_valid == true &&
           $is_deskripsi_valid == true &&
           $is_id_parent_valid == true &&
-          $id_id_valid == true
+          $is_id_valid == true
         )
       {
-        $record = Kategori::findOne($payload["id"]);
+        $record = KmsKategori::findOne($payload["id"]);
 
         if( is_null($record) == false )
         {
@@ -265,10 +266,10 @@ class GeneralController extends \yii\rest\Controller
       $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
 
       if(
-          $id_id_valid == true
+          $is_id_valid == true
         )
       {
-        $record = Kategori::findOne($payload["id"]);
+        $record = KmsKategori::findOne($payload["id"]);
 
         if( is_null($record) == false )
         {
