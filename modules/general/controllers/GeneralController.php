@@ -305,9 +305,37 @@ class GeneralController extends \yii\rest\Controller
 
   /*
    *  Mengembalikan semua record kategori
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format: 
+   *  {
+   *  },
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/not ok",
+   *    "pesan": "",
+   *    "result": 
+   *    [
+   *      {
+   *        "id": 123,
+   *        "id_parent": 123,
+   *        "status": "abc",
+   *        "level": 123
+   *      }, ...
+   *    ]
+   *  }
     * */
   public function actionKategorilist()
   {
+    $list = KmsKategori::GetList();
+
+    return [
+      "status" => "ok",
+      "pesan" => "Daftar kategori berhasil diambil",
+      "result" => $list,
+    ];
   }
 
 }
