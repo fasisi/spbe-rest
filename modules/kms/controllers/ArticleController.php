@@ -304,7 +304,8 @@ class ArticleController extends \yii\rest\Controller
               'result' => 
               [
                 "artikel" => $artikel,
-                "tags" => $tags
+                "tags" => $tags,
+                "category_path" => KmsKategori::CategoryPath($artikel["id_kategori"]),
               ]
             ];
             break;
@@ -946,6 +947,7 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
@@ -960,6 +962,7 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1091,6 +1094,7 @@ class ArticleController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
@@ -1336,7 +1340,8 @@ class ArticleController extends \yii\rest\Controller
       return [
         "status" => "ok",
         "pesan" => "id_kategori artikel sudah disimpan",
-        "result" => $artikel
+        "result" => $artikel,
+        "category_path" => KmsKategori::CategoryPath($artikel["id_kategori"])
       ];
     }
     else
@@ -1484,6 +1489,7 @@ class ArticleController extends \yii\rest\Controller
           $user = User::findOne($artikel["id_user_create"]);
           $temp["kms_artikel"] = $artikel;
           $temp["data_user"]["user_create"] = $user->nama;
+          $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
 
           $hasil[] = $temp;
         }
@@ -1508,7 +1514,8 @@ class ArticleController extends \yii\rest\Controller
           'status' => 'not ok',
           "cql" => "$keywords AND $daftar_id",
           'pesan' => 'REST API request failed: ' . $res->getBody(),
-          'result' => $artikel
+          'result' => $artikel,
+          'category_path' => KmsKategori::CategoryPath($artikel["id_kategori"])
         ];
         break;
       }
@@ -1703,7 +1710,7 @@ class ArticleController extends \yii\rest\Controller
 
       // mengambil daftar artikel terkait
       $q = new Query();
-      $hasil = 
+      $daftar_artikel = 
         $q->select("a.*")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_tag atag", "atag.id_artikel = a.id")
@@ -1717,6 +1724,54 @@ class ArticleController extends \yii\rest\Controller
           ->orderBy("time_create desc")
           ->limit(10)
           ->all();
+
+      // ambil informasi dari confluence
+      $hasil = [];
+      foreach($daftar_artikel as $record)
+      {
+        $user = User::findOne($record["id_user_create"]);
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$record["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $record;
+        $temp["user_create"] = $user;
+        $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $hasil[] = $temp;
+      }
 
       return [
         "status" => "ok",
