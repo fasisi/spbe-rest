@@ -1703,7 +1703,7 @@ class ArticleController extends \yii\rest\Controller
 
       // mengambil daftar artikel terkait
       $q = new Query();
-      $hasil = 
+      $daftar_artikel = 
         $q->select("a.*")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_tag atag", "atag.id_artikel = a.id")
@@ -1717,6 +1717,53 @@ class ArticleController extends \yii\rest\Controller
           ->orderBy("time_create desc")
           ->limit(10)
           ->all();
+
+      // ambil informasi dari confluence
+      $hasil = [];
+      foreach($daftar_artikel as $record)
+      {
+        $user = User::findOne($record["id_user_create"]);
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$record["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $record;
+        $temp["user_create"] = $user;
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $hasil[] = $temp;
+      }
 
       return [
         "status" => "ok",
