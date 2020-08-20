@@ -133,7 +133,7 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
-        $roles = $record->getRoles();
+        $roles = $record->getRoles()->all();
 
         return [
           "status" => "ok",
@@ -173,6 +173,7 @@ class UserController extends \yii\rest\Controller
   //    username: ...,
   //    id_departments: ...,
   //    jenis_kelamin: ...,
+  //    id_roles: [1,2,...]
   //  }
   //  Response type: JSON,
   //  Response format:
@@ -204,13 +205,20 @@ class UserController extends \yii\rest\Controller
           UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
           foreach($payload["id_roles"] as $id_role)
           {
-            $new = new UserRoles();
-            $new["id_user"] = $payload["id"];
-            $new["id_role"] = $id_role;
-            $new->save();€ý,€ý,
+            //periksa validitas id_role
+            $test = Roles::findOne($id_role);
+
+            if( is_null($test) == false )
+            {
+              $new = new UserRoles();
+              $new["id_user"] = $payload["id"];
+              $new["id_roles"] = $id_role;
+              $new["id_system"] = null;
+              $new->save();
+            }
           }
 
-          $roles = $record->getRoles();
+          $roles = $user->getRoles()->all();
 
           return [
             "status" => "ok",
@@ -322,7 +330,7 @@ class UserController extends \yii\rest\Controller
       'user.is_banned AS is_banned',
       'user.nip AS nip',
       'departments.name AS nama_departments',
-      'roles.name AS nama_roles'
+      'GROUP_CONCAT(roles.name) AS nama_roles'
       ]
       )
       ->from('user')
@@ -340,6 +348,9 @@ class UserController extends \yii\rest\Controller
         'INNER JOIN',
         'roles',
         'roles.id =user_roles.id_roles'
+      )
+      ->groupBy(
+        'id_user'
       );
     $command = $query->createCommand();
     $record = $command->queryAll();
