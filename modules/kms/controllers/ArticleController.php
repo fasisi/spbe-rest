@@ -35,7 +35,7 @@ class ArticleController extends \yii\rest\Controller
         'logsbytags'            => ['GET'],
         'categoriesbytags'      => ['GET'],
         'itemtag'               => ['POST'],
-        'itemsbyfilter'         => ['GET'],
+        'logsbyfilter'          => ['GET'],
         'artikeluserstatus'     => ['POST'],
         'itemkategori'          => ['PUT'],
         'search'                => ['GET'],
@@ -787,7 +787,7 @@ class ArticleController extends \yii\rest\Controller
           {
             $temp[] = $type_action;
           }
-          $where[] = ["in", "l.type_action", $temp];
+          $where[] = ["in", "l.action", $temp];
         break;
 
         case $key == "id_kategori":
@@ -1916,8 +1916,8 @@ class ArticleController extends \yii\rest\Controller
 
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
-    $tanggal_awal = Carbon::createFromFormat("y-m-j", $payload["tanggal_awal"]);
-    $tanggal_aakhir = Carbon::createFromFormat("y-m-j", $payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
 
     if(
         $is_tanggal_awal_valid == true &&
@@ -1934,24 +1934,26 @@ class ArticleController extends \yii\rest\Controller
       {
         // ambil jumlah kejadian
         $q = new Query();
-        $hasil_status = $q->select("log.status, sum(log.id) as jumlah")
+        $hasil_status = $q->select("log.status, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
           ->distinct()
+          ->groupBy("log.status")
           ->orderBy("log.status asc")
           ->all();
 
-        $hasil_action = $q->select("log.action, sum(log.id) as jumlah")
+        $hasil_action = $q->select("log.action, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
           ->distinct()
+          ->orderBy("log.action")
           ->orderBy("log.action asc")
           ->all();
 
         $temp = [];
-        $temp["tanggal"] = date("Y-m-j", $temp->timestamp);
+        $temp["tanggal"] = date("Y-m-d", $temp_date->timestamp);
 
         foreach($hasil_status as $record)
         {
@@ -2001,12 +2003,19 @@ class ArticleController extends \yii\rest\Controller
 
         $temp_date->addDay();
       }
+
+      return [
+        "status" => "ok",
+        "status" => "ok",
+        "result" => $hasil,
+      ];
     }
     else
     {
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang dibutuhkan tidak valid: tanggal_awal (yyyy-mm-dd), tanggal_akhir (yyyy-mm-dd)",
+        "payload" => $payload
       ];
     }
 
