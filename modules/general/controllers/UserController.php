@@ -37,6 +37,7 @@ class UserController extends \yii\rest\Controller
   // {
   //   username: "", 
   //   password: "", 
+  //   id_kategori: [1,2,3,...]
   //   ...
   // }
   // Response type: JSON
@@ -60,7 +61,6 @@ class UserController extends \yii\rest\Controller
     // jika gagal, kembalikan pesan kesalahan dari database
 
     $payload = Yii::$app->request->rawBody;
-    Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
     $new = new User();
@@ -75,13 +75,17 @@ class UserController extends \yii\rest\Controller
     $new->save();
 
     // Mencari record terakhir
-    $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
+    /* $last_record = User::find()->where(['id' => User::find()->max('id')])->one(); */
+    $id_user = $new->primaryKey;
 
     // Insert record ke table user_roles
     $user_roles = new UserRoles();
-    $user_roles['id_user'] = $last_record['id'];
+    $user_roles['id_user'] = $id_user;
     $user_roles['id_roles'] = $payload["roles"];
     $user_roles->save();
+
+    //insert record kategori ke tabel kategori_user
+    //
 
     if( $new->hasErrors() == false )
     {
