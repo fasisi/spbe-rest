@@ -131,4 +131,34 @@ class KmsKategori extends \yii\db\ActiveRecord
 
     return $hasil;
   }
+
+  public static function CategoryPath($id_kategori)
+  {
+    $path = [];
+    $terus = true;
+
+    do
+    {
+
+      $test = KmsKategori::findOne($id_kategori);
+
+      if( $test["id_parent"] != -1 )
+      {
+
+        $id_kategori = $test["id_parent"];
+      }
+      else
+      {
+        $terus = false;
+      }
+
+      $temp = [];
+      $temp[] = $test;
+
+      $path = array_merge($temp, $path);
+
+    } while($terus == true);
+
+    return $path;
+  }
 }
