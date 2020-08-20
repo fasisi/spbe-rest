@@ -1766,7 +1766,7 @@ class ArticleController extends \yii\rest\Controller
         $temp = [];
         $temp["kms_artikel"] = $record;
         $temp["user_create"] = $user;
-        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
 
