@@ -214,7 +214,8 @@ class ArticleController extends \yii\rest\Controller
             $artikel = new KmsArtikel();
             $artikel['linked_id_content'] = $linked_id_artikel;
             $artikel['time_create'] = date("Y-m-j H:i:s");
-            $artikel['id_user_create'] = 123;
+            $artikel['id_user_create'] = $payload['id_user'];
+            $artikel['id_kategori'] = $payload['id_kategori'];
             $artikel['status'] = 0;
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
@@ -605,7 +606,7 @@ class ArticleController extends \yii\rest\Controller
       'GET',
       "/rest/api/content/{$linked_id_content}/label",
       [
-        'sink' => Yii::$app->basePath . "/guzzledump1.txt",
+        /* 'sink' => Yii::$app->basePath . "/guzzledump1.txt", */
         /* 'debug' => true, */
         'http_errors' => false,
         'headers' => [
@@ -818,6 +819,243 @@ class ArticleController extends \yii\rest\Controller
       "pesan" => "...",
       "result" => $hasil
     ];
+  }
+
+  /*
+   *  Mengambil kms_artikel atau user berdasarkan filter yang dapat disetup secara dinamis.
+   *
+   *  Method: GET
+   *
+   *        ===================================================================
+   *        Mengambil daftar artikel dari suatu kategori dan mendapatkan 
+   *        action tertentu.
+   *
+   *        Request type: JSON
+   *        Request format #01:
+   *        {
+   *          "object_type": "a",
+   *          "filter":
+   *          {
+   *            "actions":            // pernyataan filter action untuk memilih record artikel
+   *            [
+   *              {
+   *                "id_action": 1,
+   *                "min": 0,         // rentang jumlah action yang diterima oleh suatu artikel
+   *                "max": 123
+   *              },
+   *              {
+   *                "id_action": 2,
+   *                "min": 0,
+   *                "max": 123
+   *              },
+   *            ],
+   *            "id_kategori"   : [1, 2, 3, ...],
+   *            "page_no": 1,
+   *            "items_per_page": 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "kms_artikel": { object_of_record_artikel },
+   *                "user_create": { object_of_user },
+   *                "confluence": { object_of_confluence},
+   *                "category_path": []
+   *              }
+   *            ]
+   *          }
+   *        }
+   *
+   *        ===================================================================
+   *        Mengambil daftar user yang melakukan action tertentu terhadap
+   *        artikel-artikel dari suatu kategori
+   *
+   *        Request format #02:
+   *        {
+   *          "object_type": "u",
+   *          "filter":
+   *          {
+   *            "actions"        : [1, 2, ...],
+   *            "id_kategori"    : [1, 2, 3, ...],
+   *            "page_no"        : 1,
+   *            "items_per_page" : 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "user": { object_of_record_artikel },
+   *              }
+   *            ]
+   *          }
+   *        }
+   *        ===================================================================
+   *
+   *
+   *
+   *        ===================================================================
+   *        Mengambil daftar artikel dari suatu kategori dan mengalami STATUS
+   *        tertentu
+   *
+   *        Request type: JSON
+   *        Request format #01:
+   *        {
+   *          "object_type": "a",
+   *          "filter":
+   *          {
+   *            "status"         : [1, 2, ...],
+   *            "id_kategori"    : [1, 2, 3, ...],
+   *            "page_no"        : 1,
+   *            "items_per_page" : 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "kms_artikel": { object_of_record_artikel },
+   *                "user_create": { object_of_user },
+   *                "confluence": { object_of_confluence},
+   *                "category_path": []
+   *              }
+   *            ]
+   *          }
+   *        }
+   *
+   *
+   * */
+
+  public function actionItemsbyfilter()
+  {
+    // pastikan request parameter lengkap
+    $payload = $this->GetPayload();
+
+
+    $is_object_type_valid = isset($payload["object_type"]);
+    $is_filter_valid = isset($payload["filter"]);
+    $is_action_status_valid = false;
+    $is_id_kategori_valid = false;
+    $is_page_no_valid = false;
+    $is_items_per_page_valid = false;
+
+    $is_filter_valid = isset($payload["filter"]);
+
+    $is_action_status_valid = 
+      (
+        $payload["object_type"] == 'a' &&
+        ( 
+          isset($payload["filter"]["action"]) ||
+          isset($payload["filter"]["status"]) 
+        )
+      ) ||
+      (
+        $payload["object_type"] == 'u' &&
+        isset($payload["filter"]["action"]) 
+      );
+    $is_id_kategori_valid = isset($payload["filter"]["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["filter"]["id_kategori"]);
+    $is_page_no_valid = is_numeric($payload["filter"]["page_no"]);
+    $is_items_per_page_valid = is_numeric($payload["filter"]["items_per_page"]);
+
+
+    if(
+        $is_object_type_valid == true &&
+        $is_filter_valid == true &&
+        $is_action_status_valid == true &&
+        $is_page_no_valid == true &&
+        $is_items_per_page_valid == true
+      )
+    {
+      $q = new Query();
+
+      // setup select and where statement
+          if( $payload["object_type"] == 'a' )
+          {
+            $q->select("a.id")
+              ->from("kms_artikel a")
+              ->join("JOIN", "kms_artikel_user_status l", "l.id_artikel = a.id");
+
+            if( isset($payload["filter"]["action"]) )
+            {
+              $q->andWhere(["in", "l.status", $payload["filter"]["action"]]);
+            }
+            else
+            {
+              $q->andWhere(["in", "a.status", $payload["filter"]["status"]]);
+            }
+
+            $q->andWhere(["in", "a.id_kategori", $payload["filter"]["id_kategori"]]);
+
+            $q->distinct();
+            $q->groupBy("a.id");
+          }
+          else
+          {
+            $q->select("u.id")
+              ->from("user u")
+              ->join("JOIN", "kms_artikel_user_status l", "l.id_user = u.id")
+              ->join("JOIN", "kms_artikel a", "l.id_artikel = a.id");
+
+            $q->andWhere(["in", "l.status", $payload["filter"]["action"]]);
+
+            $q->andWhere(["in", "a.id_kategori", $payload["filter"]["id_kategori"]]);
+
+            $q->distinct();
+            $q->groupBy("u.id");
+          }
+      // setup select statement
+
+      $q->offset
+        ( 
+          ($payload["filter"]["page_no"] - 1) * $payload["filter"]["items_per_page"] 
+        )
+        ->limit( $payload["filter"]["items_per_page"] );
+
+      $hasil = $q->all();
+
+      return [
+        "status" => "not ok",
+        "pesan" => "Query berhasil di-eksekusi",
+        "result" => $hasil,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak valid",
+      ];
+    }
+
   }
 
   /*
@@ -2054,8 +2292,8 @@ class ArticleController extends \yii\rest\Controller
 
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
-    $tanggal_awal = Carbon::createFromFormat("Y-m-j", $payload["tanggal_awal"]);
-    $tanggal_akhir = Carbon::createFromFormat("Y-m-j", $payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
 
     // ambil data kejadian dari tiap kategori
     $daftar_kategori = KmsKategori::GetList();
