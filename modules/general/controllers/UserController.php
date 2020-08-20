@@ -4,10 +4,11 @@ namespace app\modules\general\controllers;
 
 use Yii;
 use yii\helpers\Json;
+use yii\db\Query;
 
 use app\models\User;
 use app\models\UserRoles;
-use yii\db\Query;
+use app\models\KategoriUser;
 
 class UserController extends \yii\rest\Controller
 {
@@ -85,7 +86,7 @@ class UserController extends \yii\rest\Controller
     $user_roles->save();
 
     //insert record kategori ke tabel kategori_user
-    //
+    KategoriUser::Refresh($id_user, $payload["id_kategori"]);
 
     if( $new->hasErrors() == false )
     {
