@@ -1380,6 +1380,7 @@ class ArticleController extends \yii\rest\Controller
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
 
       $hasil = [];
       $res = $client->request(
@@ -2282,23 +2283,23 @@ class ArticleController extends \yii\rest\Controller
           switch( $record["status"] )
           {
             case 0: //new
-              $temp["new"] = $record["jumlah"];
+              $temp["data"]["new"] = $record["jumlah"];
               break;
 
             case 1: //publish
-              $temp["publish"] = $record["jumlah"];
+              $temp["data"]["publish"] = $record["jumlah"];
               break;
 
             case 2: //unpublish
-              $temp["unpublish"] = $record["jumlah"];
+              $temp["data"]["unpublish"] = $record["jumlah"];
               break;
 
             case 3: //reject
-              $temp["reject"] = $record["jumlah"];
+              $temp["data"]["reject"] = $record["jumlah"];
               break;
 
             case 4: //freeze
-              $temp["freeze"] = $record["jumlah"];
+              $temp["data"]["freeze"] = $record["jumlah"];
               break;
           }
         }
@@ -2308,15 +2309,15 @@ class ArticleController extends \yii\rest\Controller
           switch( $record["action"] )
           {
             case 0: //neutral
-              $temp["neutral"] = $record["jumlah"];
+              $temp["data"]["neutral"] = $record["jumlah"];
               break;
 
             case 1: //like
-              $temp["like"] = $record["jumlah"];
+              $temp["data"]["like"] = $record["jumlah"];
               break;
 
             case 2: //dislike
-              $temp["dislike"] = $record["jumlah"];
+              $temp["data"]["dislike"] = $record["jumlah"];
               break;
           }
         }
