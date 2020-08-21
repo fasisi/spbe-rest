@@ -118,8 +118,9 @@ class ArticleController extends \yii\rest\Controller
     $log->save();
   }
 
-  private function Conf_GetArtikel($linkd_id_content)
+  private function Conf_GetArtikel($client, $linkd_id_content)
   {
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
     $res = $client->request(
       'GET',
       "/rest/api/content/$linked_id_content",
@@ -1093,20 +1094,37 @@ class ArticleController extends \yii\rest\Controller
 
       $records = $q->all();
       $hasil = [];
+      $client = $this->SetupGuzzleClient();
       foreach($records as $record)
       {
-        $artikel = KmsArtikel::findOne($record["id"]);
-        $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-        $user_create = User::findOne($artikel["id_user_create"]);
-        $conf_artikel = $this->Conf_GetArtikel($artikel["linked_id_content"]);
-        $conf_artikel = Json::decode($conf_artikel);
+        if( $payload["object_type"] == "a" )
+        {
+          $artikel = KmsArtikel::findOne($record["id"]);
+          $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+          $user_create = User::findOne($artikel["id_user_create"]);
+          $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
+          $response_payload = $response->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $temp = [];
-        $temp["kms_artikel"] = $artikel;
-        $temp["user_create"] = $user_create;
-        $temp["tags"] = $tags;
-        $temp["confluence"] = $conf_artikel;
-        $hasil[] = $temp;
+          $temp = [];
+          $temp["kms_artikel"] = $artikel;
+          $temp["user_create"] = $user_create;
+          $temp["tags"] = $tags;
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+          $hasil[] = $temp;
+        }
+        else
+        {
+          $user = User::findOne($record["id"]);
+
+          $temp = [];
+          $temp["user"] = $user;
+          $hasil[] = $temp;
+        }
+
       }
 
       return [
