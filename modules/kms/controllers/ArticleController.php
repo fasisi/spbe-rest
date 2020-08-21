@@ -35,7 +35,7 @@ class ArticleController extends \yii\rest\Controller
         'logsbytags'            => ['GET'],
         'categoriesbytags'      => ['GET'],
         'itemtag'               => ['POST'],
-        'itemsbyfilter'         => ['GET'],
+        'logsbyfilter'          => ['GET'],
         'artikeluserstatus'     => ['POST'],
         'itemkategori'          => ['PUT'],
         'search'                => ['GET'],
@@ -214,7 +214,8 @@ class ArticleController extends \yii\rest\Controller
             $artikel = new KmsArtikel();
             $artikel['linked_id_content'] = $linked_id_artikel;
             $artikel['time_create'] = date("Y-m-j H:i:s");
-            $artikel['id_user_create'] = 123;
+            $artikel['id_user_create'] = $payload['id_user'];
+            $artikel['id_kategori'] = $payload['id_kategori'];
             $artikel['status'] = 0;
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
@@ -605,7 +606,7 @@ class ArticleController extends \yii\rest\Controller
       'GET',
       "/rest/api/content/{$linked_id_content}/label",
       [
-        'sink' => Yii::$app->basePath . "/guzzledump1.txt",
+        /* 'sink' => Yii::$app->basePath . "/guzzledump1.txt", */
         /* 'debug' => true, */
         'http_errors' => false,
         'headers' => [
@@ -787,7 +788,7 @@ class ArticleController extends \yii\rest\Controller
           {
             $temp[] = $type_action;
           }
-          $where[] = ["in", "l.type_action", $temp];
+          $where[] = ["in", "l.action", $temp];
         break;
 
         case $key == "id_kategori":
@@ -818,6 +819,243 @@ class ArticleController extends \yii\rest\Controller
       "pesan" => "...",
       "result" => $hasil
     ];
+  }
+
+  /*
+   *  Mengambil kms_artikel atau user berdasarkan filter yang dapat disetup secara dinamis.
+   *
+   *  Method: GET
+   *
+   *        ===================================================================
+   *        Mengambil daftar artikel dari suatu kategori dan mendapatkan 
+   *        action tertentu.
+   *
+   *        Request type: JSON
+   *        Request format #01:
+   *        {
+   *          "object_type": "a",
+   *          "filter":
+   *          {
+   *            "actions":            // pernyataan filter action untuk memilih record artikel
+   *            [
+   *              {
+   *                "id_action": 1,
+   *                "min": 0,         // rentang jumlah action yang diterima oleh suatu artikel
+   *                "max": 123
+   *              },
+   *              {
+   *                "id_action": 2,
+   *                "min": 0,
+   *                "max": 123
+   *              },
+   *            ],
+   *            "id_kategori"   : [1, 2, 3, ...],
+   *            "page_no": 1,
+   *            "items_per_page": 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "kms_artikel": { object_of_record_artikel },
+   *                "user_create": { object_of_user },
+   *                "confluence": { object_of_confluence},
+   *                "category_path": []
+   *              }
+   *            ]
+   *          }
+   *        }
+   *
+   *        ===================================================================
+   *        Mengambil daftar user yang melakukan action tertentu terhadap
+   *        artikel-artikel dari suatu kategori
+   *
+   *        Request format #02:
+   *        {
+   *          "object_type": "u",
+   *          "filter":
+   *          {
+   *            "actions"        : [1, 2, ...],
+   *            "id_kategori"    : [1, 2, 3, ...],
+   *            "page_no"        : 1,
+   *            "items_per_page" : 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "user": { object_of_record_artikel },
+   *              }
+   *            ]
+   *          }
+   *        }
+   *        ===================================================================
+   *
+   *
+   *
+   *        ===================================================================
+   *        Mengambil daftar artikel dari suatu kategori dan mengalami STATUS
+   *        tertentu
+   *
+   *        Request type: JSON
+   *        Request format #01:
+   *        {
+   *          "object_type": "a",
+   *          "filter":
+   *          {
+   *            "status"         : [1, 2, ...],
+   *            "id_kategori"    : [1, 2, 3, ...],
+   *            "page_no"        : 1,
+   *            "items_per_page" : 123
+   *          }
+   *        }
+   *        Response type: JSON
+   *        Response format #01:
+   *        {
+   *          "status": "ok",
+   *          "pesan" : "",
+   *          "result" :
+   *          {
+   *            "count": 123,
+   *            "page_no": 1,
+   *            "items_per_page": 123,
+   *            "records": 
+   *            [
+   *              {
+   *                "kms_artikel": { object_of_record_artikel },
+   *                "user_create": { object_of_user },
+   *                "confluence": { object_of_confluence},
+   *                "category_path": []
+   *              }
+   *            ]
+   *          }
+   *        }
+   *
+   *
+   * */
+
+  public function actionItemsbyfilter()
+  {
+    // pastikan request parameter lengkap
+    $payload = $this->GetPayload();
+
+
+    $is_object_type_valid = isset($payload["object_type"]);
+    $is_filter_valid = isset($payload["filter"]);
+    $is_action_status_valid = false;
+    $is_id_kategori_valid = false;
+    $is_page_no_valid = false;
+    $is_items_per_page_valid = false;
+
+    $is_filter_valid = isset($payload["filter"]);
+
+    $is_action_status_valid = 
+      (
+        $payload["object_type"] == 'a' &&
+        ( 
+          isset($payload["filter"]["action"]) ||
+          isset($payload["filter"]["status"]) 
+        )
+      ) ||
+      (
+        $payload["object_type"] == 'u' &&
+        isset($payload["filter"]["action"]) 
+      );
+    $is_id_kategori_valid = isset($payload["filter"]["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["filter"]["id_kategori"]);
+    $is_page_no_valid = is_numeric($payload["filter"]["page_no"]);
+    $is_items_per_page_valid = is_numeric($payload["filter"]["items_per_page"]);
+
+
+    if(
+        $is_object_type_valid == true &&
+        $is_filter_valid == true &&
+        $is_action_status_valid == true &&
+        $is_page_no_valid == true &&
+        $is_items_per_page_valid == true
+      )
+    {
+      $q = new Query();
+
+      // setup select and where statement
+          if( $payload["object_type"] == 'a' )
+          {
+            $q->select("a.id")
+              ->from("kms_artikel a")
+              ->join("JOIN", "kms_artikel_user_status l", "l.id_artikel = a.id");
+
+            if( isset($payload["filter"]["action"]) )
+            {
+              $q->andWhere(["in", "l.status", $payload["filter"]["action"]]);
+            }
+            else
+            {
+              $q->andWhere(["in", "a.status", $payload["filter"]["status"]]);
+            }
+
+            $q->andWhere(["in", "a.id_kategori", $payload["filter"]["id_kategori"]]);
+
+            $q->distinct();
+            $q->groupBy("a.id");
+          }
+          else
+          {
+            $q->select("u.id")
+              ->from("user u")
+              ->join("JOIN", "kms_artikel_user_status l", "l.id_user = u.id")
+              ->join("JOIN", "kms_artikel a", "l.id_artikel = a.id");
+
+            $q->andWhere(["in", "l.status", $payload["filter"]["action"]]);
+
+            $q->andWhere(["in", "a.id_kategori", $payload["filter"]["id_kategori"]]);
+
+            $q->distinct();
+            $q->groupBy("u.id");
+          }
+      // setup select statement
+
+      $q->offset
+        ( 
+          ($payload["filter"]["page_no"] - 1) * $payload["filter"]["items_per_page"] 
+        )
+        ->limit( $payload["filter"]["items_per_page"] );
+
+      $hasil = $q->all();
+
+      return [
+        "status" => "not ok",
+        "pesan" => "Query berhasil di-eksekusi",
+        "result" => $hasil,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak valid",
+      ];
+    }
+
   }
 
   /*
@@ -948,6 +1186,7 @@ class ArticleController extends \yii\rest\Controller
             $temp = [];
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
@@ -963,6 +1202,7 @@ class ArticleController extends \yii\rest\Controller
             $temp = [];
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1096,6 +1336,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["kms_artikel"] = $artikel;
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
@@ -1107,6 +1348,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
         $hasil["user_create"] = $user;
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
@@ -1916,8 +2158,8 @@ class ArticleController extends \yii\rest\Controller
 
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
-    $tanggal_awal = Carbon::createFromFormat("y-m-j", $payload["tanggal_awal"]);
-    $tanggal_aakhir = Carbon::createFromFormat("y-m-j", $payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
 
     if(
         $is_tanggal_awal_valid == true &&
@@ -1934,24 +2176,26 @@ class ArticleController extends \yii\rest\Controller
       {
         // ambil jumlah kejadian
         $q = new Query();
-        $hasil_status = $q->select("log.status, sum(log.id) as jumlah")
+        $hasil_status = $q->select("log.status, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
           ->distinct()
+          ->groupBy("log.status")
           ->orderBy("log.status asc")
           ->all();
 
-        $hasil_action = $q->select("log.action, sum(log.id) as jumlah")
+        $hasil_action = $q->select("log.action, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp->timestamp)])
-          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp->timestamp)])
+          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
           ->distinct()
+          ->orderBy("log.action")
           ->orderBy("log.action asc")
           ->all();
 
         $temp = [];
-        $temp["tanggal"] = date("Y-m-j", $temp->timestamp);
+        $temp["tanggal"] = date("Y-m-d", $temp_date->timestamp);
 
         foreach($hasil_status as $record)
         {
@@ -2001,12 +2245,19 @@ class ArticleController extends \yii\rest\Controller
 
         $temp_date->addDay();
       }
+
+      return [
+        "status" => "ok",
+        "status" => "ok",
+        "result" => $hasil,
+      ];
     }
     else
     {
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang dibutuhkan tidak valid: tanggal_awal (yyyy-mm-dd), tanggal_akhir (yyyy-mm-dd)",
+        "payload" => $payload
       ];
     }
 
@@ -2045,8 +2296,8 @@ class ArticleController extends \yii\rest\Controller
 
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
-    $tanggal_awal = Carbon::createFromFormat("Y-m-j", $payload["tanggal_awal"]);
-    $tanggal_akhir = Carbon::createFromFormat("Y-m-j", $payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
 
     // ambil data kejadian dari tiap kategori
     $daftar_kategori = KmsKategori::GetList();
