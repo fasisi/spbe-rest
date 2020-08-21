@@ -45,6 +45,23 @@ class ArticleController extends \yii\rest\Controller
     return $behaviors;
   }
 
+  // ==========================================================================
+  // private helper functions
+  // ==========================================================================
+
+
+  private function SetupGuzzleClient()
+  {
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+    $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+    Yii::info("base_url = $base_url");
+    $client = new \GuzzleHttp\Client([
+      'base_uri' => $base_url
+    ]);
+
+    return $client;
+  }
+
   private function GetPayload()
   {
 
@@ -100,6 +117,41 @@ class ArticleController extends \yii\rest\Controller
     $log["type_action"] = $type_action;
     $log->save();
   }
+
+  private function Conf_GetArtikel($client, $linkd_id_content)
+  {
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+    $res = $client->request(
+      'GET',
+      "/rest/api/content/$linked_id_content",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+        'query' => [
+          'spaceKey' => 'PS',
+          'expand' => 'history,body.view'
+        ],
+      ]
+    );
+
+    return $res;
+  }
+
+  // ==========================================================================
+  // private helper functions
+  // ==========================================================================
+
+
+
 
   //  Membuat record artikel
   //
@@ -1040,10 +1092,43 @@ class ArticleController extends \yii\rest\Controller
         )
         ->limit( $payload["filter"]["items_per_page"] );
 
-      $hasil = $q->all();
+      $records = $q->all();
+      $hasil = [];
+      $client = $this->SetupGuzzleClient();
+      foreach($records as $record)
+      {
+        if( $payload["object_type"] == "a" )
+        {
+          $artikel = KmsArtikel::findOne($record["id"]);
+          $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+          $user_create = User::findOne($artikel["id_user_create"]);
+          $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
+          $response_payload = $response->getBody();
+          $response_payload = Json::decode($response_payload);
+
+          $temp = [];
+          $temp["kms_artikel"] = $artikel;
+          $temp["user_create"] = $user_create;
+          $temp["tags"] = $tags;
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+          $hasil[] = $temp;
+        }
+        else
+        {
+          $user = User::findOne($record["id"]);
+
+          $temp = [];
+          $temp["user"] = $user;
+          $hasil[] = $temp;
+        }
+
+      }
 
       return [
-        "status" => "not ok",
+        "status" => "ok",
         "pesan" => "Query berhasil di-eksekusi",
         "result" => $hasil,
       ];
@@ -1294,12 +1379,7 @@ class ArticleController extends \yii\rest\Controller
       $user = User::findOne($artikel["id_user_create"]);
 
       //  lakukan query dari Confluence
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
-      Yii::info("base_url = $base_url");
-      $client = new \GuzzleHttp\Client([
-        'base_uri' => $base_url
-      ]);
+      $client = $this->SetupGuzzleClient();
 
       $hasil = [];
       $res = $client->request(
