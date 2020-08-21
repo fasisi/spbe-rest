@@ -1186,6 +1186,7 @@ class ArticleController extends \yii\rest\Controller
             $temp = [];
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
@@ -1201,6 +1202,7 @@ class ArticleController extends \yii\rest\Controller
             $temp = [];
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1334,6 +1336,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["kms_artikel"] = $artikel;
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
@@ -1345,6 +1348,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
         $hasil["user_create"] = $user;
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
