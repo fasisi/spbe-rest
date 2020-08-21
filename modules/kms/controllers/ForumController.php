@@ -6,17 +6,17 @@ use Yii;
 use yii\helpers\Json;
 use yii\db\Query;
 
-use app\models\KmsArtikel;
-use app\models\KmsArtikelActivityLog;
-use app\models\KmsArtikelUserStatus;
-use app\models\KmsArtikelTag;
+use app\models\ForumThread;
+use app\models\ForumThreadActivityLog;
+use app\models\ForumThreadUserAction;
+use app\models\ForumThreadTag;
 use app\models\KmsTags;
 use app\models\User;
 use app\models\KmsKategori;
 
 use Carbon\Carbon;
 
-class ArticleController extends \yii\rest\Controller
+class ForumController extends \yii\rest\Controller
 {
   public function behaviors()
   {
@@ -85,10 +85,10 @@ class ArticleController extends \yii\rest\Controller
   /*
    * type_log : 1 = status log; 2 = action log
     * */
-  private function ArtikelLog($id_artikel, $id_user, $type_log, $log_value)
+  private function ThreadLog($id_thread, $id_user, $type_log, $log_value)
   {
-    $new = new KmsArtikelActivityLog();
-    $new["id_artikel"] = $id_artikel;
+    $new = new ForumThreadActivityLog();
+    $new["id_thread"] = $id_thread;
     $new["id_user"] = $id_user;
     $new["type_log"] = $type_log;
 
@@ -108,22 +108,22 @@ class ArticleController extends \yii\rest\Controller
     $new->save();
   }
 
-  private function ActivityLog($id_artikel, $id_user, $type_action)
-  {
-    $log = new KmsArtikelActivityLog();
-    $log["id_artikel"] = $id_artikel;
-    $log["id_user"] = $id_user;
-    $log["time_action"] = date("Y-m-j H:i:s");
-    $log["type_action"] = $type_action;
-    $log->save();
-  }
+  /* private function ActivityLog($id_artikel, $id_user, $type_action) */
+  /* { */
+  /*   $log = new KmsArtikelActivityLog(); */
+  /*   $log["id_artikel"] = $id_artikel; */
+  /*   $log["id_user"] = $id_user; */
+  /*   $log["time_action"] = date("Y-m-j H:i:s"); */
+  /*   $log["type_action"] = $type_action; */
+  /*   $log->save(); */
+  /* } */
 
-  private function Conf_GetArtikel($client, $linkd_id_content)
+  private function Conf_GetQuestion($client, $linked_id_question)
   {
     $jira_conf = Yii::$app->restconf->confs['confluence'];
     $res = $client->request(
       'GET',
-      "/rest/api/content/$linked_id_content",
+      "/question/$linked_id_question",
       [
         /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
         /* 'debug' => true, */
@@ -153,7 +153,7 @@ class ArticleController extends \yii\rest\Controller
 
 
 
-  //  Membuat record artikel
+  //  Membuat record question
   //
   //  Method : POST
   //  Request type: JSON
@@ -174,7 +174,7 @@ class ArticleController extends \yii\rest\Controller
   //    "pesan": "",
   //    "result": 
   //    {
-  //      "artikel": record_object,
+  //      "thread": record_object,
   //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
@@ -206,38 +206,29 @@ class ArticleController extends \yii\rest\Controller
       // panggil POST /rest/api/content
 
       $request_payload = [
-        'type' => 'page',
-        'title' => $payload['judul'],
-        'space' => [
-          'key' => 'PS',
-        ],
-        'body' => [
-          'storage' => [
-            'value' => $payload['body'],
-            'representation' => 'storage',
-          ],
-        ],
+        "title" => $payload["judul"],
+        "body" => $payload["body"],
+        "topics" => $tags,
+        "dateAsked" => date("Y-m-d H:i:s"),
+        "spaceKey" => "PS",
       ];
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
-      Yii::info("base_url = $base_url");
-      $client = new \GuzzleHttp\Client([
-        'base_uri' => $base_url
-      ]);
+      $client = $this->SetupGuzzle();
 
       $res = null;
       try
       {
         $res = $client->request(
           'POST',
-          "/rest/api/content",
+          "/rest/questions/1.0/question",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
             'http_errors' => false,
             'headers' => [
               "Content-Type" => "application/json",
+              "Media-Type" => "application/json",
               "accept" => "application/json",
             ],
             'auth' => [
@@ -263,8 +254,8 @@ class ArticleController extends \yii\rest\Controller
 
 
             // bikin record kms_artikel
-            $artikel = new KmsArtikel();
-            $artikel['linked_id_content'] = $linked_id_artikel;
+            $artikel = new ForumThread();
+            $artikel['linked_id_question'] = $linked_id_artikel;
             $artikel['time_create'] = date("Y-m-j H:i:s");
             $artikel['id_user_create'] = $payload['id_user'];
             $artikel['id_kategori'] = $payload['id_kategori'];
@@ -278,7 +269,7 @@ class ArticleController extends \yii\rest\Controller
             foreach( $payload["tags"] as $tag )
             {
               // cek apakah tag sudah ada di dalam tabel
-              $test = KmsTags::find()
+              $test = ForumTags::find()
                 ->where(
                   "nama = :nama",
                   [
@@ -295,7 +286,7 @@ class ArticleController extends \yii\rest\Controller
               }
               else
               {
-                $new = new KmsTags();
+                $new = new ForumTags();
                 $new["nama"] = $tag;
                 $new["status"] = 0;
                 $new["id_user_create"] = 123;
@@ -306,8 +297,8 @@ class ArticleController extends \yii\rest\Controller
               }
 
               // relate id_artikel dengan id_tag
-              $new = new KmsArtikelTag();
-              $new["id_artikel"] = $id_artikel;
+              $new = new ForumThreadTag();
+              $new["id_thread"] = $id_artikel;
               $new["id_tag"] = $id_tag;
               $new->save();
 
@@ -317,10 +308,10 @@ class ArticleController extends \yii\rest\Controller
               $tags[] = $temp;
             } // loop tags
 
-            // kirim tag ke Confluence
+            // kirim tag ke Confluence-Question
             $res = $client->request(
               'POST',
-              "/rest/api/content/$linked_id_artikel/label",
+              "/rest/questions/1.0/question/$linked_id_artikel/topics",
               [
                 /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
                 /* 'debug' => true, */
