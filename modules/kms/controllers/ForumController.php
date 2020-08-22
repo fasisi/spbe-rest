@@ -755,7 +755,7 @@ class ForumController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "object_type": "a/u",
+   *    "object_type": "t/u",
    *    "filter":
    *    {
    *      "waktu_awal"    : "y-m-j H:i:s",
@@ -788,16 +788,22 @@ class ForumController extends \yii\rest\Controller
     switch( true )
     {
       case $payload["object_type"] == "u" :
-        $q->select("u.*");
+        $q->select("u.id");
         $q->from("user u");
         $q->join("join", "forum_thread_activity_log l", "l.id_user = u.id");
         break;
 
-      case $payload["object_type"] == "a" :
-      default :
-        $q->select("t.*");
+      case $payload["object_type"] == "t" :
+        $q->select("t.id");
         $q->from("forum_thread t");
         $q->join("join", "forum_thread_activity_log l", "l.id_thread = t.id");
+        break;
+
+      default :
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. object_type diisi dengan 'a' atau 'u'.",
+        ];
         break;
     }
 
@@ -845,13 +851,62 @@ class ForumController extends \yii\rest\Controller
 
     $q->where($where);
 
+    if( $payload["object_type"] == 't' )
+    {
+      $q->distinct()
+        ->groupBy("t.id");
+    }
+    else
+    {
+      $q->distinct()
+        ->groupBy("a.id")
+    }
+
     //execute the query
-    $hasil = $q->all();
+    $records = $q->all();
+
+    $hasil = [];
+    foreach($records as $record)
+    {
+      if( $payload["object_type"] == 't' )
+      {
+        $thread = ForumThread::findOne($record["id"]);
+        $user = User::findOne($thread["id_user_create"]);
+
+        $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+        $response_payload = $response->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["forum_thread"] = $thread;
+        $temp["categoru_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $temp["user_create"] = $user;
+        $temp["tags"] = ForumThreadTag::GetArtikelTags($thread["id"]);
+        $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+
+        $hasil[] = $temp;
+      }
+      else
+      {
+        $user = User::findOne($record["id"]);
+
+        $temp = [];
+        $temp["user"] = $user;
+
+        $hasil[] = $temp;
+      }
+    }
 
     return [
       "status" => "ok",
-      "pesan" => "...",
-      "result" => $hasil
+      "pesan" => "Record berhasil diambil",
+      "result" => 
+      [
+        "count" => count($hasil),
+        "records" => $hasil
+      ]
     ];
   }
 
