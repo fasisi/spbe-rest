@@ -801,21 +801,22 @@ class ArticleController extends \yii\rest\Controller
     switch( true )
     {
       case $payload["object_type"] == "a" :
-        $q->select("a.*");
+        $q->select("a.id");
         $q->from("kms_artikel a");
         $q->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id");
         break;
 
       case $payload["object_type"] == "u" :
-        $q->select("u.*");
+        $q->select("u.id");
         $q->from("user u");
         $q->join("join", "kms_artikel_activity_log l", "l.id_user = u.id");
         break;
 
       default :
-        $q->select("a.*");
-        $q->from("kms_artikel a");
-        $q->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id");
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. object_type diisi dengan 'a' atau 'u'",
+        ];
         break;
     }
 
@@ -863,13 +864,63 @@ class ArticleController extends \yii\rest\Controller
 
     $q->where($where);
 
+    if( $payload["object_type"] == "a" )
+    {
+      $q->distinct()
+        ->groupBy("a.id")
+        ->orderBy("l.time_action desc");
+    }
+    else
+    {
+      $q->distinct()
+        ->groupBy("u.id")
+        ->orderBy("l.time_action desc");
+    }
+
     //execute the query
-    $hasil = $q->all();
+    $records = $q->all();
+
+    $hasil = [];
+    foreach($records as $record)
+    {
+      if( $payload["object_type"] == "a" )
+      {
+        $artikel = KmsArtikel::findOne($record["id"]);
+        $user = User::findOne($record["id_user_create"]);
+
+        $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
+        $response_payload = $response->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $artikel;
+        $temp["user_create"] = $user;
+        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["confluence"]["id"] = $confluence["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $hasil[] = $temp;
+      }
+      else
+      {
+        $user = User::findOne($record["id"]);
+
+        $temp = [];
+        $temp["user"] = $user;
+
+        $hasil[] = $temp;
+      }
+    }
 
     return [
       "status" => "ok",
-      "pesan" => "...",
-      "result" => $hasil
+      "pesan" => "Record berhasil diambil",
+      "result" => 
+      [
+        "count" => count($hasil),
+        "records" => $hasil
+      ]
     ];
   }
 
@@ -2350,6 +2401,10 @@ class ArticleController extends \yii\rest\Controller
    *  Method: GET
    *  Request type: 
    *  Request format:
+   *  {
+   *    "tanggal_awal": "yyyy-mm-dd",
+   *    "tanggal_akhir": "yyyy-mm-dd"
+   *  }
    *  Response type: JSON
    *  Response format:
    *  {
