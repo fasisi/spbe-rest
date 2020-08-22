@@ -448,6 +448,7 @@ class ArticleController extends \yii\rest\Controller
   //  }
   public function actionUpdate()
   {
+    $id_user = true;
     $id_valid = true;
     $judul_valid = true;
     $body_valid = true;
@@ -456,6 +457,9 @@ class ArticleController extends \yii\rest\Controller
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
+
+    if( isset($payload["id_user"]) == false )
+      $id_user = false;
 
     if( isset($payload["id"]) == false )
       $id_valid = false;
@@ -572,7 +576,8 @@ class ArticleController extends \yii\rest\Controller
             // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
             $artikel['time_update'] = date("Y-m-j H:i:s");
-            $artikel['id_user_update'] = 123;
+            $artikel['id_user_update'] = $payload["id_user"];
+            $artikel['id_kategori'] = $payload["id_kategori"];
             $artikel->save();
 
             // mengupdate informasi tags
