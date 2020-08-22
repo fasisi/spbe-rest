@@ -679,7 +679,7 @@ class ArticleController extends \yii\rest\Controller
         'DELETE',
         "/rest/api/content/{$linked_id_content}/label/{$object["name"]}",
         [
-          'sink' => Yii::$app->basePath . "/guzzledump2.txt",
+          /* 'sink' => Yii::$app->basePath . "/guzzledump2.txt", */
           /* 'debug' => true, */
           'http_errors' => false,
           'headers' => [
