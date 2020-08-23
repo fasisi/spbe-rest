@@ -2447,6 +2447,18 @@ class ArticleController extends \yii\rest\Controller
     {
       // ambil jumlah artikel per kejadian (new, publish, .., freeze)
       $q = new Query();
+      $total_artikel = 
+        $q->select("a.id")
+          ->from("kms_artikel a")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
+          ->orderBy("log.status asc")
+          ->all();
+      $total_artikel = count($total_artikel);
+
       $artikel_status = 
         $q->select("log.status, count(a.id) as jumlah")
           ->from("kms_artikel a")
@@ -2477,6 +2489,19 @@ class ArticleController extends \yii\rest\Controller
 
       // ambil jumlah user per kejadian (new, publish, .., freeze)
       $q = new Query();
+      $total_user = 
+        $q->select("u.id")
+          ->from("user u")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
+          ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
+          ->orderBy("log.status asc")
+          ->all();
+      $total_user = count($total_user);
+
       $user_status = 
         $q->select("log.status, count(u.id) as jumlah")
           ->from("user u")
@@ -2514,6 +2539,10 @@ class ArticleController extends \yii\rest\Controller
         $indent .= "&nbsp;&nbsp;";
       }
       $index_name = $indent . $kategori["nama"];
+
+
+      $temp["total"]["artikel"] = $total_artikel;
+      $temp["total"]["user"] = $total_user;
 
       foreach($artikel_status as $record)
       {
