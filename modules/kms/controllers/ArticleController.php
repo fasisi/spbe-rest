@@ -893,6 +893,7 @@ class ArticleController extends \yii\rest\Controller
         $artikel = KmsArtikel::findOne($record["id"]);
         $user = User::findOne($record["id_user_create"]);
 
+        $client = $this->SetupGuzzle();
         $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
         $response_payload = $response->getBody();
         $response_payload = Json::decode($response_payload);
