@@ -4,10 +4,11 @@ namespace app\modules\general\controllers;
 
 use Yii;
 use yii\helpers\Json;
+use yii\db\Query;
 
 use app\models\User;
 use app\models\UserRoles;
-use yii\db\Query;
+use app\models\KategoriUser;
 
 class UserController extends \yii\rest\Controller
 {
@@ -37,6 +38,7 @@ class UserController extends \yii\rest\Controller
   // {
   //   username: "", 
   //   password: "", 
+  //   id_kategori: [1,2,3,...]
   //   ...
   // }
   // Response type: JSON
@@ -60,7 +62,6 @@ class UserController extends \yii\rest\Controller
     // jika gagal, kembalikan pesan kesalahan dari database
 
     $payload = Yii::$app->request->rawBody;
-    Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
     $new = new User();
@@ -75,13 +76,17 @@ class UserController extends \yii\rest\Controller
     $new->save();
 
     // Mencari record terakhir
-    $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
+    /* $last_record = User::find()->where(['id' => User::find()->max('id')])->one(); */
+    $id_user = $new->primaryKey;
 
     // Insert record ke table user_roles
     $user_roles = new UserRoles();
-    $user_roles['id_user'] = $last_record['id'];
+    $user_roles['id_user'] = $id_user;
     $user_roles['id_roles'] = $payload["roles"];
     $user_roles->save();
+
+    //insert record kategori ke tabel kategori_user
+    KategoriUser::Refresh($id_user, $payload["id_kategori"]);
 
     if( $new->hasErrors() == false )
     {
@@ -128,7 +133,7 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
-        $roles = $record->getRoles();
+        $roles = $record->getRoles()->all();
 
         return [
           "status" => "ok",
@@ -168,6 +173,7 @@ class UserController extends \yii\rest\Controller
   //    username: ...,
   //    id_departments: ...,
   //    jenis_kelamin: ...,
+  //    id_roles: [1,2,...]
   //  }
   //  Response type: JSON,
   //  Response format:
@@ -199,13 +205,20 @@ class UserController extends \yii\rest\Controller
           UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
           foreach($payload["id_roles"] as $id_role)
           {
-            $new = new UserRoles();
-            $new["id_user"] = $payload["id"];
-            $new["id_role"] = $id_role;
-            $new->save();€ý,€ý,
+            //periksa validitas id_role
+            $test = Roles::findOne($id_role);
+
+            if( is_null($test) == false )
+            {
+              $new = new UserRoles();
+              $new["id_user"] = $payload["id"];
+              $new["id_roles"] = $id_role;
+              $new["id_system"] = null;
+              $new->save();
+            }
           }
 
-          $roles = $record->getRoles();
+          $roles = $user->getRoles()->all();
 
           return [
             "status" => "ok",
@@ -317,7 +330,7 @@ class UserController extends \yii\rest\Controller
       'user.is_banned AS is_banned',
       'user.nip AS nip',
       'departments.name AS nama_departments',
-      'roles.name AS nama_roles'
+      'GROUP_CONCAT(roles.name) AS nama_roles'
       ]
       )
       ->from('user')
@@ -335,6 +348,9 @@ class UserController extends \yii\rest\Controller
         'INNER JOIN',
         'roles',
         'roles.id =user_roles.id_roles'
+      )
+      ->groupBy(
+        'id_user'
       );
     $command = $query->createCommand();
     $record = $command->queryAll();
