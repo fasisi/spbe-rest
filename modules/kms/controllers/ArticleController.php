@@ -2459,6 +2459,7 @@ class ArticleController extends \yii\rest\Controller
           ->all();
       $total_artikel = count($total_artikel);
 
+      $q = new Query();
       $artikel_status = 
         $q->select("log.status, count(a.id) as jumlah")
           ->from("kms_artikel a")
@@ -2502,6 +2503,7 @@ class ArticleController extends \yii\rest\Controller
           ->all();
       $total_user = count($total_user);
 
+      $q = new Query();
       $user_status = 
         $q->select("log.status, count(u.id) as jumlah")
           ->from("user u")
