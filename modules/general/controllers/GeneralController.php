@@ -20,6 +20,12 @@ class GeneralController extends \yii\rest\Controller
         'gettags'        => ['GET'],
         'kategori'       => ['POST', 'GET', 'PUT', 'DELETE'],
         'kategorilist'   => ['GET'],
+
+        'taglist'       => ['GET'],
+        'tagcreate'     => ['POST'],
+        'tagget'        => ['GET'],
+        'tagupdate'     => ['PUT'],
+        'tagdelete'     => ['DELETE']
       ]
     ];
     return $behaviors;
@@ -339,4 +345,316 @@ class GeneralController extends \yii\rest\Controller
     ];
   }
 
+
+
+  // ==========================================================================
+  // Tag management
+  // ==========================================================================
+
+
+      /*
+       *  Mengembalikan daftar tags
+       *  
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format :
+       *  {
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok",
+       *    "pesan": "",
+       *    "result": 
+       *    [
+       *      { record_of_tag }, ...
+       *    ],
+       *
+       *  }
+        * */
+      pubiic function actionTaglist()
+      {
+        $hasil = KmsTags::find()
+          ->where("is_delete = 0")
+          ->orderBy("nama asc")
+          ->all();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil diambil",
+          "result" => $hasil
+        ];
+      }
+
+      /*
+       *  Membuat record tag
+       *
+       *  Method: POST
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "nama": "sdf",
+       *    "deskripsi": "asdfa",
+       *    "id_user": 123
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok",
+       *    "pesan": "sadfalskj",
+       *    "result": 
+       *    {
+       *      record tag
+       *    }
+       *  }
+        * */
+      public function actionTagcreate()
+      {
+        $payload = $this->GetPayload();
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+        $is_id_user_valid = isset($payload["id_user"]);
+        $is_nama_valid = isset($payload["nama"]);
+        $is_deskripsi_valid = isset($payload["deskripsi"]);
+
+        $test = User::findOne($payload["id_user"]);
+        $is_id_user_valid = $is_id_user_valid && is_null($test);
+
+        if(
+            $is_id_user_valid == true &&
+            $is_nama_valid == true &&
+            $is_deskripsi_valid == true
+          )
+        {
+          $new = new KmsTag();
+          $new["nama"] = $payload["nama"];
+          $new["deskripsi"] = $payload["deskripsi"];
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-j H:i:s");
+          $new->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record berhasil dibikin",
+            "result" => $new
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: nama, deskripsi, id_user (integer)",
+            "payload" => $payload
+          ];
+        }
+
+      }
+
+      /*
+       *  Mengambil record tag berdasarkan id
+       *
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok",
+       *    "pesan": "sadfasd",
+       *    "result":
+       *    {
+       *      record of tag
+       *    }
+       *  }
+        * */
+      public function actionTagget()
+      {
+        $payload = $this->GetPayload();
+
+        $is_id_valid = isset($payload["id"]);
+        $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+        if($is_id_valid == true)
+        {
+          $test = KmsTag::findOne($payload["id"]);
+
+          if( is_null($test) == false )
+          {
+            return [
+              "status" => "ok",
+              "pesan" => "Record ditemukan",
+              "result" => $test,
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record tag tidak ditemukan",
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: id (integer)",
+          ];
+        }
+      }
+
+      /*
+       *  Mengupdate record tag
+       *
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *    "id_user": 123,
+       *    "nama": "asdf",
+       *    "deskripsi": "asdf"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok",
+       *    "": "",
+       *    "": "",
+       *  }
+        * */
+      public function actionTagupdate()
+      {
+        $payload = $this->GetPayload();
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+        $is_id_valid = isset($payload["id"]);
+        $is_id_user_valid = isset($payload["id_user"]);
+        $is_nama_valid = isset($payload["nama"]);
+        $is_deskripsi_valid = isset($payload["deskripsi"]);
+
+        $test = User::findOne($payload["id_user"]);
+        $is_id_user_valid = $is_id_user_valid && is_null($test);
+
+        if(
+            $is_id_valid == true &&
+            $is_id_user_valid == true &&
+            $is_nama_valid == true &&
+            $is_deskripsi_valid == true
+          )
+        {
+          $tag = KmsTag::findOne($payload["id"]);
+
+          if( is_null($tag) == false )
+          {
+            $tag["nama"] = $payload["nama"];
+            $tag["deskripsi"] = $payload["deskripsi"];
+            $tag["id_user_update"] = $payload["id_user"];
+            $tag["time_update"] = date("Y-m-j H:i:s");
+            $tag->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record berhasil diupdate",
+              "result" => $tag
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record tidak ditemukan",
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: nama, deskripsi, id_user (integer)",
+            "payload" => $payload
+          ];
+        }
+      }
+
+      /*
+       *  Menghapus record tag
+       *
+       *  Method: DELETE
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *    "id_user": 123
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok",
+       *    "pesan": "sadfas",
+       *    "result": 
+       *    {
+       *      record of tag
+       *    }
+       *  }
+        * */
+      public function actionTagdelete()
+      {
+        $payload = $this->GetPayload();
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+        $is_id_valid = isset($payload["id"]);
+        $is_id_user_valid = isset($payload["id_user"]);
+
+        $test = User::findOne($payload["id_user"]);
+        $is_id_user_valid = $is_id_user_valid && is_null($test);
+
+        if(
+            $is_id_valid == true &&
+            $is_id_user_valid == true
+          )
+        {
+          $tag = KmsTag::findOne($payload["id"]);
+
+          if( is_null($tag) == false )
+          {
+            $tag["is_delete"] = 1;
+            $tag["id_user_delete"] = $payload["id_user"];
+            $tag["time_delete"] = date("Y-m-j H:i:s");
+            $tag->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record berhasil didelete",
+              "result" => $tag
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record tidak ditemukan",
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: id, id_user (integer)",
+            "payload" => $payload
+          ];
+        }
+      }
+
+
+  // ==========================================================================
+  // Tag management
+  // ==========================================================================
 }
