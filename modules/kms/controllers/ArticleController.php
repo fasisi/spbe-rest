@@ -448,6 +448,7 @@ class ArticleController extends \yii\rest\Controller
   //  }
   public function actionUpdate()
   {
+    $id_user = true;
     $id_valid = true;
     $judul_valid = true;
     $body_valid = true;
@@ -456,6 +457,9 @@ class ArticleController extends \yii\rest\Controller
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
+
+    if( isset($payload["id_user"]) == false )
+      $id_user = false;
 
     if( isset($payload["id"]) == false )
       $id_valid = false;
@@ -572,7 +576,8 @@ class ArticleController extends \yii\rest\Controller
             // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
             $artikel['time_update'] = date("Y-m-j H:i:s");
-            $artikel['id_user_update'] = 123;
+            $artikel['id_user_update'] = $payload["id_user"];
+            $artikel['id_kategori'] = $payload["id_kategori"];
             $artikel->save();
 
             // mengupdate informasi tags
@@ -801,21 +806,22 @@ class ArticleController extends \yii\rest\Controller
     switch( true )
     {
       case $payload["object_type"] == "a" :
-        $q->select("a.*");
+        $q->select("a.id");
         $q->from("kms_artikel a");
         $q->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id");
         break;
 
       case $payload["object_type"] == "u" :
-        $q->select("u.*");
+        $q->select("u.id");
         $q->from("user u");
         $q->join("join", "kms_artikel_activity_log l", "l.id_user = u.id");
         break;
 
       default :
-        $q->select("a.*");
-        $q->from("kms_artikel a");
-        $q->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id");
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. object_type diisi dengan 'a' atau 'u'",
+        ];
         break;
     }
 
@@ -863,13 +869,63 @@ class ArticleController extends \yii\rest\Controller
 
     $q->where($where);
 
+    if( $payload["object_type"] == "a" )
+    {
+      $q->distinct()
+        ->groupBy("a.id")
+        ->orderBy("l.time_action desc");
+    }
+    else
+    {
+      $q->distinct()
+        ->groupBy("u.id")
+        ->orderBy("l.time_action desc");
+    }
+
     //execute the query
-    $hasil = $q->all();
+    $records = $q->all();
+
+    $hasil = [];
+    foreach($records as $record)
+    {
+      if( $payload["object_type"] == "a" )
+      {
+        $artikel = KmsArtikel::findOne($record["id"]);
+        $user = User::findOne($record["id_user_create"]);
+
+        $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
+        $response_payload = $response->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $artikel;
+        $temp["user_create"] = $user;
+        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["confluence"]["id"] = $confluence["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $hasil[] = $temp;
+      }
+      else
+      {
+        $user = User::findOne($record["id"]);
+
+        $temp = [];
+        $temp["user"] = $user;
+
+        $hasil[] = $temp;
+      }
+    }
 
     return [
       "status" => "ok",
-      "pesan" => "...",
-      "result" => $hasil
+      "pesan" => "Record berhasil diambil",
+      "result" => 
+      [
+        "count" => count($hasil),
+        "records" => $hasil
+      ]
     ];
   }
 
@@ -2345,11 +2401,15 @@ class ArticleController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengembalikan total jumlah kejadian saat ini.
+   *  Mengembalikan total jumlah kejadian yang terjadi dalam rentang waktu tertentu.
    *
    *  Method: GET
    *  Request type: 
    *  Request format:
+   *  {
+   *    "tanggal_awal": "yyyy-mm-dd",
+   *    "tanggal_akhir": "yyyy-mm-dd"
+   *  }
    *  Response type: JSON
    *  Response format:
    *  {
@@ -2387,6 +2447,18 @@ class ArticleController extends \yii\rest\Controller
     {
       // ambil jumlah artikel per kejadian (new, publish, .., freeze)
       $q = new Query();
+      $total_artikel = 
+        $q->select("a.id")
+          ->from("kms_artikel a")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
+          ->orderBy("log.status asc")
+          ->all();
+      $total_artikel = count($total_artikel);
+
       $artikel_status = 
         $q->select("log.status, count(a.id) as jumlah")
           ->from("kms_artikel a")
@@ -2417,6 +2489,19 @@ class ArticleController extends \yii\rest\Controller
 
       // ambil jumlah user per kejadian (new, publish, .., freeze)
       $q = new Query();
+      $total_user = 
+        $q->select("u.id")
+          ->from("user u")
+          ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
+          ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
+          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
+          ->andWhere("log.type_log = 1")
+          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
+          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
+          ->orderBy("log.status asc")
+          ->all();
+      $total_user = count($total_user);
+
       $user_status = 
         $q->select("log.status, count(u.id) as jumlah")
           ->from("user u")
@@ -2454,6 +2539,10 @@ class ArticleController extends \yii\rest\Controller
         $indent .= "&nbsp;&nbsp;";
       }
       $index_name = $indent . $kategori["nama"];
+
+
+      $temp["total"]["artikel"] = $total_artikel;
+      $temp["total"]["user"] = $total_user;
 
       foreach($artikel_status as $record)
       {
@@ -2495,6 +2584,10 @@ class ArticleController extends \yii\rest\Controller
 
           case 2: //dislike
             $temp["dislike"]["artikel"] = $record["jumlah"];
+            break;
+
+          case 3: //view
+            $temp["view"]["artikel"] = $record["jumlah"];
             break;
         }
       }
@@ -2538,6 +2631,10 @@ class ArticleController extends \yii\rest\Controller
             break;
 
           case 2: //dislike
+            $temp["dislike"]["user"] = $record["jumlah"];
+            break;
+
+          case 2: //view
             $temp["dislike"]["user"] = $record["jumlah"];
             break;
         }
