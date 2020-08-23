@@ -2401,7 +2401,7 @@ class ArticleController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengembalikan total jumlah kejadian saat ini.
+   *  Mengembalikan total jumlah kejadian yang terjadi dalam rentang waktu tertentu.
    *
    *  Method: GET
    *  Request type: 
@@ -2556,6 +2556,10 @@ class ArticleController extends \yii\rest\Controller
           case 2: //dislike
             $temp["dislike"]["artikel"] = $record["jumlah"];
             break;
+
+          case 3: //view
+            $temp["view"]["artikel"] = $record["jumlah"];
+            break;
         }
       }
 
@@ -2598,6 +2602,10 @@ class ArticleController extends \yii\rest\Controller
             break;
 
           case 2: //dislike
+            $temp["dislike"]["user"] = $record["jumlah"];
+            break;
+
+          case 2: //view
             $temp["dislike"]["user"] = $record["jumlah"];
             break;
         }
