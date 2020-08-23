@@ -30,6 +30,7 @@ class ForumController extends \yii\rest\Controller
         'delete'                => ['DELETE'],
         'list'                  => ['GET'],
 
+        'comment'               => ['POST', 'GET', 'DELETE', 'PUT'],
         'item, items'           => ['GET'],
         'attachments'           => ['POST'],
         'logsbytags'            => ['GET'],
@@ -2583,5 +2584,641 @@ class ForumController extends \yii\rest\Controller
       "daftar_kategori" => $daftar_kategori,
       "result" => $hasil,
     ];
+  }
+
+
+  /*
+   *  Membuat atau mengedit comment. Comment punya relasi kepada thread atau 
+   *  jawaban. Oleh karena itu, request create atau update harus menyertakan
+   *  tipe comment (1 = comment of thread; 2= comment of jawaban)
+   *
+   *  Method : POST
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "type": 1/2,
+   *    "id_parent": 123,
+   *    "id_user": 123,
+   *    "konten": "asdf"
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of comment
+   *    }
+   *  }
+   *
+   *  Method : GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "type": 1/2,
+   *    "id": 123,
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of comment
+   *    }
+   *  }
+   *
+   *  Method : PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "type": 1/2,
+   *    "id": 123,
+   *    "konten": "asdf"
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of comment
+   *    }
+   *  }
+   *
+   *  Method : DELETE
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "type": 1/2,
+   *    "id": 123,
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of comment
+   *    }
+   *  }
+    * */
+  public function actionComment()
+  {
+    $payload = $this->GetPayload();
+    
+    if( Yii::$app->request->isPost )
+    {
+      // membuat record comment
+      $is_type_valid = isset($payload["type"]);
+      $is_id_parent_valid = isset($payload["id_parent"]);
+      $is_id_user_valid = isset($payload["id_user"]);
+      $is_konten_valid = isset($payload["konten"]);
+      
+      if(
+          $is_type_valid == true &&
+          $is_id_parent_valid == true &&
+          $is_id_user_valid == true &&
+          $is_konten_valid == true
+        )
+      {
+        //cek type
+        if( is_numeric($payload["type"]) == false )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter tidak valid. type (integer)",
+          ];
+        }
+        
+        //cek id_parent
+        if( is_numeric($payload["id_parent"]) == false )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter tidak valid. type (integer)",
+          ];
+        }
+        else
+        {
+          if( $payload["type"] == 1 ) // comment of thread
+          {
+            $test = ForumThread::findOne($payload["id_parent"]);
+
+            if( is_null($test) == true )
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "id_parent tidak ditemukan",
+              ];
+            }
+          }
+          else if( $payload["type"] == 2 ) // comment of jawaban
+          {
+            $test = ForumThreadDiscussion::findOne($payload["id_parent"]);
+
+            if( is_null($test) == true )
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "id_parent tidak ditemukan",
+              ];
+            }
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter tidak valid. type diisi dengan 1 atau 2",
+            ];
+          }
+
+        }
+        
+        
+        //cek id_user
+        $test = User::findOne($payload["id_user"]);
+        if( is_null($test) == true)
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_user tidak dikenal",
+          ];
+        }
+        
+        //eksekusi
+        if( $payload["type"] == 1 ) // comment of thread
+        {
+          $new = new ForumThreadComment();
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-j");
+          $new["id_thread"] = $payload["id_parent"];
+          $new["judul"] = "";
+          $new["konten"] = $payload["konten"];
+          $new->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment berhasil dibikin",
+            "result" => $new
+          ];
+        }
+        else
+        {
+          // comment of jawaban
+
+          $new = new ForumThreadDiscussionComment();
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-j");
+          $new["id_discussion"] = $payload["id_parent"];
+          $new["judul"] = "";
+          $new["konten"] = $payload["konten"];
+          $new->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment berhasil dibikin",
+            "result" => $new
+          ];
+        }
+        
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter yang diperlukan tidak valid: type, id_user, id_parent, konten",
+        ];
+      }
+    }
+    else if( Yii::$app->request->isGet )
+    {
+      // mengambil record comment
+
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+
+      if( $payload["type"] == 1 ) // comment of thread
+      {
+        $test = ForumThreadComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else if( $payload["type"] == 2 ) //comment of jawaban
+      {
+        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. type harus diisi dengan 1 atau 2",
+        ];
+      }
+
+    }
+    else if( Yii::$app->request->isPut )
+    {
+      // mengupdate record comment
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+      $is_konten_valid = isset($payload["konten"]);
+
+      if( $payload["type"] == 1 ) // comment of thread
+      {
+        $test = ForumThreadComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+
+          $test["konten"] = $payload["konten"];
+          $test["id_user_update"] = $payload["id_user"];
+          $test["time_update"] = date("Y-m-j H:i:s");
+          $test->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else if( $payload["type"] == 2 ) //comment of jawaban
+      {
+        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+          $test["konten"] = $payload["konten"];
+          $test["id_user_update"] = $payload["id_user"];
+          $test["time_update"] = date("Y-m-j H:i:s");
+          $test->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. type harus diisi dengan 1 atau 2",
+        ];
+      }
+    }
+    else if( Yii::$app->request->isDelete )
+    {
+      // delete record comment
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+
+      if( $payload["type"] == 1 ) // comment of thread
+      {
+        $test = ForumThreadComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+
+          $test["is_delete"] = 1;
+          $test["id_user_delete"] = $payload["id_user"];
+          $test["time_delete"] = date("Y-m-j H:i:s");
+          $test->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else if( $payload["type"] == 2 ) //comment of jawaban
+      {
+        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+
+        if( is_null($test) == false )
+        {
+          $test["is_delete"] = 1;
+          $test["id_user_delete"] = $payload["id_user"];
+          $test["time_delete"] = date("Y-m-j H:i:s");
+          $test->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record comment ditemukan",
+            "result" => $test
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record comment tidak ditemukan."
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter tidak valid. type harus diisi dengan 1 atau 2",
+        ];
+      }
+    }
+  }
+
+  /*
+   *  Membuat atau mengedit jawaban.
+   *
+   *  Method : POST
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_parent": 123,
+   *    "id_user": 123,
+   *    "konten": "asdf"
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of jawaban
+   *    }
+   *  }
+   *
+   *  Method : GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id": 123,
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of jawaban
+   *    }
+   *  }
+   *
+   *  Method : PUT
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id": 123,
+   *    "konten": "asdf"
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of jawaban
+   *    }
+   *  }
+   *
+   *  Method : DELETE
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id": 123,
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok",
+   *    "pesan": "ok",
+   *    "result":
+   *    {
+   *      record of jawaban
+   *    }
+   *  }
+    * */
+  public function actionAnswer()
+  {
+    $payload = $this->GetPayload();
+    
+    if( Yii::$app->request->isPost )
+    {
+      // membuat record jawaban
+      $is_type_valid = isset($payload["type"]);
+      $is_id_parent_valid = isset($payload["id_parent"]);
+      $is_id_user_valid = isset($payload["id_user"]);
+      $is_konten_valid = isset($payload["konten"]);
+      
+      if(
+          $is_type_valid == true &&
+          $is_id_parent_valid == true &&
+          $is_id_user_valid == true &&
+          $is_konten_valid == true
+        )
+      {
+        //cek id_parent
+        if( is_numeric($payload["id_parent"]) == false )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter tidak valid. type (integer)",
+          ];
+        }
+        else
+        {
+          $test = ForumThread::findOne($payload["id_parent"]);
+
+          if( is_null($test) == true )
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "id_parent tidak ditemukan",
+            ];
+          }
+        }
+        
+        
+        //cek id_user
+        $test = User::findOne($payload["id_user"]);
+        if( is_null($test) == true)
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_user tidak dikenal",
+          ];
+        }
+        
+        //eksekusi
+        $new = new ForumThreadDiscussion();
+        $new["id_user_create"] = $payload["id_user"];
+        $new["time_create"] = date("Y-m-j");
+        $new["id_thread"] = $payload["id_parent"];
+        $new["judul"] = "";
+        $new["konten"] = $payload["konten"];
+        $new->save();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record jawaban berhasil dibikin",
+          "result" => $new
+        ];
+              }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter yang diperlukan tidak valid: type, id_user, id_parent, konten",
+        ];
+      }
+    }
+    else if( Yii::$app->request->isGet )
+    {
+      // mengambil record jawaban
+
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+
+      $test = ForumThreadDiscussion::findOne($payload["id"]);
+
+      if( is_null($test) == false )
+      {
+        return [
+          "status" => "ok",
+          "pesan" => "Record jawaban ditemukan",
+          "result" => $test
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record jawaban tidak ditemukan."
+        ];
+      }
+
+    }
+    else if( Yii::$app->request->isPut )
+    {
+      // mengupdate record jawaban
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+      $is_konten_valid = isset($payload["konten"]);
+
+      $test = ForumThreadDiscussion::findOne($payload["id"]);
+
+      if( is_null($test) == false )
+      {
+
+        $test["konten"] = $payload["konten"];
+        $test["id_user_update"] = $payload["id_user"];
+        $test["time_update"] = date("Y-m-j H:i:s");
+        $test->save();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record jawaban ditemukan",
+          "result" => $test
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record jawaban tidak ditemukan."
+        ];
+      }
+    }
+    else if( Yii::$app->request->isDelete )
+    {
+      // delete record jawaban
+      $is_type_valid = isset($payload["type"]);
+      $is_id_valid = isset($payload["id"]);
+
+
+      $test = ForumThreadDiscussion::findOne($payload["id"]);
+
+      if( is_null($test) == false )
+      {
+
+        $test["is_delete"] = 1;
+        $test["id_user_delete"] = $payload["id_user"];
+        $test["time_delete"] = date("Y-m-j H:i:s");
+        $test->save();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record jawaban ditemukan",
+          "result" => $test
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record jawaban tidak ditemukan."
+        ];
+      }
+    }
   }
 }
