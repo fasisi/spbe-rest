@@ -4,9 +4,11 @@ namespace app\modules\general\controllers;
 
 use Yii;
 use yii\helpers\Json;
+use yii\db\Query;
 
 use app\models\User;
 use app\models\UserRoles;
+use app\models\KategoriUser;
 use app\models\Roles;
 
 use yii\db\Query;
@@ -39,6 +41,7 @@ class UserController extends \yii\rest\Controller
   // {
   //   username: "", 
   //   password: "", 
+  //   id_kategori: [1,2,3,...]
   //   ...
   // }
   // Response type: JSON
@@ -62,7 +65,6 @@ class UserController extends \yii\rest\Controller
     // jika gagal, kembalikan pesan kesalahan dari database
 
     $payload = Yii::$app->request->rawBody;
-    Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
     $new = new User();
@@ -77,21 +79,18 @@ class UserController extends \yii\rest\Controller
     $new->save();
 
     // Mencari record terakhir
-    $last_record = User::find()->where(['id' => User::find()->max('id')])->one();
+    /* $last_record = User::find()->where(['id' => User::find()->max('id')])->one(); */
+    $id_user = $new->primaryKey;
 
-    if($last_record->hasErrors() == false)
-    {
-      foreach($payload["roles"] as $id_role) 
-      {
-        // Insert record ke table user_roles
-        $user_roles = new UserRoles();
-        $user_roles['id_user'] = $last_record['id'];
-        $user_roles['id_roles'] = $id_role;
-        $user_roles->save();
-        
-      }
-    }
-   
+    // Insert record ke table user_roles
+    $user_roles = new UserRoles();
+    $user_roles['id_user'] = $id_user;
+    $user_roles['id_roles'] = $payload["roles"];
+    $user_roles->save();
+
+    //insert record kategori ke tabel kategori_user
+    KategoriUser::Refresh($id_user, $payload["id_kategori"]);
+
     if( $new->hasErrors() == false )
     {
       return array(
