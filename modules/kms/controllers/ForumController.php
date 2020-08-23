@@ -409,6 +409,7 @@ class ForumController extends \yii\rest\Controller
   //  Request format:
   //  {
   //    "id": 123,
+  //    "id_user": 123,
   //    "judul": "",
   //    "body": "",
   //    "id_kategori": "",
@@ -431,6 +432,7 @@ class ForumController extends \yii\rest\Controller
   public function actionUpdate()
   {
     $id_valid = true;
+    $id_id_user_valid = true;
     $judul_valid = true;
     $body_valid = true;
     $kategori_valid = true;
@@ -441,6 +443,9 @@ class ForumController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == false )
       $id_valid = false;
+
+    if( isset($payload["id_user"]) == false )
+      $id_id_user_valid = false;
 
     if( isset($payload["judul"]) == false )
       $judul_valid = false;
@@ -455,42 +460,67 @@ class ForumController extends \yii\rest\Controller
       $tags_valid = false;
 
     if( 
-        $id_valid == true && $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true 
+        $id_valid == true && 
+        $id_id_user_valid == true && 
+        $judul_valid == true && 
+        $body_valid == true &&
+        $kategori_valid == true && 
+        $tags_valid == true 
       )
     {
+
+
+      // update record kms_artikel
+      $thread = ForumThread::findOne($payload["id"]);
+      $thread['time_update'] = date("Y-m-j H:i:s");
+      $thread['id_user_update'] = $payload["id_user"];
+      $thread->save();
+
+      // mengupdate informasi tags
+
+          //hapus label pada spbe
+              ForumThreadTag::deleteAll("id_thread = {$thread["id"]}");
+
+              $this->UpdateTags(null, null, $thread["id"], -1, $payload);
+          //hapus label pada spbe
+               
+      // mengupdate informasi tags
+
+
       // ambil nomor versi bersadarkan id_linked_content
-          $thread = ForumThread::findOne($payload["id"]);
+          /* $thread = ForumThread::findOne($payload["id"]); */
           
-          $jira_conf = Yii::$app->restconf->confs['confluence'];
-          $client = $this->SetupGuzzle();
+          /* $jira_conf = Yii::$app->restconf->confs['confluence']; */
+          /* $client = $this->SetupGuzzle(); */
 
-          $res = null;
-          $res = $client->request(
-            'GET',
-            "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
-            [
-              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-              /* 'debug' => true, */
-              'http_errors' => false,
-              'headers' => [
-                "Content-Type" => "application/json",
-                "accept" => "application/json",
-              ],
-              'auth' => [
-                $jira_conf["user"],
-                $jira_conf["password"]
-              ],
-              'query' => [
-                'status' => 'current',
-                'expand' => 'body.view,version',
-              ],
-              'body' => Json::encode($request_payload),
-            ]
-          );
-          $response = Json::decode($res->getBody());
+          /* $res = null; */
+          /* $res = $client->request( */
+          /*   'GET', */
+          /*   "/rest/questions/1.0/question/{$thread["linked_id_question"]}", */
+          /*   [ */
+          /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+          /*     /1* 'debug' => true, *1/ */
+          /*     'http_errors' => false, */
+          /*     'headers' => [ */
+          /*       "Content-Type" => "application/json", */
+          /*       "accept" => "application/json", */
+          /*     ], */
+          /*     'auth' => [ */
+          /*       $jira_conf["user"], */
+          /*       $jira_conf["password"] */
+          /*     ], */
+          /*     'query' => [ */
+          /*       'status' => 'current', */
+          /*       'expand' => 'body.view,version', */
+          /*     ], */
+          /*     'body' => Json::encode($request_payload), */
+          /*   ] */
+          /* ); */
+          /* $response = Json::decode($res->getBody()); */
       // ambil nomor versi bersadarkan id_linked_content
 
+      // WARNING!!
+      //
       // berdasarkan dokumentasi Confluence-Question, tidak ada API untuk 
       // melakukan update question. Perlu dipikirkan jalan keluarnya. Apakah
       // thread dikirim ke Confluence-Question saat thread pindah status dari
@@ -683,7 +713,7 @@ class ForumController extends \yii\rest\Controller
     }
   }
 
-  private function UpdateTags($client, $jira_conf, $id_artikel, $linked_id_content, $payload)
+  private function UpdateTags($client, $jira_conf, $id_thread, $linked_id_content, $payload)
   {
     $tags = array();
     foreach( $payload["tags"] as $tag )
@@ -709,7 +739,7 @@ class ForumController extends \yii\rest\Controller
         $new = new KmsTags();
         $new["nama"] = $tag;
         $new["status"] = 0;
-        $new["id_user_create"] = 123;
+        $new["id_user_create"] = $payload["id_user"];
         $new["time_create"] = date("Y-m-j H:i:s");
         $new->save();
 
@@ -717,15 +747,17 @@ class ForumController extends \yii\rest\Controller
       }
 
       // relate id_artikel dengan id_tag
-      $new = new KmsArtikelTag();
-      $new["id_artikel"] = $id_artikel;
+      $new = new ForumThreadTag();
+      $new["id_thread"] = $id_thread;
       $new["id_tag"] = $id_tag;
       $new->save();
 
-      $temp = [];
-      $temp["prefix"] = "global";
-      $temp["name"] = $tag;
-      $tags[] = $temp;
+      // urusan ke confluence
+      //
+      /* $temp = []; */
+      /* $temp["prefix"] = "global"; */
+      /* $temp["name"] = $tag; */
+      /* $tags[] = $temp; */
     } // loop tags
 
     // kirim tag ke Confluence
