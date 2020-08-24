@@ -29,7 +29,7 @@ class KmsArtikelActivityLog extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_artikel', 'id_user', 'action','status', 'time_action'], 'required'],
+            [['id_artikel', 'id_user', 'type_log'], 'required'],
             [['id_artikel', 'id_user', 'action'], 'integer'],
             [['time_action'], 'safe'],
         ];
@@ -45,7 +45,7 @@ class KmsArtikelActivityLog extends \yii\db\ActiveRecord
             'id_artikel' => 'Id Artikel',
             'id_user' => 'Id User',
             'action' => 'Type Action',
-            'status' => 'Type Status'
+            'status' => 'Type Status',
             'time_action' => 'Time Action',
         ];
     }

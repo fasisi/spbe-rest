@@ -783,9 +783,9 @@ class ArticleController extends \yii\rest\Controller
    *    "object_type": "a/u",
    *    "filter":
    *    {
-   *      "waktu_awal"    : "y-m-j",
-   *      "waktu_akhir"   : "y-m-j",
-   *      "actions"       : [1, 2, ...],
+   *      "tanggal_awal"    : "y-m-j",
+   *      "tanggal_akhir"   : "y-m-j",
+   *      "actions"       : [-1, 0, 1, 2], // -1 = view; 1 = like; 2 = dislike
    *      "id_kategori"   : 123,
    *      "id_artikel"    : 123,
    *    }
@@ -808,8 +808,8 @@ class ArticleController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
-    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
-    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_akhir"]);
 
     $q = new Query();
 
@@ -842,11 +842,13 @@ class ArticleController extends \yii\rest\Controller
     {
       switch(true)
       {
-        case $key == "waktu_awal":
+        case $key == "tanggal_awal":
+          $value = date("Y-m-j 00:00:00", $tanggal_awal->timestamp);
           $where[] = "l.time_action >= '$value'";
         break;
 
-        case $key == "waktu_akhir":
+        case $key == "tanggal_akhir":
+          $value = date("Y-m-j 23:59:59", $tanggal_akhir->timestamp);
           $where[] = "l.time_action <= '$value'";
         break;
 
@@ -916,6 +918,18 @@ class ArticleController extends \yii\rest\Controller
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
 
+        //ambil data view
+        $type_action = -1;
+        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        
+        //ambil data like
+        $type_action = 1;
+        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+
+        //ambil data dislike
+        $type_action = 2;
+        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+
         $hasil[] = $temp;
       }
       else
@@ -924,6 +938,18 @@ class ArticleController extends \yii\rest\Controller
 
         $temp = [];
         $temp["user"] = $user;
+
+        //ambil data view
+        $type_action = -1;
+        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        
+        //ambil data like
+        $type_action = 1;
+        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+
+        //ambil data dislike
+        $type_action = 2;
+        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
 
         $hasil[] = $temp;
       }
