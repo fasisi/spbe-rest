@@ -768,9 +768,13 @@ class ArticleController extends \yii\rest\Controller
 
   /*
    *  Mengambil kms_artikel_activity_log berdasarkan filter yang dapat disetup 
-   *  secara dinamis. Digunakan untuk menampilkan daftar user beserta informasi
-   *  statistiknya (jumlah create, view, like, dislike). Atau menampilkan daftar
-   *  artikel berserta informasi statistiknya (jumlah view, like, dislike).
+   *  secara dinamis. 
+   *
+   *  Digunakan untuk menampilkan daftar user beserta informasi statistiknya 
+   *  (jumlah create, view, like, dislike). 
+   *
+   *  Atau menampilkan daftar artikel berserta informasi statistiknya (jumlah 
+   *  view, like, dislike).
    *
    *  Method: GET
    *  Request type: JSON
@@ -1485,6 +1489,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
         break;
 
       default:
