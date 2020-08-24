@@ -372,7 +372,7 @@ class GeneralController extends \yii\rest\Controller
        *
        *  }
         * */
-      pubiic function actionTaglist()
+      public function actionTaglist()
       {
         $hasil = KmsTags::find()
           ->where("is_delete = 0")

@@ -9,6 +9,7 @@ use yii\db\Query;
 use app\models\User;
 use app\models\UserRoles;
 use app\models\KategoriUser;
+use app\models\Roles;
 
 class UserController extends \yii\rest\Controller
 {
@@ -321,7 +322,7 @@ class UserController extends \yii\rest\Controller
     Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
-    $query = new Query;
+    $query = new Query();
     $query->select([
       'user.id AS id_user',
       'user.nama AS nama_user',
