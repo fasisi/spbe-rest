@@ -767,7 +767,10 @@ class ArticleController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil kms_artikel_activity_log berdasarkan filter yang dapat disetup secara dinamis.
+   *  Mengambil kms_artikel_activity_log berdasarkan filter yang dapat disetup 
+   *  secara dinamis. Digunakan untuk menampilkan daftar user beserta informasi
+   *  statistiknya (jumlah create, view, like, dislike). Atau menampilkan daftar
+   *  artikel berserta informasi statistiknya (jumlah view, like, dislike).
    *
    *  Method: GET
    *  Request type: JSON
@@ -776,8 +779,8 @@ class ArticleController extends \yii\rest\Controller
    *    "object_type": "a/u",
    *    "filter":
    *    {
-   *      "waktu_awal"    : "y-m-j H:i:s",
-   *      "waktu_akhir"   : "y-m-j H:i:s",
+   *      "waktu_awal"    : "y-m-j",
+   *      "waktu_akhir"   : "y-m-j",
    *      "actions"       : [1, 2, ...],
    *      "id_kategori"   : 123,
    *      "id_artikel"    : 123,
@@ -800,6 +803,9 @@ class ArticleController extends \yii\rest\Controller
   {
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
+
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["tanggal_akhir"]);
 
     $q = new Query();
 
