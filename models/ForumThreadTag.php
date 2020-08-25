@@ -4,6 +4,8 @@ namespace app\models;
 
 use Yii;
 
+use yii\db\Query;
+
 /**
  * This is the model class for table "forum_thread_tag".
  *
@@ -41,5 +43,17 @@ class ForumThreadTag extends \yii\db\ActiveRecord
             'id_thread' => 'Id Thread',
             'id_tag' => 'Id Tag',
         ];
+    }
+
+
+    public static function GetThreadTags($id_thread)
+    {
+      $q = new Query();
+      $q->select("t.*")
+        ->from("forum_tag t")
+        ->join("JOIN", "forum_thread_tag ft", "ft.id_tag = t.id")
+        ->where("ft.id_thread = :id", [":id" => $id_thread]);
+
+      return $q->all();
     }
 }
