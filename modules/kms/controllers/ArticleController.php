@@ -920,15 +920,15 @@ class ArticleController extends \yii\rest\Controller
 
         //ambil data view
         $type_action = -1;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["view"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         
         //ambil data like
         $type_action = 1;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["like"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         //ambil data dislike
         $type_action = 2;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["dislike"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         $hasil[] = $temp;
       }
@@ -941,15 +941,15 @@ class ArticleController extends \yii\rest\Controller
 
         //ambil data view
         $type_action = -1;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["view"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         
         //ambil data like
         $type_action = 1;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["like"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         //ambil data dislike
         $type_action = 2;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["dislike"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         $hasil[] = $temp;
       }
