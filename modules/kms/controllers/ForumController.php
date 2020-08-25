@@ -224,7 +224,7 @@ class ForumController extends \yii\rest\Controller
       ];
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $client = $this->SetupGuzzle();
+      $client = $this->SetupGuzzleClient();
 
       $res = null;
       try
@@ -260,12 +260,12 @@ class ForumController extends \yii\rest\Controller
             $response_payload = $res->getBody();
             $response_payload = Json::decode($response_payload);
 
-            $linked_id_artikel = $response_payload['id'];
+            $linked_id_question = $response_payload['id'];
 
 
             // bikin record kms_artikel
             $thread = new ForumThread();
-            $thread['linked_id_question'] = $linked_id_artikel;
+            $thread['linked_id_question'] = $linked_id_question;
             $thread['time_create'] = date("Y-m-j H:i:s");
             $thread['id_user_create'] = $payload['id_user'];
             $thread['id_kategori'] = $payload['id_kategori'];
@@ -551,7 +551,7 @@ class ForumController extends \yii\rest\Controller
       /*   // update kontent artikel pada confluence */
       /*   $res = $client->request( */
       /*     'PUT', */
-      /*     "/rest/api/content/{$artikel["linked_id_content"]}", */
+      /*     "/rest/api/content/{$artikel["linked_id_question"]}", */
       /*     [ */
       /*       /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
       /*       /1* 'debug' => true, *1/ */
@@ -578,7 +578,7 @@ class ForumController extends \yii\rest\Controller
       /*       $response_payload = $res->getBody(); */
       /*       $response_payload = Json::decode($response_payload); */
 
-      /*       $linked_id_artikel = $response_payload['id']; */
+      /*       $linked_id_question = $response_payload['id']; */
 
 
       /*       // update record kms_artikel */
@@ -590,7 +590,7 @@ class ForumController extends \yii\rest\Controller
       /*       // mengupdate informasi tags */
 
       /*           //hapus label pada confluence */
-      /*               $this->DeleteTags($client, $jira_conf, $artikel["linked_id_content"]); */
+      /*               $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
       /*           //hapus label pada confluence */
 
       /*           //hapus label pada spbe */
@@ -599,7 +599,7 @@ class ForumController extends \yii\rest\Controller
 
 
       /*           // refresh tag/label */
-      /*               $this->UpdateTags($client, $jira_conf, $artikel["id"], $artikel["linked_id_content"], $payload); */
+      /*               $this->UpdateTags($client, $jira_conf, $artikel["id"], $artikel["linked_id_question"], $payload); */
       /*           // refresh tag/label */
                      
       /*       // mengupdate informasi tags */
@@ -670,11 +670,11 @@ class ForumController extends \yii\rest\Controller
    * Apakah tags akan diterapkan secara eksklusif di dalam SPBE?
    *
     * */
-  private function DeleteTags($client, $jira_conf, $linked_id_content)
+  private function DeleteTags($client, $jira_conf, $linked_id_question)
   {
     $res = $client->request(
       'GET',
-      "/rest/api/content/{$linked_id_content}/label",
+      "/rest/api/content/{$linked_id_question}/label",
       [
         /* 'sink' => Yii::$app->basePath . "/guzzledump1.txt", */
         /* 'debug' => true, */
@@ -695,7 +695,7 @@ class ForumController extends \yii\rest\Controller
     {
       $res2 = $client->request(
         'DELETE',
-        "/rest/api/content/{$linked_id_content}/label/{$object["name"]}",
+        "/rest/api/content/{$linked_id_question}/label/{$object["name"]}",
         [
           'sink' => Yii::$app->basePath . "/guzzledump2.txt",
           /* 'debug' => true, */
@@ -713,7 +713,7 @@ class ForumController extends \yii\rest\Controller
     }
   }
 
-  private function UpdateTags($client, $jira_conf, $id_thread, $linked_id_content, $payload)
+  private function UpdateTags($client, $jira_conf, $id_thread, $linked_id_question, $payload)
   {
     $tags = array();
     foreach( $payload["tags"] as $tag )
@@ -763,7 +763,7 @@ class ForumController extends \yii\rest\Controller
     // kirim tag ke Confluence
     /* $res = $client->request( */
     /*   'POST', */
-    /*   "/rest/api/content/{$linked_id_content}/label", */
+    /*   "/rest/api/content/{$linked_id_question}/label", */
     /*   [ */
     /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
     /*     /1* 'debug' => true, *1/ */
@@ -892,7 +892,7 @@ class ForumController extends \yii\rest\Controller
     else
     {
       $q->distinct()
-        ->groupBy("a.id")
+        ->groupBy("a.id");
     }
 
     //execute the query
@@ -914,8 +914,8 @@ class ForumController extends \yii\rest\Controller
         $temp["forum_thread"] = $thread;
         $temp["categoru_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $temp["user_create"] = $user;
-        $temp["tags"] = ForumThreadTag::GetArtikelTags($thread["id"]);
-        $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+        $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $temp["confluence"]["linked_id_question"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["content"];
 
@@ -1297,7 +1297,7 @@ class ForumController extends \yii\rest\Controller
 
       //  lakukan query dari Confluence
       $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $client = $this->SetupGuzzle();
+      $client = $this->SetupGuzzleClient();
 
       $hasil = [];
       foreach($list_thread as $thread)
@@ -1306,7 +1306,7 @@ class ForumController extends \yii\rest\Controller
 
         $res = $client->request(
           'GET',
-          "/rest/questions/1.0/content/{$thread["linked_id_thread"]}",
+          "/rest/questions/1.0/content/{$thread["linked_id_question"]}",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -1337,10 +1337,10 @@ class ForumController extends \yii\rest\Controller
             $temp = [];
             $temp["forum_thread"] = $thread;
             $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetArtikelTags($thread["id"]);
+            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
-            $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["content"];
             $temp['data_user']['user_create'] = $user->nama;
@@ -1351,9 +1351,9 @@ class ForumController extends \yii\rest\Controller
           default:
             // kembalikan response
             $temp = [];
-            $temp["kms_artikel"] = $artikel;
+            $temp["forum_thread"] = $thread;
             $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetArtikelTags($thread["id"]);
+            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1451,7 +1451,7 @@ class ForumController extends \yii\rest\Controller
       $hasil = [];
       $res = $client->request(
         'GET',
-        "/rest/questions/1.0/question/{$thread["linked_id_thread"]}",
+        "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
         [
           /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
           /* 'debug' => true, */
@@ -1483,9 +1483,9 @@ class ForumController extends \yii\rest\Controller
         $hasil["forum_thread"] = $thread;
         $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $hasil["user_create"] = $user;
-        $hasil["tags"] = ForumThreadTag::GetArtikelTags($thread["id"]);
+        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
         $hasil["confluence"]["status"] = "ok";
-        $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
+        $hasil["confluence"]["linked_id_question"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
         break;
@@ -1495,7 +1495,7 @@ class ForumController extends \yii\rest\Controller
         $hasil = [];
         $hasil["kms_artikel"] = $thread;
         $hasil["user_create"] = $user;
-        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($thread["id"]);
+        $hasil["tags"] = KmsArtikelTag::GetThreadTags($thread["id"]);
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
@@ -1803,7 +1803,7 @@ class ForumController extends \yii\rest\Controller
       }
       $keywords = "($keywords)";
 
-      //ambil daftar linked_id_content berdasarkan array id_kategori
+      //ambil daftar linked_id_question berdasarkan array id_kategori
       $daftar_artikel = KmsArtikel::find()
         ->where(
           [
@@ -1822,12 +1822,12 @@ class ForumController extends \yii\rest\Controller
           $daftar_id .= ", ";
         }
 
-        $daftar_id .= $artikel["linked_id_content"];
+        $daftar_id .= $artikel["linked_id_question"];
       }
       $daftar_id = "ID IN ($daftar_id)";
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $client = $this->SetupGuzzle();
+      $client = $this->SetupGuzzleCient();
 
       $res = $client->request(
         'GET',
@@ -1865,7 +1865,7 @@ class ForumController extends \yii\rest\Controller
         {
           $temp = array();
           $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_content"] = $item["id"];
+          $temp["confluence"]["linked_id_question"] = $item["id"];
           $temp["confluence"]["judul"] = $item["title"];
 
           $thread = ForumThread::find()
@@ -2119,7 +2119,7 @@ class ForumController extends \yii\rest\Controller
 
         //  lakukan query dari Confluence
         $jira_conf = Yii::$app->restconf->confs['confluence'];
-        $client = $this->SetupGuzzle();
+        $client = $this->SetupGuzzleClient();
 
         $res = $client->request(
           'GET',
