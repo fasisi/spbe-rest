@@ -1431,7 +1431,7 @@ class ForumController extends \yii\rest\Controller
       )
     {
       //  lakukan query dari tabel kms_artikel
-      $artikel = ForumThread::find()
+      $thread = ForumThread::find()
         ->where([
             "and",
             "id = :id_thread",
@@ -1442,7 +1442,7 @@ class ForumController extends \yii\rest\Controller
         )
         ->one();
 
-      $user = User::findOne($artikel["id_user_create"]);
+      $user = User::findOne($thread["id_user_create"]);
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1495,7 +1495,7 @@ class ForumController extends \yii\rest\Controller
         $hasil = [];
         $hasil["kms_artikel"] = $thread;
         $hasil["user_create"] = $user;
-        $hasil["tags"] = KmsArtikelTag::GetThreadTags($thread["id"]);
+        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
@@ -1827,7 +1827,7 @@ class ForumController extends \yii\rest\Controller
       $daftar_id = "ID IN ($daftar_id)";
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $client = $this->SetupGuzzleCient();
+      $client = $this->SetupGuzzleClient();
 
       $res = $client->request(
         'GET',
