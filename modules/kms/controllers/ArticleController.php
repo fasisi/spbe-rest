@@ -118,7 +118,7 @@ class ArticleController extends \yii\rest\Controller
     $log->save();
   }
 
-  private function Conf_GetArtikel($client, $linkd_id_content)
+  private function Conf_GetArtikel($client, $linked_id_content)
   {
     $jira_conf = Yii::$app->restconf->confs['confluence'];
     $res = $client->request(
@@ -914,7 +914,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["kms_artikel"] = $artikel;
         $temp["user_create"] = $user;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-        $temp["confluence"]["id"] = $confluence["id"];
+        $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
 
