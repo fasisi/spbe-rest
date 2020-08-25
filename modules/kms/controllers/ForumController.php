@@ -219,7 +219,7 @@ class ForumController extends \yii\rest\Controller
         "title" => $payload["judul"],
         "body" => $payload["body"],
         "topics" => $tags,
-        "dateAsked" => date("Y-m-d H:i:s"),
+        "dateAsked" => date("Y-m-d"),
         "spaceKey" => "PS",
       ];
 
