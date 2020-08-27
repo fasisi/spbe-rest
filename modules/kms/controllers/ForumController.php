@@ -3268,5 +3268,4 @@ class ForumController extends \yii\rest\Controller
       }
     }
   }
-  //
 }
