@@ -118,7 +118,7 @@ class ArticleController extends \yii\rest\Controller
     $log->save();
   }
 
-  private function Conf_GetArtikel($client, $linkd_id_content)
+  private function Conf_GetArtikel($client, $linked_id_content)
   {
     $jira_conf = Yii::$app->restconf->confs['confluence'];
     $res = $client->request(
@@ -912,23 +912,25 @@ class ArticleController extends \yii\rest\Controller
 
         $temp = [];
         $temp["kms_artikel"] = $artikel;
-        $temp["user_create"] = $user;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-        $temp["confluence"]["id"] = $confluence["id"];
+        $temp["user_create"] = $user;
+        $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
 
         //ambil data view
         $type_action = -1;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["view"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         
         //ambil data like
         $type_action = 1;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["like"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         //ambil data dislike
         $type_action = 2;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($id_artikel, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["dislike"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         $hasil[] = $temp;
       }
@@ -941,15 +943,15 @@ class ArticleController extends \yii\rest\Controller
 
         //ambil data view
         $type_action = -1;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["view"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         
         //ambil data like
         $type_action = 1;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["like"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         //ambil data dislike
         $type_action = 2;
-        $temp["view"] = KmsArtikel::ActionByUserInRange($id_user, $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["dislike"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
         $hasil[] = $temp;
       }
