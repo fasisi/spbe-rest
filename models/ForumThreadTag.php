@@ -50,7 +50,7 @@ class ForumThreadTag extends \yii\db\ActiveRecord
     {
       $q = new Query();
       $q->select("t.*")
-        ->from("forum_tag t")
+        ->from("forum_tags t")
         ->join("JOIN", "forum_thread_tag ft", "ft.id_tag = t.id")
         ->where("ft.id_thread = :id", [":id" => $id_thread]);
 

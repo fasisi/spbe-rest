@@ -11,6 +11,7 @@ use app\models\ForumThreadActivityLog;
 use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
 use app\models\KmsTags;
+use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
 
@@ -279,7 +280,7 @@ class ForumController extends \yii\rest\Controller
             foreach( $payload["tags"] as $tag )
             {
               // cek apakah tag sudah ada di dalam tabel
-              $test = ForumTags::find()
+              $test = KmsTags::find()
                 ->where(
                   "nama = :nama",
                   [
@@ -296,9 +297,9 @@ class ForumController extends \yii\rest\Controller
               }
               else
               {
-                $new = new ForumTags();
+                $new = new KmsTags();
                 $new["nama"] = $tag;
-                $new["status"] = 0;
+                $new["status"] = 1;
                 $new["id_user_create"] = 123;
                 $new["time_create"] = date("Y-m-j H:i:s");
                 $new->save();
@@ -1306,7 +1307,7 @@ class ForumController extends \yii\rest\Controller
 
         $res = $client->request(
           'GET',
-          "/rest/questions/1.0/content/{$thread["linked_id_question"]}",
+          "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -2083,8 +2084,8 @@ class ForumController extends \yii\rest\Controller
         $q->select("t.*")
           ->from("kms_tags t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
-          ->join("JOIN", "forum_thread t", "t.id = atag.id_thread")
-          ->where(["in", "a.id_kategori", $payload["id_kategori"]])
+          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
+          ->where(["in", "f.id_kategori", $payload["id_kategori"]])
           ->distinct()
           ->all();
 
@@ -2100,12 +2101,12 @@ class ForumController extends \yii\rest\Controller
         $q->select("t.*")
           ->from("forum_thread t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
-          ->where(
-            ["in", "atag.id_tag", $daftar_tag]
-          )
-          ->andWhere(
+          ->where([
+            "and",
+            ["in", "atag.id_tag", $daftar_tag],
+            "t.is_delete = 0",
             ["not", ["in", "t.id_kategori", $payload["id_kategori"]]]
-          )
+          ])
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
@@ -2130,6 +2131,7 @@ class ForumController extends \yii\rest\Controller
             'http_errors' => false,
             'headers' => [
               "Content-Type" => "application/json",
+              "Media-Type" => "application/json",
               "accept" => "application/json",
             ],
             'auth' => [
@@ -2144,14 +2146,28 @@ class ForumController extends \yii\rest\Controller
         );
 
         $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
 
         $temp = [];
-        $temp["forum_thread"] = $record;
-        $temp["user_create"] = $user;
-        $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
-        $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+
+        try
+        {
+          $response_payload = Json::decode($response_payload);
+
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+        }
+        catch(yii\base\InvalidArgumentException $e)
+        {
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["status"] = "not ok";
+          $temp["confluence"]["response"] = $response_payload;
+        }
+
 
         $hasil[] = $temp;
       }
@@ -2232,13 +2248,12 @@ class ForumController extends \yii\rest\Controller
         $q->select("k.*")
           ->from("kms_kategori k")
           ->join("JOIN", "forum_thread f", "f.id_kategori = k.id")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_artikel = f.id")
-          ->where(
-            ["in", "atag.id_tag", $daftar_tag]
-          )
-          ->andWhere(
+          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = f.id")
+          ->where([
+            "and",
+            ["in", "atag.id_tag", $daftar_tag],
             ["not", ["in", "f.id_kategori", $payload["id_kategori"]]]
-          )
+          ])
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
