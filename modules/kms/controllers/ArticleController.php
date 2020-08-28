@@ -903,7 +903,7 @@ class ArticleController extends \yii\rest\Controller
       if( $payload["object_type"] == "a" )
       {
         $artikel = KmsArtikel::findOne($record["id"]);
-        $user = User::findOne($record["id_user_create"]);
+        $user = User::findOne($artikel["id_user_create"]);
 
         $client = $this->SetupGuzzleClient();
         $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
@@ -2582,7 +2582,7 @@ class ArticleController extends \yii\rest\Controller
         $indent .= "&nbsp;&nbsp;";
       }
       $index_name = $indent . $kategori["nama"];
-
+      $category_path = KmsKategori::CategoryPath($kategori["id"]);
 
       $temp["total"]["artikel"] = $total_artikel;
       $temp["total"]["user"] = $total_user;
@@ -2685,6 +2685,7 @@ class ArticleController extends \yii\rest\Controller
 
       $hasil[] = [
         "kategori" => $index_name,
+        "category_path" => $category_path,
         "id" => $kategori["id"],
         "data" => $temp
       ];
