@@ -10,6 +10,7 @@ use app\models\ForumThread;
 use app\models\ForumThreadActivityLog;
 use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
+use app\models\ForumThreadDiscussion;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
@@ -1412,6 +1413,10 @@ class ForumController extends \yii\rest\Controller
    *        {
    *          <object dari record forum_thread>
    *        },
+   *        "jawaban":
+   *        [
+   *          { object_jawaban }, ...
+   *        ]
    *        "confluence":
    *        {
    *          <object dari record Confluence>
@@ -1444,6 +1449,17 @@ class ForumController extends \yii\rest\Controller
         ->one();
 
       $user = User::findOne($thread["id_user_create"]);
+      $jawaban = ForumThreadDiscussion::find()
+        ->where(
+          [
+            "and",
+            "id_thread = :id_thread",
+            "is_delete = 0"
+          ],
+          [":id_thread" => $thread["id"]]
+        )
+        ->orderBy("time_create asc")
+        ->all();
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1482,6 +1498,8 @@ class ForumController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["forum_thread"] = $thread;
+        $hasil["jawaban"]["count"] = count($jawaban);
+        $hasil["jawaban"]["records"] = $jawaban;
         $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $hasil["user_create"] = $user;
         $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
@@ -3112,13 +3130,11 @@ class ForumController extends \yii\rest\Controller
     if( Yii::$app->request->isPost )
     {
       // membuat record jawaban
-      $is_type_valid = isset($payload["type"]);
       $is_id_parent_valid = isset($payload["id_parent"]);
       $is_id_user_valid = isset($payload["id_user"]);
       $is_konten_valid = isset($payload["konten"]);
       
       if(
-          $is_type_valid == true &&
           $is_id_parent_valid == true &&
           $is_id_user_valid == true &&
           $is_konten_valid == true
@@ -3129,7 +3145,7 @@ class ForumController extends \yii\rest\Controller
         {
           return [
             "status" => "not ok",
-            "pesan" => "Parameter tidak valid. type (integer)",
+            "pesan" => "Parameter tidak valid. id_parent (integer)",
           ];
         }
         else
@@ -3152,7 +3168,7 @@ class ForumController extends \yii\rest\Controller
         {
           return [
             "status" => "not ok",
-            "pesan" => "id_user tidak dikenal",
+            "pesan" => "id_user tidak ditemukan",
           ];
         }
         
