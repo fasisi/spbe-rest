@@ -1379,6 +1379,10 @@ class ForumController extends \yii\rest\Controller
    *        {
    *          <object dari record forum_thread>
    *        },
+   *        "jawaban":
+   *        [
+   *          { object_jawaban }, ...
+   *        ]
    *        "confluence":
    *        {
    *          <object dari record Confluence>
@@ -1411,6 +1415,17 @@ class ForumController extends \yii\rest\Controller
         ->one();
 
       $user = User::findOne($thread["id_user_create"]);
+      $jawaban = ForumThreadDiscussion::find()
+        ->where(
+          [
+            "and",
+            "id_thread = :id_thread",
+            "is_delete = 0"
+          ],
+          [":id_thread" => $thread["id"]]
+        )
+        ->orderBy("time_create asc")
+        ->all();
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1449,6 +1464,8 @@ class ForumController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["forum_thread"] = $thread;
+        $hasil["jawaban"]["count"] = count($jawaban);
+        $hasil["jawaban"]["records"] = $jawaban;
         $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $hasil["user_create"] = $user;
         $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
