@@ -469,38 +469,13 @@ class UserController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == true )
     {
-      $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
-        $user["is_banned"]       = 0;
-        $user->save();
+      User::updateAll(['is_banned' => 0],['in','id',$payload["id"]]);
 
-        if( $user->hasErrors() == false )
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record deleted",
-            "result" => $user,
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Fail on delete record",
-            "result" => $user->getErrors(),
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Record not found",
-        ];
-      }
+      return [
+        "status" => "ok",
+        "pesan" => "Record Banned"
+      ];
     }
     else
     {
