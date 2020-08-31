@@ -1407,16 +1407,25 @@ class ForumController extends \yii\rest\Controller
    *    "pesan": "",
    *    "result":
    *    {
+ *        "jawaban":
+ *        {
+ *          count: 123,
+ *          records:
+ *          [
+ *            { object_jawaban }, ...
+ *          ]
+ *        },
    *      "record":
    *      {
    *        "forum_thread":
    *        {
    *          <object dari record forum_thread>
    *        },
-   *        "jawaban":
+   *        "user_create": {},
+   *        "tags": 
    *        [
-   *          { object_jawaban }, ...
-   *        ]
+   *          {}, ...
+   *        ],
    *        "confluence":
    *        {
    *          <object dari record Confluence>
@@ -1497,27 +1506,27 @@ class ForumController extends \yii\rest\Controller
         $response_payload = Json::decode($response_payload);
 
         $hasil = [];
-        $hasil["forum_thread"] = $thread;
+        $hasil["record"]["forum_thread"] = $thread;
+        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $hasil["record"]["user_create"] = $user;
+        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $hasil["record"]["confluence"]["status"] = "ok";
+        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
+        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
-        $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $hasil["user_create"] = $user;
-        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["confluence"]["status"] = "ok";
-        $hasil["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
         break;
 
       default:
         // kembalikan response
         $hasil = [];
-        $hasil["kms_artikel"] = $thread;
-        $hasil["user_create"] = $user;
-        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["confluence"]["status"] = "not ok";
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
+        $hasil["record"]["forum_thread"] = $thread;
+        $hasil["record"]["user_create"] = $user;
+        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $hasil["record"]["confluence"]["status"] = "not ok";
+        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
         break;
       }
 
@@ -3126,6 +3135,8 @@ class ForumController extends \yii\rest\Controller
   public function actionAnswer()
   {
     $payload = $this->GetPayload();
+    $thread = null;
+    $user = null;
     
     if( Yii::$app->request->isPost )
     {
@@ -3150,9 +3161,9 @@ class ForumController extends \yii\rest\Controller
         }
         else
         {
-          $test = ForumThread::findOne($payload["id_parent"]);
+          $thread = ForumThread::findOne($payload["id_parent"]);
 
-          if( is_null($test) == true )
+          if( is_null($thread) == true )
           {
             return [
               "status" => "not ok",
@@ -3163,8 +3174,8 @@ class ForumController extends \yii\rest\Controller
         
         
         //cek id_user
-        $test = User::findOne($payload["id_user"]);
-        if( is_null($test) == true)
+        $user = User::findOne($payload["id_user"]);
+        if( is_null($user) == true)
         {
           return [
             "status" => "not ok",
@@ -3173,25 +3184,111 @@ class ForumController extends \yii\rest\Controller
         }
         
         //eksekusi
-        $new = new ForumThreadDiscussion();
-        $new["id_user_create"] = $payload["id_user"];
-        $new["time_create"] = date("Y-m-j");
-        $new["id_thread"] = $payload["id_parent"];
-        $new["judul"] = "";
-        $new["konten"] = $payload["konten"];
-        $new->save();
+
+            // bikin answer draft
+                $client = $this->SetupGuzzleClient();
+                $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+                $request_payload = [
+                  "questionId" => $thread["linked_id_question"],
+                  "body" => 
+                  [
+                    "content" => $payload["konten"],
+                    "bodyFormat" => "VIEW",
+                  ]
+                ];
+                $res = $client->request(
+                  'POST',
+                  "/rest/questions/1.0/question/{$thread["linked_id_question"]}/answerDrafts",
+                  [
+                    /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                    /* 'debug' => true, */
+                    'http_errors' => false,
+                    'headers' => [
+                      "Content-Type" => "application/json",
+                      "Media-Type" => "application/json",
+                      "accept" => "application/json",
+                    ],
+                    'auth' => [
+                      $jira_conf["user"],
+                      $jira_conf["password"]
+                    ],
+                    'body' => Json::encode($request_payload),
+                  ]
+                );
+
+                $response_payload = $res->getBody();
+                $response_payload = Json::decode($response_payload);
+
+                $id_answer_draft = $response_payload["id"];
+            // bikin answer draft
+
+
+
+
+            // kirim ke CQ
+                $request_payload = [
+                  "body" => $payload["konten"],
+                  "draftId" => $id_answer_draft,
+                  "dateAnswered" => date("Y-m-d"),
+                ];
+
+                $res = $client->request(
+                  'POST',
+                  "/rest/questions/1.0/question/{$thread["linked_id_question"]}/answers",
+                  [
+                    /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                    /* 'debug' => true, */
+                    'http_errors' => false,
+                    'headers' => [
+                      "Content-Type" => "application/json",
+                      "Media-Type" => "application/json",
+                      "accept" => "application/json",
+                    ],
+                    'auth' => [
+                      $jira_conf["user"],
+                      $jira_conf["password"]
+                    ],
+                    'body' => Json::encode($request_payload),
+                  ]
+                );
+
+                $response_payload = $res->getBody();
+                $response_payload = Json::decode($response_payload);
+            // kirim ke CQ
+
+
+
+            // simpan di SPBE
+                $new = new ForumThreadDiscussion();
+                $new["id_user_create"] = $payload["id_user"];
+                $new["time_create"] = date("Y-m-j H:i:s");
+                $new["id_thread"] = $payload["id_parent"];
+                $new["linked_id_answer"] = $response_payload["id"];
+                $new["judul"] = "---";
+                $new["konten"] = $payload["konten"];
+                $new->save();
+            // simpan di SPBE
+
+        //eksekusi
+
+        $user = User::findOne($payload["id_user"]);
 
         return [
           "status" => "ok",
           "pesan" => "Record jawaban berhasil dibikin",
-          "result" => $new
+          "result" => 
+          [
+            "record" => $new,
+            "user" => $user,
+          ]
         ];
-              }
+      }
       else
       {
         return [
           "status" => "not ok",
-          "pesan" => "Parameter yang diperlukan tidak valid: type, id_user, id_parent, konten",
+          "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_parent, konten",
         ];
       }
     }
