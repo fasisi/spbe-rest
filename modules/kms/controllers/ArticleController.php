@@ -859,12 +859,12 @@ class ArticleController extends \yii\rest\Controller
       switch(true)
       {
         case $key == "tanggal_awal":
-          $value = date("Y-m-j 00:00:00", $tanggal_awal->timestamp);
+          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
           $where[] = "l.time_action >= '$value'";
         break;
 
         case $key == "tanggal_akhir":
-          $value = date("Y-m-j 23:59:59", $tanggal_akhir->timestamp);
+          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
           $where[] = "l.time_action <= '$value'";
         break;
 
@@ -872,7 +872,7 @@ class ArticleController extends \yii\rest\Controller
           $temp = [];
           foreach( $value as $type_action )
           {
-            $temp[] = $type_action;
+            $temp[] = $type_action["action"];
           }
           $where[] = ["in", "l.action", $temp];
         break;
@@ -991,7 +991,7 @@ class ArticleController extends \yii\rest\Controller
           switch(true)
           {
           case $action["action"] == -1:
-            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
+            if($action["min"] <= $temp["view"] && $action["max"] >= $temp["view"])
             {
               $is_valid = $is_valid && true;
             }
@@ -1070,6 +1070,7 @@ class ArticleController extends \yii\rest\Controller
             {
               $is_valid = $is_valid && false;
             }
+            break;
           case $status == 3:  // reject
             if($temp["reject"] > 0)
             {
@@ -1079,6 +1080,7 @@ class ArticleController extends \yii\rest\Controller
             {
               $is_valid = $is_valid && false;
             }
+            break;
           case $status == 4:  // freeze
             if($temp["freeze"] > 0)
             {
@@ -1088,6 +1090,7 @@ class ArticleController extends \yii\rest\Controller
             {
               $is_valid = $is_valid && false;
             }
+            break;
           }
         } // loop check filter status
 
@@ -1161,7 +1164,7 @@ class ArticleController extends \yii\rest\Controller
     return [
       "status" => "ok",
       "pesan" => "Record berhasil diambil",
-      "filter" => $payload["filter"],
+      "payload" => $payload,
       "result" => 
       [
         "count" => count($hasil),
@@ -2783,7 +2786,7 @@ class ArticleController extends \yii\rest\Controller
       {
         $indent .= "&nbsp;&nbsp;";
       }
-      $newindex_name = $indent . $kategori["nama"];
+      $index_name = $indent . $kategori["nama"];
       $category_path = KmsKategori::CategoryPath($kategori["id"]);
 
       $temp["total"]["artikel"] = $total_artikel;
