@@ -10,6 +10,7 @@ use app\models\User;
 use app\models\UserRoles;
 use app\models\KategoriUser;
 use app\models\Roles;
+use app\models\KmsKategori;
 
 class UserController extends \yii\rest\Controller
 {
@@ -135,6 +136,10 @@ class UserController extends \yii\rest\Controller
       if( is_null($record) == false )
       {
         $roles = $record->getRoles()->all();
+        $kategori_user = KategoriUser::find()
+          ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
+          ->one();
+        
 
         return [
           "status" => "ok",
@@ -142,6 +147,8 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "record" => $record,
+            "category" => KmsKategori::findOne($kategori_user["id_kategori"]),
+            "category_path" => KmsKategori::CategoryPath($kategori_user["id_kategori"]),
             "roles" => $roles
           ]
         ];
@@ -445,38 +452,13 @@ class UserController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == true )
     {
-      $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
-        $user["is_banned"]       = 1;
-        $user->save();
+      User::updateAll(['is_banned' => 1],['in','id',$payload["id"]]);
 
-        if( $user->hasErrors() == false )
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record deleted",
-            "result" => $user,
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Fail on delete record",
-            "result" => $user->getErrors(),
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Record not found",
-        ];
-      }
+      return [
+        "status" => "ok",
+        "pesan" => "Record Banned"
+      ];
     }
     else
     {
@@ -495,38 +477,13 @@ class UserController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == true )
     {
-      $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
-        $user["is_banned"]       = 0;
-        $user->save();
+      User::updateAll(['is_banned' => 0],['in','id',$payload["id"]]);
 
-        if( $user->hasErrors() == false )
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record deleted",
-            "result" => $user,
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Fail on delete record",
-            "result" => $user->getErrors(),
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Record not found",
-        ];
-      }
+      return [
+        "status" => "ok",
+        "pesan" => "Record Banned"
+      ];
     }
     else
     {
