@@ -1421,11 +1421,10 @@ class ForumController extends \yii\rest\Controller
    *        {
    *          <object dari record forum_thread>
    *        },
-   *        "user_create": {},
-   *        "tags": 
+   *        "jawaban":
    *        [
-   *          {}, ...
-   *        ],
+   *          { object_jawaban }, ...
+   *        ]
    *        "confluence":
    *        {
    *          <object dari record Confluence>
@@ -1506,16 +1505,16 @@ class ForumController extends \yii\rest\Controller
         $response_payload = Json::decode($response_payload);
 
         $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "ok";
-        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+        $hasil["forum_thread"] = $thread;
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
+        $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $hasil["user_create"] = $user;
+        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $hasil["confluence"]["status"] = "ok";
+        $hasil["confluence"]["linked_id_question"] = $response_payload["id"];
+        $hasil["confluence"]["judul"] = $response_payload["title"];
+        $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
         break;
 
       default:
