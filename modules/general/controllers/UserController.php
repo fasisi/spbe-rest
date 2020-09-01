@@ -10,6 +10,7 @@ use app\models\User;
 use app\models\UserRoles;
 use app\models\KategoriUser;
 use app\models\Roles;
+use app\models\KmsKategori;
 
 class UserController extends \yii\rest\Controller
 {
@@ -135,6 +136,10 @@ class UserController extends \yii\rest\Controller
       if( is_null($record) == false )
       {
         $roles = $record->getRoles()->all();
+        $kategori_user = KategoriUser::find()
+          ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
+          ->one();
+        
 
         return [
           "status" => "ok",
@@ -142,6 +147,8 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "record" => $record,
+            "category" => KmsKategori::findOne($kategori_user["id_kategori"]),
+            "category_path" => KmsKategori::CategoryPath($kategori_user["id_kategori"]),
             "roles" => $roles
           ]
         ];
