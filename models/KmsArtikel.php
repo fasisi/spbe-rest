@@ -124,7 +124,7 @@ class KmsArtikel extends \yii\db\ActiveRecord
       $q = new Query();
       $q->select("count(l.id) as jumlah");
       $q->from("kms_artikel_activity_log l");
-      $q->join("JOIN", "user u", "a.id = l.id_user");
+      $q->join("JOIN", "user u", "u.id = l.id_user");
       $q->where([
           "and",
           "l.id_user = :id_user",
@@ -142,5 +142,34 @@ class KmsArtikel extends \yii\db\ActiveRecord
       $hasil = $q->one();
 
       return $hasil["jumlah"];
+    }
+
+    /*
+     *  Menghitung jumlah kejadian suatu status atas suatu artikel, dalam rentang waktu tertentu
+      * */
+    public static function StatusInRange($id_artikel, $type_status, $tanggal_awal, $tanggal_akhir)
+    {
+      $q = new Query();
+      $q->select("count(l.id) as jumlah");
+      $q->from("kms_artikel_activity_log l");
+      $q->join("JOIN", "kms_artikel a", "a.id = l.id_artikel");
+      $q->where([
+          "and",
+          "l.id_artikel = :id_artikel",
+          "l.type_log = 1",
+          "l.status = :type_status",
+          "l.time_action >= :awal",
+          "l.time_action <= :akhir"
+        ])
+        ->params([
+          ":id_artikel" => $id_artikel,
+          ":type_status" => $type_status,
+          ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp),
+          ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp),
+        ]);
+      $hasil = $q->one();
+
+      return $hasil["jumlah"];
+
     }
 }
