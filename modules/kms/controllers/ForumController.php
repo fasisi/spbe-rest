@@ -11,6 +11,8 @@ use app\models\ForumThreadActivityLog;
 use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
 use app\models\ForumThreadDiscussion;
+use app\models\ForumThreadComment;
+use app\models\ForumThreadDiscussionComment;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
@@ -1436,7 +1438,25 @@ class ForumController extends \yii\rest\Controller
         ->one();
 
       $user = User::findOne($thread["id_user_create"]);
-      $jawaban = ForumThreadDiscussion::find()
+      $temp_list_komentar = ForumThreadComment::find()
+        ->where("id_thread = :id", [":id" => $payload["id_thread"]])
+        ->orderBy("time_create desc")
+        ->all();
+
+      $list_komentar = [];
+      foreach($temp_list_komentar as $komentar_item)
+      {
+        $use = User::findOne($komentar_item["id_user_create"]);
+
+        $temp = [];
+        $temp["record"] = $komentar_item;
+        $temp["user_create"] = $user;
+
+        $list_komentar[] = $temp;
+      }
+
+
+      $list_jawaban = ForumThreadDiscussion::find()
         ->where(
           [
             "and",
@@ -1447,6 +1467,33 @@ class ForumController extends \yii\rest\Controller
         )
         ->orderBy("time_create asc")
         ->all();
+
+      $jawaban = [];
+      foreach($list_jawaban as $item_jawaban)
+      {
+        $list_komentar_jawaban = ForumThreadDiscussionComment::find()
+          ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
+          ->orderBy("time_create desc")
+          ->all();
+
+        $temp = [];
+        foreach($list_komentar_jawaban as $item_komentar)
+        {
+          $user = User::findOne($item_komentar["id_user_create"]);
+
+          $temp[] = [
+            "komentar" => $item_komentar,
+            "user_create" => $user,
+          ];
+        }
+
+        $user = User::findOne($item_jawaban["id_user_create"]);
+        $jawaban[] = [
+          "jawaban" => $item_jawaban,
+          "user_create" => $user,
+          "list_komentar" => $temp,
+        ];
+      }
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1484,22 +1531,24 @@ class ForumController extends \yii\rest\Controller
         $response_payload = Json::decode($response_payload);
 
         $hasil = [];
-        $hasil["forum_thread"] = $thread;
+        $hasil["record"]["forum_thread"] = $thread;
+        $hasil["record"]["thread_comments"] = $list_komentar;
+        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $hasil["record"]["user_create"] = $user;
+        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $hasil["record"]["confluence"]["status"] = "ok";
+        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
+        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
-        $hasil["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $hasil["user_create"] = $user;
-        $hasil["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["confluence"]["status"] = "ok";
-        $hasil["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = $response_payload["body"]["content"];
         break;
 
       default:
         // kembalikan response
         $hasil = [];
         $hasil["record"]["forum_thread"] = $thread;
+        $hasil["record"]["thread_comments"] = $list_komentar;
         $hasil["record"]["user_create"] = $user;
         $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
         $hasil["record"]["confluence"]["status"] = "not ok";
@@ -2807,16 +2856,22 @@ class ForumController extends \yii\rest\Controller
         {
           $new = new ForumThreadComment();
           $new["id_user_create"] = $payload["id_user"];
-          $new["time_create"] = date("Y-m-j");
+          $new["time_create"] = date("Y-m-d H:i:s");
           $new["id_thread"] = $payload["id_parent"];
-          $new["judul"] = "";
+          $new["judul"] = "---";
           $new["konten"] = $payload["konten"];
           $new->save();
+
+          $user = User::findOne($payload["id_user"]);
 
           return [
             "status" => "ok",
             "pesan" => "Record comment berhasil dibikin",
-            "result" => $new
+            "result" => 
+            [
+              "record" => $new,
+              "user" => $user
+            ]
           ];
         }
         else
@@ -2825,16 +2880,22 @@ class ForumController extends \yii\rest\Controller
 
           $new = new ForumThreadDiscussionComment();
           $new["id_user_create"] = $payload["id_user"];
-          $new["time_create"] = date("Y-m-j");
+          $new["time_create"] = date("Y-m-d H:i:s");
           $new["id_discussion"] = $payload["id_parent"];
-          $new["judul"] = "";
+          $new["judul"] = "---";
           $new["konten"] = $payload["konten"];
           $new->save();
+
+          $user = User::findOne($payload["id_user"]);
 
           return [
             "status" => "ok",
             "pesan" => "Record comment berhasil dibikin",
-            "result" => $new
+            "result" => 
+            [
+              "record" => $new,
+              "user" => $user
+            ]
           ];
         }
         
@@ -3249,6 +3310,7 @@ class ForumController extends \yii\rest\Controller
             // simpan di SPBE
 
         //eksekusi
+
 
         $user = User::findOne($payload["id_user"]);
 
