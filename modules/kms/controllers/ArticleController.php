@@ -785,9 +785,17 @@ class ArticleController extends \yii\rest\Controller
    *    {
    *      "tanggal_awal"    : "y-m-j",
    *      "tanggal_akhir"   : "y-m-j",
-   *      "actions"       : [-1, 0, 1, 2], // -1 = view; 1 = like; 2 = dislike
-   *      "id_kategori"   : 123,
-   *      "id_artikel"    : 123,
+   *      "id_kategori"     : 123,
+   *      "id_artikel"      : 123,
+   *      "status"          : [-1, 0, 1, 2, 3, 4],  
+   *      "actions"         : 
+   *      [
+   *        {
+   *          "action": -1,  // -1 = view; 1 = like; 2 = dislike
+   *          "min": 123,
+   *          "max": 123
+   *        }, ...
+   *      ],    
    *    }
    *  }
    *  Response type: JSON
@@ -795,10 +803,18 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "status": "ok",
    *    "pesan" : "",
+   *    "filter" : ...,
    *    "result" :
    *    {
-   *      "count": 123,
-   *      "records": []
+   *      "id_kategori": 123,
+   *      "id_artikel": 123
+ *        "actions":
+ *        [
+ *          {
+ *            "action": 1,
+ *            "count": 123
+ *          }, ...
+ *        ],
    *    }
    *  }
    * */
@@ -903,7 +919,7 @@ class ArticleController extends \yii\rest\Controller
       if( $payload["object_type"] == "a" )
       {
         $artikel = KmsArtikel::findOne($record["id"]);
-        $user = User::findOne($record["id_user_create"]);
+        $user = User::findOne($artikel["id_user_create"]);
 
         $client = $this->SetupGuzzleClient();
         $response = $this->Conf_GetArtikel($client, $artikel["linked_id_content"]);
@@ -920,19 +936,163 @@ class ArticleController extends \yii\rest\Controller
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
 
-        //ambil data view
-        $type_action = -1;
-        $temp["view"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-        
-        //ambil data like
-        $type_action = 1;
-        $temp["like"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        // filter by action
+        // ================
+            // berapa banyak action yang diterima suatu artikel dalam rentang waktu tertentu?
 
-        //ambil data dislike
-        $type_action = 2;
-        $temp["dislike"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+            //ambil data view
+            $type_action = -1;
+            $temp["view"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+            
+            //ambil data like
+            $type_action = 1;
+            $temp["like"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
-        $hasil[] = $temp;
+            //ambil data dislike
+            $type_action = 2;
+            $temp["dislike"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        // ================
+        // filter by action
+
+        // filter by status
+        // ================
+            // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
+
+            //ambil data draft
+            $type_status = -1;
+            $temp["draft"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data new
+            $type_status = 0;
+            $temp["new"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data publish
+            $type_status = 1;
+            $temp["publish"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data un-publish
+            $type_status = 2;
+            $temp["unpublish"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data reject
+            $type_status = 3;
+            $temp["reject"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data freeze
+            $type_status = 4;
+            $temp["freeze"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+        // ================
+        // filter by status
+
+        $is_valid = true;
+        foreach($payload["filter"]["actions"] as $action)
+        {
+          switch(true)
+          {
+          case $action["action"] == -1:
+            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 1:
+            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 2:
+            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          }
+        } // loop check action
+
+        foreach($payload["filter"]["status"] as $status)
+        {
+          switch(true)
+          {
+          case $status == -1:  //draft
+            if($temp["draft"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $status == 0:  // new
+            if($temp["new"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $status == 1:  // publish
+            if($temp["publish"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          case $status == 2:  // unpublish
+            if($temp["unpublish"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+          case $status == 3:  // reject
+            if($temp["reject"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+          case $status == 4:  // freeze
+            if($temp["freeze"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+          }
+        } // loop check filter status
+
+        if($is_valid == true)
+          $hasil[] = $temp;
       }
       else
       {
@@ -953,13 +1113,55 @@ class ArticleController extends \yii\rest\Controller
         $type_action = 2;
         $temp["dislike"] = KmsArtikel::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
 
-        $hasil[] = $temp;
+        $is_valid = true;
+        foreach($payload["filter"]["actions"] as $action)
+        {
+          switch(true)
+          {
+          case $action["action"] == -1:
+            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 1:
+            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 2:
+            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          }
+        } // loop check action
+
+        if($is_valid == true)
+          $hasil[] = $temp;
       }
     }
 
     return [
       "status" => "ok",
       "pesan" => "Record berhasil diambil",
+      "filter" => $payload["filter"],
       "result" => 
       [
         "count" => count($hasil),
@@ -2581,8 +2783,8 @@ class ArticleController extends \yii\rest\Controller
       {
         $indent .= "&nbsp;&nbsp;";
       }
-      $index_name = $indent . $kategori["nama"];
-
+      $newindex_name = $indent . $kategori["nama"];
+      $category_path = KmsKategori::CategoryPath($kategori["id"]);
 
       $temp["total"]["artikel"] = $total_artikel;
       $temp["total"]["user"] = $total_user;
@@ -2685,6 +2887,7 @@ class ArticleController extends \yii\rest\Controller
 
       $hasil[] = [
         "kategori" => $index_name,
+        "category_path" => $category_path,
         "id" => $kategori["id"],
         "data" => $temp
       ];

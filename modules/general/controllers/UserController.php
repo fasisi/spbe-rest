@@ -142,6 +142,8 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "record" => $record,
+            "category" => KmsKategori::findOne($record["id_kategori"]),
+            "category_path" => KmsKategori::GetCategoryPath($record["id_kategori"]),
             "roles" => $roles
           ]
         ];
