@@ -201,7 +201,8 @@ class ArticleController extends \yii\rest\Controller
       $tags_valid = false;
 
     if( $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true )
+        $kategori_valid == true && $tags_valid == true 
+      )
     {
       // panggil POST /rest/api/content
 
@@ -275,76 +276,80 @@ class ArticleController extends \yii\rest\Controller
 
             // menyimpan informasi tags
             $tags = array();
-            foreach( $payload["tags"] as $tag )
+            if( is_array($payload["tags"]) == true )
             {
-              // cek apakah tag sudah ada di dalam tabel
-              $test = KmsTags::find()
-                ->where(
-                  "nama = :nama",
-                  [
-                    ":nama" => $tag
-                  ]
-                )
-                ->one();
+              foreach( $payload["tags"] as $tag )
+              {
+                // cek apakah tag sudah ada di dalam tabel
+                $test = KmsTags::find()
+                  ->where(
+                    "nama = :nama",
+                    [
+                      ":nama" => $tag
+                    ]
+                  )
+                  ->one();
 
-              // jika belum ada, insert new record
-              $id_tag = 0;
-              if( is_null($test) == false )
-              {
-                $id_tag = $test["id"];
-              }
-              else
-              {
-                $new = new KmsTags();
-                $new["nama"] = $tag;
-                $new["status"] = 0;
-                $new["id_user_create"] = 123;
-                $new["time_create"] = date("Y-m-j H:i:s");
+                // jika belum ada, insert new record
+                $id_tag = 0;
+                if( is_null($test) == false )
+                {
+                  $id_tag = $test["id"];
+                }
+                else
+                {
+                  $new = new KmsTags();
+                  $new["nama"] = $tag;
+                  $new["status"] = 0;
+                  $new["id_user_create"] = 123;
+                  $new["time_create"] = date("Y-m-j H:i:s");
+                  $new->save();
+
+                  $id_tag = $new->primaryKey;
+                }
+
+                // relate id_artikel dengan id_tag
+                $new = new KmsArtikelTag();
+                $new["id_artikel"] = $id_artikel;
+                $new["id_tag"] = $id_tag;
                 $new->save();
 
-                $id_tag = $new->primaryKey;
-              }
+                $temp = [];
+                $temp["prefix"] = "global";
+                $temp["name"] = $tag["nama"];
+                $tags[] = $temp;
+              } // loop tags
 
-              // relate id_artikel dengan id_tag
-              $new = new KmsArtikelTag();
-              $new["id_artikel"] = $id_artikel;
-              $new["id_tag"] = $id_tag;
-              $new->save();
-
-              $temp = [];
-              $temp["prefix"] = "global";
-              $temp["name"] = $tag["nama"];
-              $tags[] = $temp;
-            } // loop tags
-
-            // kirim tag ke Confluence
-            $res = $client->request(
-              'POST',
-              "/rest/api/content/$linked_id_artikel/label",
-              [
-                /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-                /* 'debug' => true, */
-                'http_errors' => false,
-                'headers' => [
-                  "Content-Type" => "application/json",
-                  "accept" => "application/json",
-                ],
-                'auth' => [
-                  $jira_conf["user"],
-                  $jira_conf["password"]
-                ],
-                'body' => Json::encode($tags),
-              ]
-            );
-
-            $tags = KmsArtikelTag::find()
-              ->where(
-                "id_artikel = :id_artikel",
+              // kirim tag ke Confluence
+              $res = $client->request(
+                'POST',
+                "/rest/api/content/$linked_id_artikel/label",
                 [
-                  ":id_artikel" => $id_artikel
+                  /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+                  /* 'debug' => true, */
+                  'http_errors' => false,
+                  'headers' => [
+                    "Content-Type" => "application/json",
+                    "accept" => "application/json",
+                  ],
+                  'auth' => [
+                    $jira_conf["user"],
+                    $jira_conf["password"]
+                  ],
+                  'body' => Json::encode($tags),
                 ]
-              )
-              ->all();
+              );
+
+              $tags = KmsArtikelTag::find()
+                ->where(
+                  "id_artikel = :id_artikel",
+                  [
+                    ":id_artikel" => $id_artikel
+                  ]
+                )
+                ->all();
+            } // hanya jika tags terdefinisi
+
 
             //$this->ActivityLog($id_artikel, 123, 1);
             $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
@@ -2415,6 +2420,133 @@ class ArticleController extends \yii\rest\Controller
 
     }
   }
+
+
+
+  /*
+   *  Mengambil daftar artikel yang dibikin oleh si user
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_user": 123,
+   *    "status": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "",
+   *    "pesan": "",
+   *    "records" :
+   *    {
+   *      "kms_artikel":
+   *      {
+   *        <object dari record kms_artikel>
+   *      },
+   *      "category_path": [],
+   *      "tags": [],
+   *      "confluence":
+   *      {
+   *        <object dari record Confluence>
+   *      }
+   *    },
+   *  }
+    * */
+  public function actionMyitems()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_status_valid = isset($payload["status"]);
+
+    if( $is_id_user_valid == true && $is_status_valid == true)
+    {
+      $list_artikel = KmsArtikel::find()
+        ->where(
+          [
+            "and",
+            "id_user_create = :id_user",
+            "status = :status"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+            ":status" => $payload["status"],
+          ]
+        )
+        ->orderBy("time_create desc")
+        ->all();
+
+      $records = [];
+      foreach($list_artikel as $artikel)
+      {
+        // ambil daftar tags yang berasal dari id_kategori
+        $q  = new Query();
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$artikel["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $artikel;
+        $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+        $temp["tags"] = $tags;
+        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["confluence"]["id"] = $response_payload["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $records[] = $temp;
+      } // loop artikel yang dibikin si user
+
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "records" => $records,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_user (integer), status (integer)",
+        "payload" => $payload
+      ];
+        
+
+    }
+  }
+
 
 
   /*
