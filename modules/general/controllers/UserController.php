@@ -82,13 +82,16 @@ class UserController extends \yii\rest\Controller
     $id_user = $new->primaryKey;
 
     // Insert record ke table user_roles
-    $user_roles = new UserRoles();
-    $user_roles['id_user'] = $id_user;
-    $user_roles['id_roles'] = $payload["roles"];
-    $user_roles->save();
+    foreach($payload["roles"] as $id_role)
+    {
+      $user_roles = new UserRoles();
+      $user_roles['id_user'] = $id_user;
+      $user_roles['id_roles'] = $id_role;
+      $user_roles->save();
+    }
 
     //insert record kategori ke tabel kategori_user
-    KategoriUser::Refresh($id_user, $payload["id_kategori"]);
+    KategoriUser::Reset($id_user, $payload["id_kategori"]);
 
     if( $new->hasErrors() == false )
     {
