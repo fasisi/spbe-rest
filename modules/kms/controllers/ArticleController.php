@@ -2422,6 +2422,133 @@ class ArticleController extends \yii\rest\Controller
   }
 
 
+
+  /*
+   *  Mengambil daftar artikel yang dibikin oleh si user
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_user": 123,
+   *    "status": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "",
+   *    "pesan": "",
+   *    "records" :
+   *    {
+   *      "kms_artikel":
+   *      {
+   *        <object dari record kms_artikel>
+   *      },
+   *      "category_path": [],
+   *      "tags": [],
+   *      "confluence":
+   *      {
+   *        <object dari record Confluence>
+   *      }
+   *    },
+   *  }
+    * */
+  public function actionMyitems()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_status_valid = isset($payload["status"]);
+
+    if( $is_id_user_valid == true && $is_status_valid == true)
+    {
+      $list_artikel = KmsArtikel::find()
+        ->where(
+          [
+            "and",
+            "id_user_create = :id_user",
+            "status = :status"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+            ":status" => $payload["status"],
+          ]
+        )
+        ->orderBy("time_create desc")
+        ->all();
+
+      $records = [];
+      foreach($list_artikel as $artikel)
+      {
+        // ambil daftar tags yang berasal dari id_kategori
+        $q  = new Query();
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$artikel["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["kms_artikel"] = $artikel;
+        $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+        $temp["tags"] = $tags;
+        $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $temp["confluence"]["id"] = $response_payload["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $records[] = $temp;
+      } // loop artikel yang dibikin si user
+
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "records" => $records,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_user (integer), status (integer)",
+        "payload" => $payload
+      ];
+        
+
+    }
+  }
+
+
+
   /*
    *  Mengambil daftar kategori berdasarkan kesamaan tags yang berasal dari
    *  kategori selain id_kategori yang dikirim.
