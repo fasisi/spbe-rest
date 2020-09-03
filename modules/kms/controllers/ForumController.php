@@ -111,6 +111,8 @@ class ForumController extends \yii\rest\Controller
         $new["{$type_name}"] = $log_value;
         $new["time_{$type_name}"] = date("Y=m-j H:i:s");
         $new->save();
+
+        ForumThreadUserAction::Summarize($id_thread);
       }
 
       /* private function ActivityLog($id_artikel, $id_user, $type_action) */
@@ -1542,6 +1544,8 @@ class ForumController extends \yii\rest\Controller
         $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
+
+        $this->ThreadLog($thread["id"], 123, 2, -1);
         break;
 
       default:
