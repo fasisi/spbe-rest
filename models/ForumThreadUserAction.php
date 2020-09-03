@@ -67,7 +67,7 @@ class ForumThreadUserAction extends \yii\db\ActiveRecord
           [":id_thread" => $id_thread]
         )
         ->one();
-      $like = $q["jumlah"];
+      $like = $hasil["jumlah"];
 
 
       $q = new Query();
@@ -83,7 +83,7 @@ class ForumThreadUserAction extends \yii\db\ActiveRecord
           [":id_thread" => $id_thread]
         )
         ->one();
-      $dislike = $q["jumlah"];
+      $dislike = $hasil["jumlah"];
 
 
       $q = new Query();
@@ -99,7 +99,7 @@ class ForumThreadUserAction extends \yii\db\ActiveRecord
           [":id_thread" => $id_thread]
         )
         ->one();
-      $view = $q["jumlah"];
+      $view = $hasil["jumlah"];
 
 
       // update record forum_thread
@@ -108,5 +108,25 @@ class ForumThreadUserAction extends \yii\db\ActiveRecord
       $thread["dislike"] = $dislike;
       $thread["view"] = $view;
       $thread->save();
+    }
+
+
+    public static function GetUserAction($id_thread, $id_user_actor)
+    {
+      $hasil = ForumThreadUserAction::find()
+        ->where(
+          [
+            "and",
+            "id_thread = :id_thread",
+            "id_user = :id_user"
+          ],
+          [
+            ":id_thread" => $id_thread,
+            ":id_user" => $id_user_actor
+          ]
+        )
+        ->one();
+
+      return $hasil;
     }
 }
