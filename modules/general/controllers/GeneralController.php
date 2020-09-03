@@ -17,15 +17,16 @@ class GeneralController extends \yii\rest\Controller
     $behaviors['verbs'] = [
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
-        'gettags'        => ['GET'],
-        'kategori'       => ['POST', 'GET', 'PUT', 'DELETE'],
-        'kategorilist'   => ['GET'],
+        'gettags'            => ['GET'],
+        'kategori'           => ['POST', 'GET', 'PUT', 'DELETE'],
+        'kategorilist'       => ['GET'],
+        'kategoriparent'     => ['PUT'],
 
-        'taglist'       => ['GET'],
-        'tagcreate'     => ['POST'],
-        'tagget'        => ['GET'],
-        'tagupdate'     => ['PUT'],
-        'tagdelete'     => ['DELETE']
+        'taglist'            => ['GET'],
+        'tagcreate'          => ['POST'],
+        'tagget'             => ['GET'],
+        'tagupdate'          => ['PUT'],
+        'tagdelete'          => ['DELETE']
       ]
     ];
     return $behaviors;
@@ -56,294 +57,357 @@ class GeneralController extends \yii\rest\Controller
     }
   }
 
-  /*
-   *  Mengembalikan daftar tags yang terdaftar dalam database.
-    * */
-  public function actionGettags()
-  {
-    $list = KmsTags::find()
-      ->where(
-        "status = 1"
-      )
-      ->orderBy("nama asc")
-      ->all();
 
-    return [
-      "result" => $list
-    ];
-  }
+  // ==========================================================================
+  // Kategori management
+  // ==========================================================================
 
-  /*
-   *  Fungsi untuk melakukan management kategori
-   *
-   *  --===== Create Kategori =====----
-   *  Method: POST
-   *  Request type: JSON
-   *  Request format:
-   *  {
-   *    "nama": "abc",
-   *    "id_parent": "-1/123",
-   *    "deskripsi": "abc"
-   *  }
-   *  Response type: JSON
-   *  Response format:
-   *  {
-   *    "status": "ok/not ok",
-   *    "pesan": "",
-   *    "result": { <object_record_kategori> }
-   *  }
-   *
-   *  --===== Get Kategori =====----
-   *  Method: GET
-   *  Request type: JSON
-   *  Request format:
-   *  {
-   *    "id": 123,
-   *  }
-   *  Response type: JSON
-   *  Response format:
-   *  {
-   *    "status": "ok/not ok",
-   *    "pesan": "",
-   *    "result": { <object_record_kategori> }
-   *  }
-   *
-   *  --===== Update Kategori =====----
-   *  Method: PUT
-   *  Request type: JSON
-   *  Request format:
-   *  {
-   *    "id": 123,
-   *    "id_parent": 123,
-   *    "nama": "asdfasdf",
-   *    "deskripsi": "asdfasd"
-   *  }
-   *  Response type: JSON
-   *  Response format:
-   *  {
-   *    "status": "ok/not ok",
-   *    "pesan": "",
-   *    "result": { <object_record_kategori> }
-   *  }
-   *
-   *  --===== DELETE Kategori =====----
-   *  Method: DELETE
-   *  Request type: JSON
-   *  Request format:
-   *  {
-   *    "id": 123,
-   *  }
-   *  Response type: JSON
-   *  Response format:
-   *  {
-   *    "status": "ok/not ok",
-   *    "pesan": "",
-   *    "result": { <object_record_kategori> }
-   *  }
-    * */
-  public function actionKategori()
-  {
-    $payload = $this->GetPayload();
-    $method = Yii::$app->request->method;
-
-    switch(true)
-    {
-    case $method == 'POST':
-
-      $is_nama_valid = isset($payload["nama"]);
-      $is_deskripsi_valid = isset($payload["deskripsi"]);
-      $is_id_parent_valid = isset($payload["id_parent"]);
-      $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
-
-      if(
-          $is_nama_valid == true &&
-          $is_deskripsi_valid == true &&
-          $is_id_parent_valid == true
-        )
+      /*
+       *  Fungsi untuk melakukan management kategori
+       *
+       *  --===== Create Kategori =====----
+       *  Method: POST
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "nama": "abc",
+       *    "id_parent": "-1/123",
+       *    "deskripsi": "abc"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_kategori> }
+       *  }
+       *
+       *  --===== Get Kategori =====----
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_kategori> }
+       *  }
+       *
+       *  --===== Update Kategori =====----
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *    "id_parent": 123,
+       *    "nama": "asdfasdf",
+       *    "deskripsi": "asdfasd"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_kategori> }
+       *  }
+       *
+       *  --===== DELETE Kategori =====----
+       *  Method: DELETE
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_kategori> }
+       *  }
+        * */
+      public function actionKategori()
       {
-        $new = new KmsKategori();
-        $new["id_parent"] = $payload["id_parent"];
-        $new["nama"] = $payload["nama"];
-        $new["deskripsi"] = $payload["deskripsi"];
-        $new["id_user_create"] = 123;
-        $new["time_create"] = date("Y-m-j H:i:s");
-        $new->save();
-        $id = $new->primaryKey;
+        $payload = $this->GetPayload();
+        $method = Yii::$app->request->method;
+
+        switch(true)
+        {
+        case $method == 'POST':
+
+          $is_nama_valid = isset($payload["nama"]);
+          $is_deskripsi_valid = isset($payload["deskripsi"]);
+          $is_id_parent_valid = isset($payload["id_parent"]);
+          $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+          if(
+              $is_nama_valid == true &&
+              $is_deskripsi_valid == true &&
+              $is_id_parent_valid == true
+            )
+          {
+            $new = new KmsKategori();
+            $new["id_parent"] = $payload["id_parent"];
+            $new["nama"] = $payload["nama"];
+            $new["deskripsi"] = $payload["deskripsi"];
+            $new["id_user_create"] = 123;
+            $new["time_create"] = date("Y-m-j H:i:s");
+            $new->save();
+            $id = $new->primaryKey;
+
+            return [
+              "status" => "ok",
+              "pesan" => "Kategori telah disimpan",
+              "result" => $new
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
+            ];
+          }
+
+          break;
+        case $method == 'GET':
+          $is_id_valid = isset($payload["id"]);
+          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+          if(
+              $is_id_valid == true
+            )
+          {
+            $record = KmsKategori::findOne($payload["id"]);
+
+            if( is_null($record) == false )
+            {
+              return [
+                "status" => "ok",
+                "pesan" => "Record Kategori ditemukan",
+                "result" => $record
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "ok",
+                "pesan" => "Record Kategori tidak ditemukan",
+              ];
+            }
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+            ];
+          }
+          break;
+        case $method == 'PUT':
+          $is_nama_valid = isset($payload["nama"]);
+          $is_deskripsi_valid = isset($payload["deskripsi"]);
+          $is_id_valid = isset($payload["id"]);
+          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+          $is_id_parent_valid = isset($payload["id_parent"]);
+          $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+          if(
+              $is_nama_valid == true &&
+              $is_deskripsi_valid == true &&
+              $is_id_parent_valid == true &&
+              $is_id_valid == true
+            )
+          {
+            $record = KmsKategori::findOne($payload["id"]);
+
+            if( is_null($record) == false )
+            {
+              $record["id_parent"] = $payload["id_parent"];
+              $record["nama"] = $payload["nama"];
+              $record["deskripsi"] = $payload["deskripsi"];
+              $record->save();
+
+              return [
+                "status" => "ok",
+                "pesan" => "Kategori telah disimpan",
+                "result" => $record
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "ok",
+                "pesan" => "Record Kategori tidak ditemukan",
+              ];
+            }
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id",
+            ];
+          }
+          break;
+        case $method == 'DELETE':
+          $is_id_valid = isset($payload["id"]);
+          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+          if(
+              $is_id_valid == true
+            )
+          {
+            $record = KmsKategori::findOne($payload["id"]);
+
+            if( is_null($record) == false )
+            {
+              $record["is_delete"] = 1;
+              $record["id_user_delete"] = 123;
+              $record["time_delete"] = date("Y-m-j H:i:s");
+              $record->save();
+
+              return [
+                "status" => "ok",
+                "pesan" => "Record Kategori telah dihapus",
+                "result" => $record
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "ok",
+                "pesan" => "Record Kategori tidak ditemukan",
+              ];
+            }
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+            ];
+          }
+          break;
+        }
+      }
+
+      /*
+       *  Mengembalikan semua record kategori
+       *
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format: 
+       *  {
+       *  },
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": 
+       *    [
+       *      {
+       *        "id": 123,
+       *        "id_parent": 123,
+       *        "status": "abc",
+       *        "level": 123
+       *      }, ...
+       *    ]
+       *  }
+        * */
+      public function actionKategorilist()
+      {
+        $list = KmsKategori::GetList();
 
         return [
           "status" => "ok",
-          "pesan" => "Kategori telah disimpan",
-          "result" => $new
-        ];
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
+          "pesan" => "Daftar kategori berhasil diambil",
+          "result" => $list,
         ];
       }
 
-      break;
-    case $method == 'GET':
-      $is_id_valid = isset($payload["id"]);
-      $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
-
-      if(
-          $is_id_valid == true
-        )
+      /*
+       *  Mengupdate parent suatu kategori
+       *
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    id_kategori: 123,
+       *    id_parent: 123
+       *  }
+       *  Reponse type: JSON
+       *  Response format:
+       *  {
+       *    status: ok,
+       *    result:
+       *    {
+       *      object of record
+       *    }
+       *  }
+        * */
+      public function actionKategoriparent()
       {
-        $record = KmsKategori::findOne($payload["id"]);
+        $payload = $this->GetPayload();
 
-        if( is_null($record) == false )
+        $is_id_kategori_valid = isset($payload["id_kategori"]);
+        $is_id_parent_valid = isset($payload["id_parent"]);
+
+        $test = KmsKategori::findOne($payload["id_kategori"]);
+        if( is_null($test) == true )
         {
           return [
+            "status" => "not ok",
+            "pesan" => "id_kategori tidak dikenal"
+          ];
+        }
+
+        $test = KmsKategori::findOne($payload["id_parent"]);
+        if( is_null($test) == true )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_parent tidak dikenal"
+          ];
+        }
+
+        if( $is_id_kategori_valid == true && $is_id_parent_valid == true )
+        {
+          // lakukan update
+          $kategori = KmsKategori::findOne($payload["id_kategori"]);
+          $kategori["id_parent"] = $payload["id_parent"];
+          $kategori->save();
+
+          return [
             "status" => "ok",
-            "pesan" => "Record Kategori ditemukan",
-            "result" => $record
+            "pesan" => "Record berhasil di-update",
+            "result" => $kategori
           ];
         }
         else
         {
+
           return [
-            "status" => "ok",
-            "pesan" => "Record Kategori tidak ditemukan",
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: id_kategori (integer), id_parent (integer)",
+            "payload" => $payload
           ];
         }
 
       }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
-        ];
-      }
-      break;
-    case $method == 'PUT':
-      $is_nama_valid = isset($payload["nama"]);
-      $is_deskripsi_valid = isset($payload["deskripsi"]);
-      $is_id_valid = isset($payload["id"]);
-      $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
-      $is_id_parent_valid = isset($payload["id_parent"]);
-      $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
 
-      if(
-          $is_nama_valid == true &&
-          $is_deskripsi_valid == true &&
-          $is_id_parent_valid == true &&
-          $is_id_valid == true
-        )
-      {
-        $record = KmsKategori::findOne($payload["id"]);
+  // ==========================================================================
+  // Kategori management
+  // ==========================================================================
 
-        if( is_null($record) == false )
-        {
-          $record["id_parent"] = $payload["id_parent"];
-          $record["nama"] = $payload["nama"];
-          $record["deskripsi"] = $payload["deskripsi"];
-          $record->save();
-
-          return [
-            "status" => "ok",
-            "pesan" => "Kategori telah disimpan",
-            "result" => $record
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record Kategori tidak ditemukan",
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id",
-        ];
-      }
-      break;
-    case $method == 'DELETE':
-      $is_id_valid = isset($payload["id"]);
-      $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
-
-      if(
-          $is_id_valid == true
-        )
-      {
-        $record = KmsKategori::findOne($payload["id"]);
-
-        if( is_null($record) == false )
-        {
-          $record["is_delete"] = 1;
-          $record["id_user_delete"] = 123;
-          $record["time_delete"] = date("Y-m-j H:i:s");
-          $record->save();
-
-          return [
-            "status" => "ok",
-            "pesan" => "Record Kategori telah dihapus",
-            "result" => $record
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record Kategori tidak ditemukan",
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
-        ];
-      }
-      break;
-    }
-  }
-
-  /*
-   *  Mengembalikan semua record kategori
-   *
-   *  Method: GET
-   *  Request type: JSON
-   *  Request format: 
-   *  {
-   *  },
-   *  Response type: JSON
-   *  Response format:
-   *  {
-   *    "status": "ok/not ok",
-   *    "pesan": "",
-   *    "result": 
-   *    [
-   *      {
-   *        "id": 123,
-   *        "id_parent": 123,
-   *        "status": "abc",
-   *        "level": 123
-   *      }, ...
-   *    ]
-   *  }
-    * */
-  public function actionKategorilist()
-  {
-    $list = KmsKategori::GetList();
-
-    return [
-      "status" => "ok",
-      "pesan" => "Daftar kategori berhasil diambil",
-      "result" => $list,
-    ];
-  }
 
 
 
@@ -351,6 +415,24 @@ class GeneralController extends \yii\rest\Controller
   // Tag management
   // ==========================================================================
 
+
+
+      /*
+       *  Mengembalikan daftar tags yang terdaftar dalam database.
+        * */
+      public function actionGettags()
+      {
+        $list = KmsTags::find()
+          ->where(
+            "status = 1"
+          )
+          ->orderBy("nama asc")
+          ->all();
+
+        return [
+          "result" => $list
+        ];
+      }
 
       /*
        *  Mengembalikan daftar tags
