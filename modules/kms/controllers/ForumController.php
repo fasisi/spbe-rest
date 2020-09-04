@@ -1225,7 +1225,7 @@ class ForumController extends \yii\rest\Controller
    *      "records":
    *      [
    *        {
-   *          "kms_artikel":
+   *          "forum_thread":
    *          {
    *            <object dari record thread>
    *          },
@@ -1252,6 +1252,29 @@ class ForumController extends \yii\rest\Controller
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
 
+    $is_tags_valid = false;
+    if( isset($payload["tags"]) == true )
+    {
+      if( is_array($payload["tags"]) == true )
+      {
+        $is_tags_valid = true;
+      }
+    }
+
+    $is_id_user_create_valid = false;
+    if( isset($payload["id_user_create"]) == true )
+    {
+      if( is_numeric($payload["id_user_create"]) == true )
+      {
+        $test = User::findOne($payload["id_user_create"]);
+
+        if( is_null($test) == false)
+        {
+          $is_id_user_create_valid = true;
+        }
+      }
+    }
+
     if(
         $is_kategori_valid == true &&
         $is_page_no_valid == true &&
@@ -1259,28 +1282,36 @@ class ForumController extends \yii\rest\Controller
       )
     {
       //  lakukan query dari tabel kms_artikel
-      $test = ForumThread::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "is_publish = 0",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
-        ->orderBy("time_create desc")
-        ->all();
+
+      $q = new Query();
+      $q->select("t.*")
+        ->from("forum_thread t")
+        ->where(
+          [
+            "and",
+            "t.is_delete = 0",
+            "t.is_publish = 1",
+            ["in", "t.id_kategori", $payload["id_kategori"]]
+          ]
+        );
+
+      if( $is_tags_valid == true && $is_id_user_create_valid == true )
+      {
+        $q->join("JOIN", "forum_thread_tag ttag", "ttag.id_thread = t.id")
+          ->andWhere([
+            ["in", "ttag.id_tag", $payload["tags"]],
+            "t.id_user_create = {$payload["id_user_create"]}"
+          ]);
+      }
+
+      $test = $q->all();
       $total_rows = count($test);
 
-      $list_thread = ForumThread::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "is_publish = 0",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
-        ->orderBy("time_create desc")
-        ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
-        ->limit( $payload["items_per_page"] )
-        ->all();
+      $list_thread = 
+        $q->orderBy("t.time_create desc")
+          ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
+          ->limit( $payload["items_per_page"] )
+          ->all();
 
       //  lakukan query dari Confluence
       $jira_conf = Yii::$app->restconf->confs['confluence'];
@@ -3436,6 +3467,12 @@ class ForumController extends \yii\rest\Controller
   // my threads
   // ==========================================================================
   
+
+      //  Mengembalikan daftar thread berdasarkan
+      public function actionMyThreadItems()
+      {
+      }
+
 
       // mengembalikan navigasi kategori beserta jumlah artikel yang diterbitkan
       // dalam masing masing kategori.
