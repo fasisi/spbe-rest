@@ -1207,6 +1207,8 @@ class ForumController extends \yii\rest\Controller
    *  Request format:
    *  {
    *    "id_kategori": [1, 2, ...],
+   *    "tags": [1, 2, 3, ...],
+   *    "id_user_create": 123,
    *    "page_no": 123,
    *    "items_per_page": 123
    *  }
@@ -3429,4 +3431,88 @@ class ForumController extends \yii\rest\Controller
     }
   }
   ///
+
+  // ==========================================================================
+  // my threads
+  // ==========================================================================
+  
+
+      // mengembalikan navigasi kategori beserta jumlah artikel yang diterbitkan
+      // dalam masing masing kategori.
+      //
+      //  Method: GET
+      //  Request type: JSON
+      //  Request format:
+      //  {
+      //    id_user: 123
+      //  }
+      //  Response type: JSON
+      //  Response format:
+      //  {
+      //    "status": "",
+      //    "pesan" : "",
+      //    "result":
+      //    [
+      //      {
+      //        "id": 123,
+      //        "id_parent": 123,
+      //        "nama": "abc abc",
+      //        "jumlah_artikel": 123
+      //      }, ...
+      //    ]
+      //  }
+      public function actionMtCategoryTree()
+      {
+        $payload = $this->GetPayload();
+
+        $hasil = KmsKategori::MyThreads_GetNavigation($payload["id_user"]);
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil diambil",
+          "result" => $hasil
+        ];
+      }
+
+
+      //  Mengembalikan tag tag yang dipakai dalam artikel artikel yang diterbitkan
+      //  si user.
+      //
+      //  Method: GET
+      //  Request type: JSON
+      //  Request format:
+      //  {
+      //    "id_user": 123
+      //  }
+      //  Response type: JSON
+      //  Response format:
+      //  {
+      //    "status": "",
+      //    "pesan" : "",
+      //    "result":
+      //    [
+      //      {
+      //        "id": 123,
+      //        "nama": "abc abc",
+      //        "jumlah_artikel": 123
+      //      }, ...
+      //    ]
+      //  }
+      public function actionMtTags()
+      {
+        $payload = $this->GetPayload();
+
+        $hasil = KmsTag::MyThreads_GetNavigation($payload["id_user"]);
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil diambil",
+          "result" => $hasil
+        ];
+      }
+
+
+  // ==========================================================================
+  // my threads
+  // ==========================================================================
 }
