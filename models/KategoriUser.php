@@ -47,7 +47,7 @@ class KategoriUser extends \yii\db\ActiveRecord
     /*
      *  Merefresh relasi antara user dan kategori pada tabel kategori_user
       * */
-    public static function Refresh($id_user, $daftar_kategori)
+    public static function Reset($id_user, $daftar_kategori)
     {
       KategoriUser::deleteAll("id_user = :id", [":id" => $id_user]);
 
@@ -58,7 +58,7 @@ class KategoriUser extends \yii\db\ActiveRecord
           ->andWhere(["id = :id"])
           ->andWhere(["is_delete = 0"])
           ->params([":id" => $id_kategori])
-          ->one()
+          ->one();
 
         if( is_null($test) == false )
         {
