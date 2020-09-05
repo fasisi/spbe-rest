@@ -191,6 +191,7 @@ class ForumController extends \yii\rest\Controller
     $body_valid = true;
     $kategori_valid = true;
     $tags_valid = true;
+    $status_valid = true;
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
@@ -206,9 +207,13 @@ class ForumController extends \yii\rest\Controller
 
     if( isset($payload["tags"]) == false )
       $tags_valid = false;
+    
+    if( isset($payload["status"]) == false )
+      $status_valid = false;
 
     if( $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true )
+        $kategori_valid == true && $tags_valid == true &&
+	$status_valid = true )
     {
       // panggil POST /rest/api/content
 
@@ -275,7 +280,7 @@ class ForumController extends \yii\rest\Controller
             $thread['time_create'] = date("Y-m-j H:i:s");
             $thread['id_user_create'] = $payload['id_user'];
             $thread['id_kategori'] = $payload['id_kategori'];
-            $thread['status'] = 0;
+            $thread['status'] = $payload["status"];
             $thread->save();
             $id_thread = $thread->primaryKey;
 
