@@ -106,6 +106,8 @@ class ArticleController extends \yii\rest\Controller
     $new["{$type_name}"] = $log_value;
     $new["time_{$type_name}"] = date("Y=m-j H:i:s");
     $new->save();
+
+    KmsArtikelActivityLog::Summarize($id_artikel);
   }
 
   private function ActivityLog($id_artikel, $id_user, $type_action)
@@ -184,6 +186,7 @@ class ArticleController extends \yii\rest\Controller
     $body_valid = true;
     $kategori_valid = true;
     $tags_valid = true;
+    $status_valid = true;
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
@@ -199,9 +202,13 @@ class ArticleController extends \yii\rest\Controller
 
     if( isset($payload["tags"]) == false )
       $tags_valid = false;
+    
+    if( isset($payload["status"]) == false )
+      $status_valid = false;
 
     if( $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true 
+        $kategori_valid == true && $tags_valid == true &&
+	$status_valid = true
       )
     {
       // panggil POST /rest/api/content
@@ -269,7 +276,7 @@ class ArticleController extends \yii\rest\Controller
             $artikel['time_create'] = date("Y-m-j H:i:s");
             $artikel['id_user_create'] = $payload['id_user'];
             $artikel['id_kategori'] = $payload['id_kategori'];
-            $artikel['status'] = 0;
+            $artikel['status'] = $payload["status"];
             $artikel->save();
             $id_artikel = $artikel->primaryKey;
 
@@ -351,7 +358,6 @@ class ArticleController extends \yii\rest\Controller
             } // hanya jika tags terdefinisi
 
 
-            //$this->ActivityLog($id_artikel, 123, 1);
             $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
@@ -662,7 +668,6 @@ class ArticleController extends \yii\rest\Controller
             // mengupdate informasi tags
 
 
-            //$this->ActivityLog($id_artikel, 123, 1);
             //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
