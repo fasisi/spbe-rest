@@ -208,7 +208,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( $judul_valid == true && $body_valid == true &&
         $kategori_valid == true && $tags_valid == true &&
-	$status_valid = true
+	$status_valid == true
       )
     {
       // panggil POST /rest/api/content
