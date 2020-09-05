@@ -66,12 +66,12 @@ class KmsArtikelActivityLog extends \yii\db\ActiveRecord
           [
             "and",
             "a.id = :id_artikel",
-            "s.action = 1"
+            "s.status = 1"
           ],
           [":id_artikel" => $id_artikel]
         )
         ->one();
-      $like = $q["jumlah"];
+      $like = $hasil["jumlah"];
 
 
       $q = new Query();
@@ -82,12 +82,12 @@ class KmsArtikelActivityLog extends \yii\db\ActiveRecord
           [
             "and",
             "a.id = :id_artikel",
-            "s.action = 2"
+            "s.status = 2"
           ],
           [":id_artikel" => $id_artikel]
         )
         ->one();
-      $dislike = $q["jumlah"];
+      $dislike = $hasil["jumlah"];
 
 
       $q = new Query();
@@ -97,13 +97,14 @@ class KmsArtikelActivityLog extends \yii\db\ActiveRecord
         ->where(
           [
             "and",
+            "l.type_log = 2",
             "a.id = :id_artikel",
             "l.action = -1"
           ],
           [":id_artikel" => $id_artikel]
         )
         ->one();
-      $view = $q["jumlah"];
+      $view = $hasil["jumlah"];
 
 
       // update record forum_thread
