@@ -142,20 +142,29 @@ class KmsKategori extends \yii\db\ActiveRecord
 
       $test = KmsKategori::findOne($id_kategori);
 
-      if( $test["id_parent"] != -1 )
+      if( is_null($test) == false )
       {
+        if( $test["id_parent"] != -1 )
+        {
 
-        $id_kategori = $test["id_parent"];
+          $id_kategori = $test["id_parent"];
+        }
+        else
+        {
+          $terus = false;
+        }
+
+        $temp = [];
+        $temp[] = $test;
+
+        $path = array_merge($temp, $path);
       }
       else
       {
+        $path[] = "No path";
         $terus = false;
       }
 
-      $temp = [];
-      $temp[] = $test;
-
-      $path = array_merge($temp, $path);
 
     } while($terus == true);
 
