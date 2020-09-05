@@ -3464,11 +3464,13 @@ class ForumController extends \yii\rest\Controller
           [
             "and",
             "id_user_create = :id_user",
-            "status = :status"
+            "status = :status",
+            "is_delete = :is_delete"
           ],
           [
             ":id_user" => $payload["id_user"],
             ":status" => $payload["status"],
+            ":is_delete" => 0,
           ]
         )
         ->orderBy("time_create desc")
