@@ -1344,7 +1344,8 @@ class ForumController extends \yii\rest\Controller
             $temp["forum_thread"] = $thread;
             $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
             $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-            // $hasil["user_create"] = $user;
+            $temp["user_create"] = $user;
+            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_question"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1402,7 +1403,8 @@ class ForumController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_thread": 123
+   *    "id_thread": 123,
+   *    "id_user_actor": 123
    *  }
    *  Response type: JSON
    *  Response format:
@@ -1558,6 +1560,7 @@ class ForumController extends \yii\rest\Controller
         $hasil["record"]["thread_comments"] = $list_komentar;
         $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $hasil["record"]["user_create"] = $user;
+        $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
         $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
         $hasil["record"]["confluence"]["status"] = "ok";
         $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
@@ -1566,7 +1569,7 @@ class ForumController extends \yii\rest\Controller
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
 
-        $this->ThreadLog($thread["id"], 123, 2, -1);
+        $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
         break;
 
       default:
@@ -1656,7 +1659,7 @@ class ForumController extends \yii\rest\Controller
         ];
       }
 
-      if( $payload["action"] != 0 && $payload["action"] != 1 && $payload["action"] != 2 )
+      if( $payload["action"] != -1 && $payload["action"] != 1 && $payload["action"] != 2 )
       {
         return [
           "status"=> "not ok",
@@ -1684,7 +1687,7 @@ class ForumController extends \yii\rest\Controller
         $test = new ForumThreadUserAction();
       }
 
-      if( $test["status"] != $payload["status"] )
+      if( $test["action"] != $payload["action"] )
       {
         //  Aktifitas akan direkam jika mengakibatkan perubahan status pada
         //  thread.
