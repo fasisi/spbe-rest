@@ -79,4 +79,11 @@ class User extends \yii\db\ActiveRecord
     {
       return $this->hasMany(UserRoles::className(), ["id_user" => "id"]);
     }
+
+
+    public function getCategories()
+    {
+      return $this->hasMany(KategoriUser::className(), ["id_user" => "id"]);
+    }
+
 }
