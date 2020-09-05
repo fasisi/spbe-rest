@@ -3449,5 +3449,98 @@ class ForumController extends \yii\rest\Controller
       }
     }
   }
+
+  public function actionMyitems()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_status_valid = isset($payload["status"]);
+
+    if( $is_id_user_valid == true && $is_status_valid == true)
+    {
+      $list_thread = ForumThread::find()
+        ->where(
+          [
+            "and",
+            "id_user_create = :id_user",
+            "status = :status"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+            ":status" => $payload["status"],
+          ]
+        )
+        ->orderBy("time_create desc")
+        ->all();
+
+      $records = [];
+      foreach($list_thread as $thread)
+      {
+        // ambil daftar tags yang berasal dari id_kategori
+        $q  = new Query();
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$thread["linked_id_question"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $temp = [];
+        $temp["forum_thread"] = $thread;
+        $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $temp["confluence"]["id"] = $response_payload["id"];
+        $temp["confluence"]["judul"] = $response_payload["title"];
+        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+
+        $records[] = $temp;
+      } // loop artikel yang dibikin si user
+
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "records" => $records,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_user (integer), status (integer)",
+        "payload" => $payload
+      ];
+        
+
+    }
+  }
   ///
 }
