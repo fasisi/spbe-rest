@@ -406,7 +406,8 @@ class ArticleController extends \yii\rest\Controller
   //  Request type: JSON
   //  Request format:
   //  {
-  //    "id": 123
+  //    "id_artikel": 123,
+  //    "id_user_actor": 123
   //  }
   //  Response type: JSON
   //  Response format:
@@ -417,7 +418,65 @@ class ArticleController extends \yii\rest\Controller
   //  }
   public function actionDelete()
   {
-    //
+    $payload = $this->GetPayload();
+
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_actor_valid = isset($payload["id_user_actor"]);
+
+    $is_id_artikel_valid = $is_id_artikel_valid && is_numeric($payload["id_artikel"]);
+    $is_id_user_actor_valid = $is_id_user_actor_valid && is_numeric($payload["id_user_actor"]);
+
+    $test = KmsArtikel::findOne($payload["id_artikel"]);
+    if( is_null($test) == true )
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record artikel tidak ditemukan",
+      ];
+    }
+
+    $test = User::findOne($payload["id_user_actor"]);
+    if( is_null($test) == true )
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record user tidak ditemukan",
+      ];
+    }
+
+    if( $is_id_artikel_valid == true && $is_id_user_actor_valid == true )
+    {
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+      $artikel["is_delete"] = 1;
+      $artikel["time_delete"] = date("Y-m-d H:i:s");
+      $artikel["id_user_delete"] = $payload["id_user_actor"];
+      $artikel->save();
+
+      $this->ArtikelLog($payload["id_artikel"], $payload["id_user_actor"], 1, 5);
+
+      return [
+        "status" => "ok",
+        "pesan" => "Record berhasil di-delete",
+        "result" => 
+        [
+          "record" => $artikel,
+          "payload" => $payload
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record gagal di-delete",
+        "result" => 
+        [
+          "record" => $artikel,
+          "payload" => $payload
+        ]
+      ];
+    }
+
   }
 
   public function actionRetrieve()
