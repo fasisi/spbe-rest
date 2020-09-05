@@ -474,38 +474,59 @@ class ForumController extends \yii\rest\Controller
         $tags_valid == true 
       )
     {
+
+
+      // update record kms_artikel
+      $thread = ForumThread::findOne($payload["id"]);
+      $thread['time_update'] = date("Y-m-j H:i:s");
+      $thread['id_user_update'] = $payload["id_user"];
+      $thread->save();
+
+      // mengupdate informasi tags
+
+          //hapus label pada spbe
+              ForumThreadTag::deleteAll("id_thread = {$thread["id"]}");
+
+              $this->UpdateTags(null, null, $thread["id"], -1, $payload);
+          //hapus label pada spbe
+               
+      // mengupdate informasi tags
+
+
       // ambil nomor versi bersadarkan id_linked_content
-          $thread = ForumThread::findOne($payload["id"]);
+          /* $thread = ForumThread::findOne($payload["id"]); */
           
-          $jira_conf = Yii::$app->restconf->confs['confluence'];
-          $client = $this->SetupGuzzleClient();
+          /* $jira_conf = Yii::$app->restconf->confs['confluence']; */
+          /* $client = $this->SetupGuzzle(); */
 
-          $res = null;
-          $res = $client->request(
-            'GET',
-            "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
-            [
-              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-              /* 'debug' => true, */
-              'http_errors' => false,
-              'headers' => [
-                "Content-Type" => "application/json",
-                "accept" => "application/json",
-              ],
-              'auth' => [
-                $jira_conf["user"],
-                $jira_conf["password"]
-              ],
-              'query' => [
-                'status' => 'current',
-                'expand' => 'body.view,version',
-              ],
-              'body' => Json::encode($request_payload),
-            ]
-          );
-          $response = Json::decode($res->getBody());
+          /* $res = null; */
+          /* $res = $client->request( */
+          /*   'GET', */
+          /*   "/rest/questions/1.0/question/{$thread["linked_id_question"]}", */
+          /*   [ */
+          /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+          /*     /1* 'debug' => true, *1/ */
+          /*     'http_errors' => false, */
+          /*     'headers' => [ */
+          /*       "Content-Type" => "application/json", */
+          /*       "accept" => "application/json", */
+          /*     ], */
+          /*     'auth' => [ */
+          /*       $jira_conf["user"], */
+          /*       $jira_conf["password"] */
+          /*     ], */
+          /*     'query' => [ */
+          /*       'status' => 'current', */
+          /*       'expand' => 'body.view,version', */
+          /*     ], */
+          /*     'body' => Json::encode($request_payload), */
+          /*   ] */
+          /* ); */
+          /* $response = Json::decode($res->getBody()); */
       // ambil nomor versi bersadarkan id_linked_content
 
+      // WARNING!!
+      //
       // berdasarkan dokumentasi Confluence-Question, tidak ada API untuk 
       // melakukan update question. Perlu dipikirkan jalan keluarnya. Apakah
       // thread dikirim ke Confluence-Question saat thread pindah status dari
