@@ -34,17 +34,25 @@ class ForumController extends \yii\rest\Controller
         'delete'                => ['DELETE'],
         'list'                  => ['GET'],
 
-        'comment'               => ['POST', 'GET', 'DELETE', 'PUT'],
+        'logsbyfilter'          => ['GET'],
+        'itemsbyfilter'         => ['GET'],
         'item, items'           => ['GET'],
+        'threaduseraction'      => ['POST'],
+        'itemkategori'          => ['PUT'],
+        'search'                => ['GET'],
+        'status'                => ['PUT'],
+        'otheritems'            => ['GET'],
+        'othercategories'       => ['GET'],
+        'dailystats'            => ['GET'],
+        'currentstats'          => ['GET'],
+        'comment'               => ['POST', 'GET', 'DELETE', 'PUT'],
+        'answer'                => ['POST', 'GET', 'PUT', 'DELETE'],
+        'myitems'               => ['GET'],
+
         'attachments'           => ['POST'],
         'logsbytags'            => ['GET'],
         'categoriesbytags'      => ['GET'],
         'itemtag'               => ['POST'],
-        'logsbyfilter'          => ['GET'],
-        'artikeluserstatus'     => ['POST'],
-        'itemkategori'          => ['PUT'],
-        'search'                => ['GET'],
-        'status'                => ['PUT'],
       ]
     ];
     return $behaviors;
@@ -1703,16 +1711,7 @@ class ForumController extends \yii\rest\Controller
       )
     {
       //  lakukan query dari tabel kms_artikel
-      $thread = ForumThread::find()
-        ->where([
-            "and",
-            "id = :id_thread",
-          ],
-          [
-            ":id_thread" => $payload["id_thread"]
-          ]
-        )
-        ->one();
+      $thread = ForumThread::findOne($payload["id_thread"]);
 
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
@@ -3834,8 +3833,89 @@ class ForumController extends \yii\rest\Controller
   
 
       //  Mengembalikan daftar thread berdasarkan
-      public function actionMyThreadItems()
+      //  
+      //  Method: GET
+      //  Request type: JSON
+      //  Request format:
+      //  {
+      //    id_user: 123,
+      //    status: 123
+      //  }
+      //  Response type: JSON
+      //  Response format:
+      //  {
+      //    "status": "ok/not ok",
+      //    "pesan": "",
+      //    "result":
+      //    {
+      //      records:
+      //      [
+      //        {
+      //          object of thread
+      //        }, ...
+      //      ]
+      //    }
+      //  }
+      public function actionMyitems()
       {
+        $is_id_user_valid = isset($payload["id_user"]);
+        $is_status_valid = isset($payload["status"]);
+
+        if( $is_id_user_valid == true && $is_status_valid == true )
+        {
+          $list_thread = ForumThread::find()
+            ->where(
+              [
+                "and",
+                "id_user_create = :id_user",
+                "status = :status",
+                "is_delete = 0"
+              ],
+              [
+                ":id_user" => $payload["id_user"],
+                ":status" => $payload["status"],
+              ]
+            )
+            ->orderBy("time_create desc")
+            ->all();
+
+          $hasil = [];
+          $client = $this->SetupGuzzleClient();
+          foreach($list_thread as $thread)
+          {
+            // get record CQ
+            $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+            $response_payload = $response->getBody();
+            $response_payload = Json::decode($response_payload);
+
+            $user = User::findOne($thread["id_user_create"]);
+
+            $temp = [];
+            $temp["record"]["forum_thread"] = $thread;
+            $temp["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+            $temp["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+            $temp["record"]["user_create"] = $user;
+            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
+            $temp["confluence"]["judul"] = $response_payload["title"];
+            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+
+            $hasil[] = $temp;
+          }
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record berhasil diambil",
+            "result" => $hasil,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid.",
+            "payload" => $payload,
+          ];
+        }
       }
 
 
