@@ -139,10 +139,19 @@ class UserController extends \yii\rest\Controller
       if( is_null($record) == false )
       {
         $roles = $record->getRoles()->all();
-        $kategori_user = KategoriUser::find()
+        $list_kategori_user = KategoriUser::find()
           ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
-          ->one();
-        
+          ->all();
+
+        $categories = [];
+        foreach($list_kategori_user as $kategori_item)
+        {
+          $temp = [];
+          $temp["category"] = KmsKategori::fineOne($kategori_item["id_kategori"]);
+          $temp["category_path"] = KmsKategori::CategoryPath($kategori_item["id_kategori"]);
+
+          $categories[] = $temp;
+        }
 
         return [
           "status" => "ok",
@@ -150,9 +159,8 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "record" => $record,
-            "category" => KmsKategori::findOne($kategori_user["id_kategori"]),
-            "category_path" => KmsKategori::CategoryPath($kategori_user["id_kategori"]),
-            "roles" => $roles
+            "roles" => $roles,
+            "categories" => $categories,
           ]
         ];
       }
@@ -184,7 +192,8 @@ class UserController extends \yii\rest\Controller
   //    username: ...,
   //    id_departments: ...,
   //    jenis_kelamin: ...,
-  //    id_roles: [1,2,...]
+  //    id_roles: [1,2,...],
+  //    id_kategori: [1, 2, 3, ...]
   //  }
   //  Response type: JSON,
   //  Response format:
@@ -213,6 +222,7 @@ class UserController extends \yii\rest\Controller
 
         if( $user->hasErrors() == false )
         {
+          // update roles
           UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
           foreach($payload["id_roles"] as $id_role)
           {
@@ -230,6 +240,28 @@ class UserController extends \yii\rest\Controller
           }
 
           $roles = $user->getRoles()->all();
+          // update roles
+
+
+
+          // update kategori
+          KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+          foreach($payload["id_kategori"] as $id_kategori)
+          {
+            //periksa validitas id_role
+            $test = KmsKategori::findOne($id_kategori);
+
+            if( is_null($test) == false )
+            {
+              $new = new KategoriUser();
+              $new["id_user"] = $payload["id"];
+              $new["id_kategori"] = $id_kategori;
+              $new->save();
+            }
+          }
+
+          $categories = $user->getKategori()->all();
+          // update kategori
 
           return [
             "status" => "ok",
@@ -237,7 +269,9 @@ class UserController extends \yii\rest\Controller
             "result" => 
             [
               "record" => $user,
-              "roles" => $roles
+              "roles" => $roles,
+              "categories" => $categories,
+
             ]
           ];
         }
