@@ -614,7 +614,7 @@ class ForumController extends \yii\rest\Controller
       /*       $linked_id_question = $response_payload['id']; */
 
 
-            // update record kms_artikel
+            // update record forum_thread
             $thread = ForumThread::findOne($payload["id"]);
             $thread["judul"] = $payload["judul"];
             $thread["konten"] = $payload["body"];
@@ -876,10 +876,12 @@ class ForumController extends \yii\rest\Controller
       switch(true)
       {
         case $key == "waktu_awal":
+          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
           $where[] = "l.time_action >= '$value'";
         break;
 
         case $key == "waktu_akhir":
+          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
           $where[] = "l.time_action <= '$value'";
         break;
 
@@ -940,13 +942,228 @@ class ForumController extends \yii\rest\Controller
 
         $temp = [];
         $temp["forum_thread"] = $thread;
-        $temp["categoru_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $temp["user_create"] = $user;
+        $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $temp["data_user"]["user_create"] = $user;
         $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $temp["confluence"]["linked_id_question"] = $response_payload["id"];
+        $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = $response_payload["body"]["content"];
 
+
+        // filter by action
+        // ================
+            // berapa banyak action yang diterima suatu artikel dalam rentang waktu tertentu?
+
+            //ambil data view
+            $type_action = -1;
+            $temp["view"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+            
+            //ambil data like
+            $type_action = 1;
+            $temp["like"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data dislike
+            $type_action = 2;
+            $temp["dislike"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        // ================
+        // filter by action
+
+        // filter by status
+        // ================
+            // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
+
+            //ambil data draft
+            $type_status = -1;
+            $temp["draft"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data new
+            $type_status = 0;
+            $temp["new"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data publish
+            $type_status = 1;
+            $temp["publish"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data un-publish
+            $type_status = 2;
+            $temp["unpublish"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data reject
+            $type_status = 3;
+            $temp["reject"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data freeze
+            $type_status = 4;
+            $temp["freeze"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+        // ================
+        // filter by status
+
+        $is_valid = true;
+        foreach($payload["filter"]["actions"] as $action)
+        {
+          switch(true)
+          {
+          case $action["action"] == -1:
+            if($action["min"] <= $temp["view"] && $action["max"] >= $temp["view"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 1:
+            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 2:
+            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          }
+        } // loop check action
+
+        foreach($payload["filter"]["status"] as $status)
+        {
+          switch(true)
+          {
+          case $status == -1:  //draft
+            if($temp["draft"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $status == 0:  // new
+            if($temp["new"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $status == 1:  // publish
+            if($temp["publish"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          case $status == 2:  // unpublish
+            if($temp["unpublish"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          case $status == 3:  // reject
+            if($temp["reject"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          case $status == 4:  // freeze
+            if($temp["freeze"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          }
+        } // loop check filter status
+
+        if($is_valid == true)
+          $hasil[] = $temp;
+
+        //ambil data view
+        $type_action = -1;
+        $temp["view"] = ForumThred::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        
+        //ambil data like
+        $type_action = 1;
+        $temp["like"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+
+        //ambil data dislike
+        $type_action = 2;
+        $temp["dislike"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+
+        $is_valid = true;
+        foreach($payload["filter"]["actions"] as $action)
+        {
+          switch(true)
+          {
+          case $action["action"] == -1:
+            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 1:
+            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $action["action"] == 2:
+            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+          }
+        } // loop check action
+
+        if($is_valid == true)
         $hasil[] = $temp;
       }
       else
@@ -2043,13 +2260,13 @@ class ForumController extends \yii\rest\Controller
   /*
    *  Mengubah status suatu thread.
    *  Status artikel:
-   *  0 = draft
-   *  1 = new
-   *  2 = publish
-   *  3 = un-publish
-   *  4 = reject
-   *  5 = freeze
-   *  6 = knowledge
+   *  -1 = draft
+   *  0 = new
+   *  1 = publish
+   *  2 = un-publish
+   *  3 = reject
+   *  4 = freeze
+   *  5 = knowledge
    *
    *  Method: PUT
    *  Request type: JSON
@@ -2481,31 +2698,31 @@ class ForumController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
-            case 0: //draft
+            case -1: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
 
-            case 1: //new
+            case 0: //new
               $temp["data"]["new"] = $record["jumlah"];
               break;
 
-            case 2: //publish
+            case 1: //publish
               $temp["data"]["publish"] = $record["jumlah"];
               break;
 
-            case 3: //unpublish
+            case 2: //unpublish
               $temp["data"]["unpublish"] = $record["jumlah"];
               break;
 
-            case 4: //reject
+            case 3: //reject
               $temp["data"]["reject"] = $record["jumlah"];
               break;
 
-            case 5: //freeze
+            case 4: //freeze
               $temp["data"]["freeze"] = $record["jumlah"];
               break;
 
-            case 6: //knowledge
+            case 5: //knowledge
               $temp["data"]["knowledge"] = $record["jumlah"];
               break;
           }
@@ -3610,4 +3827,94 @@ class ForumController extends \yii\rest\Controller
     }
   }
   ///
+
+  // ==========================================================================
+  // my threads
+  // ==========================================================================
+  
+
+      //  Mengembalikan daftar thread berdasarkan
+      public function actionMyThreadItems()
+      {
+      }
+
+
+      // mengembalikan navigasi kategori beserta jumlah artikel yang diterbitkan
+      // dalam masing masing kategori.
+      //
+      //  Method: GET
+      //  Request type: JSON
+      //  Request format:
+      //  {
+      //    id_user: 123
+      //  }
+      //  Response type: JSON
+      //  Response format:
+      //  {
+      //    "status": "",
+      //    "pesan" : "",
+      //    "result":
+      //    [
+      //      {
+      //        "id": 123,
+      //        "id_parent": 123,
+      //        "nama": "abc abc",
+      //        "jumlah_artikel": 123
+      //      }, ...
+      //    ]
+      //  }
+      public function actionMtCategoryTree()
+      {
+        $payload = $this->GetPayload();
+
+        $hasil = KmsKategori::MyThreads_GetNavigation($payload["id_user"]);
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil diambil",
+          "result" => $hasil
+        ];
+      }
+
+
+      //  Mengembalikan tag tag yang dipakai dalam artikel artikel yang diterbitkan
+      //  si user.
+      //
+      //  Method: GET
+      //  Request type: JSON
+      //  Request format:
+      //  {
+      //    "id_user": 123
+      //  }
+      //  Response type: JSON
+      //  Response format:
+      //  {
+      //    "status": "",
+      //    "pesan" : "",
+      //    "result":
+      //    [
+      //      {
+      //        "id": 123,
+      //        "nama": "abc abc",
+      //        "jumlah_artikel": 123
+      //      }, ...
+      //    ]
+      //  }
+      public function actionMtTags()
+      {
+        $payload = $this->GetPayload();
+
+        $hasil = KmsTag::MyThreads_GetNavigation($payload["id_user"]);
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil diambil",
+          "result" => $hasil
+        ];
+      }
+
+
+  // ==========================================================================
+  // my threads
+  // ==========================================================================
 }
