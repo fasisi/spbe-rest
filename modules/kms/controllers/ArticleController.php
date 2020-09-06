@@ -2759,19 +2759,20 @@ class ArticleController extends \yii\rest\Controller
         $q = new Query();
         $hasil_status = $q->select("log.status, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
-          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
+          ->andWhere("time_status >= :awal", [":awal" => date("Y-m-d 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-d 23:59:59", $temp_date->timestamp)])
           ->distinct()
           ->groupBy("log.status")
           ->orderBy("log.status asc")
           ->all();
 
+        $q = new Query();
         $hasil_action = $q->select("log.action, count(log.id) as jumlah")
           ->from("kms_artikel_activity_log log")
-          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
-          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
+          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-d 00:00:00", $temp_date->timestamp)])
+          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-d 23:59:59", $temp_date->timestamp)])
           ->distinct()
-          ->orderBy("log.action")
+          ->groupBy("log.action")
           ->orderBy("log.action asc")
           ->all();
 
@@ -2782,6 +2783,10 @@ class ArticleController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
+            case -1: //draft
+              $temp["data"]["draft"] = $record["jumlah"];
+              break;
+
             case 0: //new
               $temp["data"]["new"] = $record["jumlah"];
               break;
@@ -2808,8 +2813,8 @@ class ArticleController extends \yii\rest\Controller
         {
           switch( $record["action"] )
           {
-            case 0: //neutral
-              $temp["data"]["neutral"] = $record["jumlah"];
+            case -1: //view
+              $temp["data"]["view"] = $record["jumlah"];
               break;
 
             case 1: //like
@@ -2895,11 +2900,37 @@ class ArticleController extends \yii\rest\Controller
         $q->select("a.id")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
-          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.type_log = 1")
-          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
-          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
+          ->where(
+            [
+              "and",
+              "a.id_kategori = :id_kategori",
+              [
+                "or",
+                [
+                  "and",
+                  "log.time_status >= :awal",
+                  "log.time_status <= :akhir"
+                ],
+                [
+                  "and",
+                  "log.time_action >= :awal",
+                  "log.time_action <= :akhir"
+                ]
+              ]
+            ]
+          )
+          ->params(
+            [
+              ":id_kategori" => $kategori["id"],
+              ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp),
+              ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)
+            ]
+          )
+          /* ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
+          /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
+          /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
           ->orderBy("log.status asc")
+          ->groupBy("a.id")
           ->all();
       $total_artikel = count($total_artikel);
 
@@ -2920,7 +2951,7 @@ class ArticleController extends \yii\rest\Controller
       // ambil jumlah artikel per action (like/dislike)
       $q = new Query();
       $artikel_action = 
-        $q->select("log.action, count(a.id) as jumlah")
+        $q->select("log.action, a.id")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
@@ -2929,7 +2960,7 @@ class ArticleController extends \yii\rest\Controller
           ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.action asc")
-          ->groupBy("log.action")
+          ->groupBy("log.action, a.id")
           ->all();
 
       // ambil jumlah user per kejadian (new, publish, .., freeze)
@@ -2939,11 +2970,38 @@ class ArticleController extends \yii\rest\Controller
           ->from("user u")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
-          ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.type_log = 1")
-          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
-          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
-          ->orderBy("log.status asc")
+          ->where(
+            [
+              "and",
+              "a.id_kategori = :id_kategori",
+              "log.type_log = 1",
+              [
+                "or",
+                [
+                  "and",
+                  "log.time_status >= :awal",
+                  "log.time_status <= :akhir"
+                ],
+                [
+                  "and",
+                  "log.time_action >= :awal",
+                  "log.time_action <= :akhir"
+                ]
+              ]
+            ],
+            [
+              ":id_kategori" => $kategori["id"],
+              ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp),
+              ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)
+            ]
+          )
+          /* ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
+          /* ->andWhere("log.type_log = 1") */
+          /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
+          /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
+          /* ->orderBy("log.status asc") */
+          /* ->groupBy("u.id") */
+          ->distinct()
           ->all();
       $total_user = count($total_user);
 
@@ -2965,7 +3023,7 @@ class ArticleController extends \yii\rest\Controller
       // ambil jumlah artikel per action (like/dislike)
       $q = new Query();
       $user_action = 
-        $q->select("log.action, count(u.id) as jumlah")
+        $q->select("log.action, u.id")
           ->from("user u")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
@@ -2975,7 +3033,7 @@ class ArticleController extends \yii\rest\Controller
           ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.action asc")
-          ->groupBy("log.action")
+          ->groupBy("log.action, u.id")
           ->all();
 
       $temp = [];
@@ -3016,24 +3074,28 @@ class ArticleController extends \yii\rest\Controller
         }
       }
 
+      $temp["neutral"]["artikel"] = 0;
+      $temp["like"]["artikel"] = 0;
+      $temp["dislike"]["artikel"] = 0;
+      $temp["view"]["artikel"] = 0;
       foreach($artikel_action as $record)
       {
         switch( $record["action"] )
         {
           case 0: //neutral
-            $temp["neutral"]["artikel"] = $record["jumlah"];
+            $temp["neutral"]["artikel"]++;
             break;
 
           case 1: //like
-            $temp["like"]["artikel"] = $record["jumlah"];
+            $temp["like"]["artikel"]++;
             break;
 
           case 2: //dislike
-            $temp["dislike"]["artikel"] = $record["jumlah"];
+            $temp["dislike"]["artikel"]++;
             break;
 
-          case 3: //view
-            $temp["view"]["artikel"] = $record["jumlah"];
+          case -1: //view
+            $temp["view"]["artikel"]++;
             break;
         }
       }
@@ -3064,24 +3126,28 @@ class ArticleController extends \yii\rest\Controller
         }
       }
 
+      $temp["like"]["user"] = 0;
+      $temp["neutral"]["user"] = 0;
+      $temp["dislike"]["user"] = 0;
+      $temp["view"]["user"] = 0;
       foreach($user_action as $record)
       {
         switch( $record["action"] )
         {
           case 0: //neutral
-            $temp["neutral"]["user"] = $record["jumlah"];
+            $temp["neutral"]["user"]++;
             break;
 
           case 1: //like
-            $temp["like"]["user"] = $record["jumlah"];
+            $temp["like"]["user"]++;
             break;
 
           case 2: //dislike
-            $temp["dislike"]["user"] = $record["jumlah"];
+            $temp["dislike"]["user"]++;
             break;
 
-          case 2: //view
-            $temp["dislike"]["user"] = $record["jumlah"];
+          case -1: //view
+            $temp["view"]["user"]++;
             break;
         }
       }
