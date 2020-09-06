@@ -3,6 +3,7 @@
 namespace app\modules\kms\controllers;
 
 use Yii;
+use yii\base;
 use yii\helpers\Json;
 use yii\db\Query;
 
@@ -138,7 +139,7 @@ class ForumController extends \yii\rest\Controller
         $jira_conf = Yii::$app->restconf->confs['confluence'];
         $res = $client->request(
           'GET',
-          "/question/$linked_id_question",
+          "/rest/questions/1.0/question/$linked_id_question",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -533,6 +534,86 @@ class ForumController extends \yii\rest\Controller
         $tags_valid == true 
       )
     {
+
+
+      // update record forum_thread
+      $thread = ForumThread::findOne($payload["id"]);
+
+      if( $thread["status"] == 0 ) // hanya draft yang dapat di-edit
+      {
+        $thread["judul"] = $payload["judul"];
+        $thread["konten"] = $payload["body"];
+        $thread['time_update'] = date("Y-m-j H:i:s");
+        $thread['id_user_update'] = $payload["id_user"];
+        $thread->save();
+
+        // mengupdate informasi tags
+
+            //hapus label pada confluence
+            //  WARNING!!
+            //
+            //  CQ tidak mendukung API untuk mencopot tag dari thread.
+            //  Oleh karena itu proses ini dilakukan di dalam SPBE.
+
+                /* $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
+            //hapus label pada confluence
+
+            // refresh tag/label
+                $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
+            // refresh tag/label
+                 
+        // mengupdate informasi tags
+
+
+        // kembalikan response
+            $tags = ForumThreadTag::findAll("id_thread = {$thread["id"]}");
+
+            return 
+            [
+              'status' => 'ok',
+              'pesan' => 'Record thread telah diupdate',
+              'result' => 
+              [
+                "forum_thread" => $thread,
+                "tags" => $tags
+              ]
+            ];
+        // kembalikan response
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Thread tidak dapat di-edit",
+          "payload" => $payload,
+          "result" => $thread
+        ];
+      }
+
+      // mengupdate informasi tags
+
+          //hapus label pada confluence
+          //  WARNING!!
+          //
+          //  CQ tidak mendukung API untuk mencopot tag dari thread.
+          //  Oleh karena itu proses ini dilakukan di dalam SPBE.
+
+              /* $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
+          //hapus label pada confluence
+
+          // refresh tag/label
+              $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
+          // refresh tag/label
+               
+      // mengupdate informasi tags
+
+
+      //$this->ActivityLog($id_artikel, 123, 1);
+      //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
+
+
+
+
       // ambil nomor versi bersadarkan id_linked_content
           /* $thread = ForumThread::findOne($payload["id"]); */
           
@@ -627,71 +708,6 @@ class ForumController extends \yii\rest\Controller
       /*       $linked_id_question = $response_payload['id']; */
 
 
-            // update record forum_thread
-            $thread = ForumThread::findOne($payload["id"]);
-            $thread["judul"] = $payload["judul"];
-            $thread["konten"] = $payload["body"];
-            $thread['time_update'] = date("Y-m-j H:i:s");
-            $thread['id_user_update'] = $payload["id_user"];
-            $thread->save();
-
-            // mengupdate informasi tags
-
-                //hapus label pada confluence
-                //  WARNING!!
-                //
-                //  CQ tidak mendukung API untuk mencopot tag dari thread.
-                //  Oleh karena itu proses ini dilakukan di dalam SPBE.
-
-                    /* $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
-                //hapus label pada confluence
-
-                // refresh tag/label
-                    $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
-                // refresh tag/label
-                     
-            // mengupdate informasi tags
-
-
-            //$this->ActivityLog($id_artikel, 123, 1);
-            //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
-
-            // kembalikan response
-                $tags = ForumThreadTag::findAll("id_thread = {$thread["id"]}");
-
-                return 
-                [
-                  'status' => 'ok',
-                  'pesan' => 'Record thread telah diupdate',
-                  'result' => 
-                  [
-                    "forum_thread" => $thread,
-                    "tags" => $tags
-                  ]
-                ];
-            // kembalikan response
-            break;
-
-          default:
-            // kembalikan response
-            return [
-              'status' => 'not ok',
-              'pesan' => 'REST API request failed: ' . $res->getBody(),
-              'result' => $thread
-            ];
-            break;
-        }
-      }
-      catch(\GuzzleHttp\Exception\BadResponseException $e)
-      {
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          'pesan' => 'REST API request failed: ' . $e->getMessage(),
-        ];
-      }
-
-      // update content
 
     }
     else
@@ -701,7 +717,6 @@ class ForumController extends \yii\rest\Controller
         'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tsgs',
       ];
     }
-      return $this->render('update');
   }
 
   /* Menghapus tags dari suatu thread.
@@ -2136,12 +2151,11 @@ class ForumController extends \yii\rest\Controller
       {
         if($keywords != "")
         {
-          $keywords .= " OR ";
+          $keywords .= " ";
         }
 
-        $keywords .= "(text ~ $keyword)";
+        $keywords .= "$keyword";
       }
-      $keywords = "($keywords)";
 
       //ambil daftar linked_id_question berdasarkan array id_kategori
       $daftar_thread = ForumThread::find()
@@ -2203,12 +2217,6 @@ class ForumController extends \yii\rest\Controller
         $hasil = array();
         foreach($response_payload["results"] as $item)
         {
-          $temp = array();
-          $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_question"] = $item["id"];
-          $temp["confluence"]["judul"] = $item["title"];
-          $temp["confluence"]["konten"] = $item["body"]["view"];
-
           $thread = ForumThread::find()
             ->where(
               [
@@ -2217,9 +2225,20 @@ class ForumController extends \yii\rest\Controller
             )
             ->one();
           $user = User::findOne($thread["id_user_create"]);
+
+          $cq_response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+          $cq_response_payload = $cq_response->getBody();
+          $cq_response_payload = Json::decode($cq_response_payload);
+
+          $temp = array();
           $temp["forum_thread"] = $thread;
           $temp["user_create"] = $user->nama;
           $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_question"] = $item["id"];
+          $temp["confluence"]["judul"] = $cq_response_payload["title"];
+          $temp["confluence"]["konten"] = $cq_response_payload["body"]["content"];
 
           $hasil[] = $temp;
         }
@@ -2229,7 +2248,7 @@ class ForumController extends \yii\rest\Controller
           "pesan" => "Search berhasil",
           "result" => 
           [
-            "total_rows" => $response_payload["size"],
+            "total_rows" => count($response_payload["results"]),
             "page_no" => $payload["page_no"],
             "Items_per_page" => $payload["items_per_page"],
             "records" => $hasil
@@ -2858,7 +2877,7 @@ class ForumController extends \yii\rest\Controller
           /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
           /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
           ->orderBy("log.status asc")
-          ->groupBy("a.id")
+          ->groupBy("t.id")
           ->all();
       $total_thread = count($total_thread);
 
@@ -2897,7 +2916,7 @@ class ForumController extends \yii\rest\Controller
         $q->select("u.id")
           ->from("user u")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
-          ->join("JOIN", "forum_thread t", "log.id_artikel = t.id")
+          ->join("JOIN", "forum_thread t", "log.id_thread = t.id")
           ->where(
             [
               "and",
@@ -2954,7 +2973,7 @@ class ForumController extends \yii\rest\Controller
         $q->select("log.action, u.id")
           ->from("user u")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
-          ->join("JOIN", "forum_thread t", "log.id_artikel = t.id")
+          ->join("JOIN", "forum_thread t", "log.id_thread = t.id")
           ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
           ->andWhere("log.type_log = 2")
           ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
@@ -3863,6 +3882,8 @@ class ForumController extends \yii\rest\Controller
       //  }
       public function actionMyitems()
       {
+        $payload = $this->GetPayload();
+
         $is_id_user_valid = isset($payload["id_user"]);
         $is_status_valid = isset($payload["status"]);
 
@@ -3888,11 +3909,6 @@ class ForumController extends \yii\rest\Controller
           $client = $this->SetupGuzzleClient();
           foreach($list_thread as $thread)
           {
-            // get record CQ
-            $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
-            $response_payload = $response->getBody();
-            $response_payload = Json::decode($response_payload);
-
             $user = User::findOne($thread["id_user_create"]);
 
             $temp = [];
@@ -3900,9 +3916,26 @@ class ForumController extends \yii\rest\Controller
             $temp["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
             $temp["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             $temp["record"]["user_create"] = $user;
-            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+
+            // get record CQ
+            $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+            $response_payload = $response->getBody();
+
+            Yii::info("response_payload = " . $response_payload);
+
+            try
+            {
+              $response_payload = Json::decode($response_payload);
+
+              $temp["confluence"]["linked_id_question"] = $response_payload["id"];
+              $temp["confluence"]["judul"] = $response_payload["title"];
+              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+            }
+            catch(yii\base\InvalidParamException $e)
+            {
+              $temp["confluence"]["status"] = "not ok";
+              $temp["confluence"]["response"] = $response_payload;
+            }
 
             $hasil[] = $temp;
           }
