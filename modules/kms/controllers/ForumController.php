@@ -1629,6 +1629,8 @@ class ForumController extends \yii\rest\Controller
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
+
+            $response_payload = [];
             break;
 
           default:
@@ -1644,6 +1646,8 @@ class ForumController extends \yii\rest\Controller
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
+
+            $response_payload = [];
             break;
         }
       }
@@ -3753,6 +3757,7 @@ class ForumController extends \yii\rest\Controller
         return [
           "status" => "not ok",
           "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_parent, konten",
+          "payload" => $payload,
         ];
       }
     }
