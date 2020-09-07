@@ -118,7 +118,7 @@ class ForumController extends \yii\rest\Controller
         }
 
         $new["{$type_name}"] = $log_value;
-        $new["time_{$type_name}"] = date("Y=m-j H:i:s");
+        $new["time_{$type_name}"] = date("Y=m-d H:i:s");
         $new->save();
 
         ForumThreadUserAction::Summarize($id_thread);
@@ -349,7 +349,7 @@ class ForumController extends \yii\rest\Controller
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
-            $this->ThreadLog($payload["id_thread"], $payload["id_user"], 1, $payload["status"]);
+            $this->ThreadLog($id_thread, $payload["id_user"], 1, 0);
 
             // kembalikan response
             return 
@@ -370,7 +370,8 @@ class ForumController extends \yii\rest\Controller
             return [
               'status' => 'not ok',
               'pesan' => 'REST API request failed: ' . $res->getBody(),
-              'result' => $thread
+              'result' => $thread,
+              'payload' => $payload,
             ];
             break;
         }
