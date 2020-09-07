@@ -358,7 +358,7 @@ class ArticleController extends \yii\rest\Controller
             } // hanya jika tags terdefinisi
 
 
-            $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
+            $this->ArtikelLog($id_artikel, $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
             return 
@@ -2930,13 +2930,14 @@ class ArticleController extends \yii\rest\Controller
           /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
           /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
           ->orderBy("log.status asc")
+          ->distinct()
           ->groupBy("a.id")
           ->all();
       $total_artikel = count($total_artikel);
 
       $q = new Query();
       $artikel_status = 
-        $q->select("log.status, count(a.id) as jumlah")
+        $q->select("log.status, a.id")
           ->from("kms_artikel a")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_artikel = a.id")
           ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
@@ -2945,7 +2946,7 @@ class ArticleController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, a.id")
           ->all();
 
       // ambil jumlah artikel per action (like/dislike)
@@ -3007,7 +3008,7 @@ class ArticleController extends \yii\rest\Controller
 
       $q = new Query();
       $user_status = 
-        $q->select("log.status, count(u.id) as jumlah")
+        $q->select("log.status, u.id")
           ->from("user u")
           ->join("JOIN", "kms_artikel_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "kms_artikel a", "log.id_artikel = a.id")
@@ -3017,7 +3018,7 @@ class ArticleController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, u.id")
           ->all();
 
       // ambil jumlah artikel per action (like/dislike)
@@ -3048,28 +3049,33 @@ class ArticleController extends \yii\rest\Controller
       $temp["total"]["artikel"] = $total_artikel;
       $temp["total"]["user"] = $total_user;
 
+      $temp["new"]["artikel"] = 0;
+      $temp["publish"]["artikel"] = 0;
+      $temp["unpublish"]["artikel"] = 0;
+      $temp["reject"]["artikel"] = 0;
+      $temp["freeze"]["artikel"] = 0;
       foreach($artikel_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["artikel"] = $record["jumlah"];
+            $temp["new"]["artikel"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["artikel"] = $record["jumlah"];
+            $temp["publish"]["artikel"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["artikel"] = $record["jumlah"];
+            $temp["unpublish"]["artikel"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["artikel"] = $record["jumlah"];
+            $temp["reject"]["artikel"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["artikel"] = $record["jumlah"];
+            $temp["freeze"]["artikel"]++;
             break;
         }
       }
@@ -3100,29 +3106,34 @@ class ArticleController extends \yii\rest\Controller
         }
       }
 
+      $temp["new"]["user"] = 0;
+      $temp["publish"]["user"] = 0;
+      $temp["unpublish"]["user"] = 0;
+      $temp["reject"]["user"] = 0;
+      $temp["freeze"]["user"] = 0;
       foreach($user_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["user"] = $record["jumlah"];
+            $temp["new"]["user"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["user"] = $record["jumlah"];
+            $temp["publish"]["user"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["user"] = $record["jumlah"];
+            $temp["unpublish"]["user"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["user"] = $record["jumlah"];
+            $temp["reject"]["user"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["user"] = $record["jumlah"];
-            break;
+          $temp["freeze"]["user"]++;
+          break;
         }
       }
 
