@@ -920,7 +920,7 @@ class ForumController extends \yii\rest\Controller
           $temp = [];
           foreach( $value as $type_action )
           {
-            $temp[] = $type_action;
+            $temp[] = $type_action["action"];
           }
           $where[] = ["in", "l.action", $temp];
         break;
