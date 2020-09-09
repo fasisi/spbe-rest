@@ -200,6 +200,7 @@ class ForumController extends \yii\rest\Controller
     $body_valid = true;
     $kategori_valid = true;
     $tags_valid = true;
+    $status_valid = true;
 
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
@@ -215,9 +216,12 @@ class ForumController extends \yii\rest\Controller
 
     if( isset($payload["tags"]) == false )
       $tags_valid = false;
+    
+    if( isset($payload["status"]) == false )
+      $status_valid = false;
 
     if( $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true )
+        $kategori_valid == true && $tags_valid == true && $status_valid == true )
     {
       // panggil POST /rest/api/content
 
@@ -284,7 +288,7 @@ class ForumController extends \yii\rest\Controller
             $thread['time_create'] = date("Y-m-j H:i:s");
             $thread['id_user_create'] = $payload['id_user'];
             $thread['id_kategori'] = $payload['id_kategori'];
-            $thread['status'] = 0;
+            $thread['status'] = $payload["status"];
             $thread->save();
             $id_thread = $thread->primaryKey;
 
@@ -868,6 +872,9 @@ class ForumController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_akhir"]);
+
     $q = new Query();
 
     switch( true )
@@ -899,12 +906,12 @@ class ForumController extends \yii\rest\Controller
     {
       switch(true)
       {
-        case $key == "waktu_awal":
+        case $key == "tanggal_awal":
           $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
           $where[] = "l.time_action >= '$value'";
         break;
 
-        case $key == "waktu_akhir":
+        case $key == "tanggal_akhir":
           $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
           $where[] = "l.time_action <= '$value'";
         break;
@@ -920,7 +927,6 @@ class ForumController extends \yii\rest\Controller
 
         case $key == "id_kategori":
           $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
-          /* $q->join("join", "kms_kategori k", "a2.id_kategori = k.id"); */
 
           $temp = [];
           foreach( $value as $id_kategori )
@@ -946,13 +952,14 @@ class ForumController extends \yii\rest\Controller
     else
     {
       $q->distinct()
-        ->groupBy("a.id");
+        ->groupBy("u.id");
     }
 
     //execute the query
     $records = $q->all();
 
     $hasil = [];
+    $client = $this->SetupGuzzleClient();
     foreach($records as $record)
     {
       if( $payload["object_type"] == 't' )
@@ -962,16 +969,25 @@ class ForumController extends \yii\rest\Controller
 
         $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
         $response_payload = $response->getBody();
-        $response_payload = Json::decode($response_payload);
 
         $temp = [];
         $temp["forum_thread"] = $thread;
         $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
         $temp["data_user"]["user_create"] = $user;
         $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $temp["confluence"]["id"] = $response_payload["id"];
-        $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+        try
+        {
+          $response_payload = Json::decode($response_payload);
+
+          $temp["confluence"]["id"] = $response_payload["id"];
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+        }
+        catch(yii\base\InvalidArgumentException $e)
+        {
+          $temp["confluence"] = "Record not found";
+        }
+
 
 
         // filter by action
@@ -1137,7 +1153,7 @@ class ForumController extends \yii\rest\Controller
 
         //ambil data view
         $type_action = -1;
-        $temp["view"] = ForumThred::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        $temp["view"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         
         //ambil data like
         $type_action = 1;
@@ -1629,6 +1645,8 @@ class ForumController extends \yii\rest\Controller
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
+
+            $response_payload = [];
             break;
 
           default:
@@ -1644,6 +1662,8 @@ class ForumController extends \yii\rest\Controller
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
+
+            $response_payload = [];
             break;
         }
       }
@@ -3753,6 +3773,7 @@ class ForumController extends \yii\rest\Controller
         return [
           "status" => "not ok",
           "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_parent, konten",
+          "payload" => $payload,
         ];
       }
     }
