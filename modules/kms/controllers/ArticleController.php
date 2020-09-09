@@ -208,7 +208,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( $judul_valid == true && $body_valid == true &&
         $kategori_valid == true && $tags_valid == true &&
-	$status_valid = true
+	$status_valid == true
       )
     {
       // panggil POST /rest/api/content
@@ -1191,7 +1191,7 @@ class ArticleController extends \yii\rest\Controller
           switch(true)
           {
           case $action["action"] == -1:
-            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
+            if($action["min"] <= $temp["view"] && $action["max"] >= $temp["view"])
             {
               $is_valid = $is_valid && true;
             }
