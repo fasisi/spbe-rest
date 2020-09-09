@@ -4,6 +4,8 @@ namespace app\models;
 
 use Yii;
 
+use yii\db\Query;
+
 /**
  * This is the model class for table "forum_thread".
  *
