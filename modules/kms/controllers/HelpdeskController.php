@@ -6,13 +6,13 @@ use Yii;
 use yii\helpers\Json;
 use yii\db\Query;
 
-use app\models\ForumThread;
-use app\models\ForumThreadActivityLog;
-use app\models\ForumThreadUserAction;
-use app\models\ForumThreadTag;
-use app\models\ForumThreadDiscussion;
-use app\models\ForumThreadComment;
-use app\models\ForumThreadDiscussionComment;
+use app\models\HdIssue;
+use app\models\HdIssueActivityLog;
+use app\models\HdIssueUserAction;
+use app\models\HdIssueTag;
+use app\models\HdIssueDiscussion;
+use app\models\HdIssueComment;
+use app\models\HdIssueDiscussionComment;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
@@ -37,7 +37,7 @@ class HelpdeskController extends \yii\rest\Controller
         'logsbyfilter'          => ['GET'],
         'itemsbyfilter'         => ['GET'],
         'item, items'           => ['GET'],
-        'threaduseraction'      => ['POST'],
+        'issueuseraction'      => ['POST'],
         'itemkategori'          => ['PUT'],
         'search'                => ['GET'],
         'status'                => ['PUT'],
@@ -65,7 +65,7 @@ class HelpdeskController extends \yii\rest\Controller
 
       private function SetupGuzzleClient()
       {
-        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $jira_conf = Yii::$app->restconf->confs['jira'];
         $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
         Yii::info("base_url = $base_url");
         $client = new \GuzzleHttp\Client([
@@ -98,10 +98,10 @@ class HelpdeskController extends \yii\rest\Controller
       /*
        * type_log : 1 = status log; 2 = action log
         * */
-      private function ThreadLog($id_thread, $id_user, $type_log, $log_value)
+      private function ThreadLog($id_issue, $id_user, $type_log, $log_value)
       {
-        $new = new ForumThreadActivityLog();
-        $new["id_thread"] = $id_thread;
+        $new = new HdIssueActivityLog();
+        $new["id_issue"] = $id_issue;
         $new["id_user"] = $id_user;
         $new["type_log"] = $type_log;
 
@@ -120,7 +120,7 @@ class HelpdeskController extends \yii\rest\Controller
         $new["time_{$type_name}"] = date("Y=m-j H:i:s");
         $new->save();
 
-        ForumThreadUserAction::Summarize($id_thread);
+        HdIssueUserAction::Summarize($id_issue);
       }
 
       /* private function ActivityLog($id_artikel, $id_user, $type_action) */
@@ -133,12 +133,12 @@ class HelpdeskController extends \yii\rest\Controller
       /*   $log->save(); */
       /* } */
 
-      private function Conf_GetQuestion($client, $linked_id_question)
+      private function Conf_GetQuestion($client, $linked_id_issue)
       {
-        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $jira_conf = Yii::$app->restconf->confs['jira'];
         $res = $client->request(
           'GET',
-          "/question/$linked_id_question",
+          "/rest/servicedeskapi/request/$linked_id_issue",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -152,8 +152,7 @@ class HelpdeskController extends \yii\rest\Controller
               $jira_conf["password"]
             ],
             'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
+              'expand' => 'participant'
             ],
           ]
         );
@@ -165,6 +164,213 @@ class HelpdeskController extends \yii\rest\Controller
   // private helper functions
   // ==========================================================================
 
+
+  //  Menyimpan issue sebagai draft
+  //  
+  //  Method: POST
+  //  Request type: JSON
+  //  Request format:
+  //  {
+  //    "judul": "",
+  //    "body": "",
+  //    "id_user": 123,
+  //    "id_kategori": 123,
+  //    "tags": ["", "", ...]
+  //  }
+  //  Response type: JSON
+  //  Response format:
+  //  {
+  //    "status": "ok/not ok",
+  //    "pesan": "",
+  //    "result": 
+  //    {
+  //      object of hd_issue
+  //    }
+  //  }
+  public function actionDraft()
+  {
+    $payload = $this->GetPayload();
+
+    $is_judul_valid = isset($payload["judul"]);
+    $is_body_valid = isset($payload["body"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+    $is_tags_valid = isset($payload["tags"]);
+
+    if(
+        $is_judul_valid == true &&
+        $is_body_valid == true &&
+        $is_id_user_valid == true &&
+        $is_id_kategori_valid == true &&
+        $is_tags_valid == true
+      )
+    {
+      // periksa id_user
+      $user = User::findOne($payload["id_user"]);
+
+      if( is_null($user) == false )
+      {
+        // periksa id_kategori
+        $kategori = KmsKategori::findOne($payload["id_kategori"]);
+
+        if( is_null($kategori) == false)
+        {
+          // masukkan record
+          $issue = new HdIssue();
+          $issue["judul"] = $payload["judul"];
+          $issue["konten"] = $payload["body"];
+          $issue["id_kategori"] = $payload["id_kategori"];
+          $issue["id_linked_issue"] = 0;
+          $issue["id_user_create"] = $payload["id_user"];
+          $issue["time_create"] = date("Y-m-d H:i:s");
+          $issue["status"] = 0;
+          $issue->save();
+
+          $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record kategori tidak ditemukan",
+            "payload" => $payload
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record user tidak ditemukan",
+          "payload" => $payload
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Paramete yang dibutuhkan tidak lengkap/valid: judul, body, id_user (integer), id_kategori (integer), tags (array of string",
+        "payload" => $payload
+      ];
+    }
+  }
+
+
+  // Mengirim record issue ke JIRA
+  //
+  // Method: POST
+  // Request type: JSON
+  // Request format:
+  // {
+  //   "id_issue": 123,
+  // }
+  // response type: JSON
+  // Response format:
+  // {
+  //   "status": "",
+  //   "pesan": "",
+  //   "result": {}
+  // }
+  public function actionSubmit()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_valid = isset($payload["id_issue"]);
+
+    if(
+        $is_id_valid == true 
+      )
+    {
+      $jira_conf = Yii::$app->restconf->confs['jira'];
+      $client = $this->SetupGuzzleClient();
+
+      $issue = HdIssue::findOne($payload["id_issue"]);
+
+      if( is_null($issue) == false)
+      {
+        // kirim record ke JIRA
+          $request_payload = [
+            "serviceDeskId" => "3",
+            "requestTypeId" => "45",  // harus konfirmasi dengan BPPT
+            "requestFieldValues" => 
+            [
+              "summary" => $issue["judul"],
+              "description" => $issue["konten"]
+            ],
+            "requestParticipants" => 
+            [
+              "ujicoba"
+            ]
+          ];
+
+          $res = $client->request(
+            'POST',
+            "/rest/servicedeskapi/request",
+            [
+              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+              /* 'debug' => true, */
+              'http_errors' => false,
+              'headers' => [
+                "Content-Type" => "application/json",
+                "Media-Type" => "application/json",
+                "accept" => "application/json",
+              ],
+              'auth' => [
+                $jira_conf["user"],
+                $jira_conf["password"]
+              ],
+              /* 'query' => [ */
+              /*   'status' => 'current', */
+              /*   'expand' => 'body.view', */
+              /* ], */
+              'body' => Json::encode($request_payload),
+            ]
+          );
+
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
+
+          $id_linked_issue = $response_payload["issueId"];
+        // kirim record ke JIRA
+
+        // update record issue
+           $issue["id_linked_issue"] = $id_linked_issue;
+           $issue["status"] = 1;
+           $issue->save();
+
+           // put to log
+           $this->ThreadLog($issue["id"], $payload["id_user"], 1, 1);
+
+        // update record issue
+
+        return [
+          "status" => "ok",
+          "pesan" => "Record berhasil dikirim ke JIRA",
+          "issue" => $issue,
+          "jira_record" => $response_payload
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record issue tidak ditemukan",
+          "payload" => $payload
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Paramete yang dibutuhkan tidak lengkap/valid: judul, body, id_user (integer), id_kategori (integer), tags (array of string",
+        "payload" => $payload
+      ];
+    }
+  }
 
 
 
@@ -189,7 +395,7 @@ class HelpdeskController extends \yii\rest\Controller
   //    "pesan": "",
   //    "result": 
   //    {
-  //      "thread": record_object,
+  //      "issue": record_object,
   //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
@@ -221,7 +427,8 @@ class HelpdeskController extends \yii\rest\Controller
 
     if( $judul_valid == true && $body_valid == true &&
         $kategori_valid == true && $tags_valid == true &&
-	$status_valid = true )
+        $status_valid == true 
+      )
     {
       // panggil POST /rest/api/content
 
@@ -235,14 +442,20 @@ class HelpdeskController extends \yii\rest\Controller
       }
 
       $request_payload = [
-        "title" => $payload["judul"],
-        "body" => $payload["body"],
-        "topics" => $tags,
-        "dateAsked" => date("Y-m-d"),
-        "spaceKey" => "PS",
+        "serviceDeskId" => "3",
+        "requestTypeId" => "45",  // harus konfirmasi dengan BPPT
+        "requestFieldValues" => 
+        [
+          "summary" => $payload["judul"],
+          "description" => $payload["body"]
+        ],
+        "requestParticipants" => 
+        [
+          "ujicoba"
+        ]
       ];
 
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $jira_conf = Yii::$app->restconf->confs['jira'];
       $client = $this->SetupGuzzleClient();
 
       $res = null;
@@ -250,7 +463,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         $res = $client->request(
           'POST',
-          "/rest/questions/1.0/question",
+          "/rest/servicedeskapi/request",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -264,10 +477,10 @@ class HelpdeskController extends \yii\rest\Controller
               $jira_conf["user"],
               $jira_conf["password"]
             ],
-            'query' => [
-              'status' => 'current',
-              'expand' => 'body.view',
-            ],
+            /* 'query' => [ */
+            /*   'status' => 'current', */
+            /*   'expand' => 'body.view', */
+            /* ], */
             'body' => Json::encode($request_payload),
           ]
         );
@@ -279,18 +492,18 @@ class HelpdeskController extends \yii\rest\Controller
             $response_payload = $res->getBody();
             $response_payload = Json::decode($response_payload);
 
-            $linked_id_question = $response_payload['id'];
+            $linked_id_issue = $response_payload['issueId'];
 
 
             // bikin record kms_artikel
-            $thread = new ForumThread();
-            $thread['linked_id_question'] = $linked_id_question;
-            $thread['time_create'] = date("Y-m-j H:i:s");
-            $thread['id_user_create'] = $payload['id_user'];
-            $thread['id_kategori'] = $payload['id_kategori'];
-            $thread['status'] = $payload["status"];
-            $thread->save();
-            $id_thread = $thread->primaryKey;
+            $issue = new HdIssue();
+            $issue['linked_id_issue'] = $linked_id_issue;
+            $issue['time_create'] = date("Y-m-j H:i:s");
+            $issue['id_user_create'] = $payload['id_user'];
+            $issue['id_kategori'] = $payload['id_kategori'];
+            $issue['status'] = $payload["status"];
+            $issue->save();
+            $id_issue = $issue->primaryKey;
 
 
             // menyimpan informasi tags
@@ -326,8 +539,8 @@ class HelpdeskController extends \yii\rest\Controller
               }
 
               // relate id_artikel dengan id_tag
-              $new = new ForumThreadTag();
-              $new["id_thread"] = $id_thread;
+              $new = new HdIssueTag();
+              $new["id_issue"] = $id_issue;
               $new["id_tag"] = $id_tag;
               $new->save();
 
@@ -337,29 +550,29 @@ class HelpdeskController extends \yii\rest\Controller
               $tags[] = $temp;
             } // loop tags
 
-            // ambil ulang tags atas thread ini. untuk menjadi response.
-            $tags = ForumThreadTag::find()
+            // ambil ulang tags atas issue ini. untuk menjadi response.
+            $tags = HdIssueTag::find()
               ->where(
-                "id_thread = :id_thread",
+                "id_issue = :id_issue",
                 [
-                  ":id_thread" => $id_thread
+                  ":id_issue" => $id_issue
                 ]
               )
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
-            $this->ThreadLog($payload["id_thread"], $payload["id_user"], 1, $payload["status"]);
+            $this->ThreadLog($payload["id_issue"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
             return 
             [
               'status' => 'ok',
-              'pesan' => 'Record thread telah dibikin',
+              'pesan' => 'Record issue telah dibikin',
               'result' => 
               [
-                "artikel" => $thread,
+                "artikel" => $issue,
                 "tags" => $tags,
-                "category_path" => KmsKategori::CategoryPath($thread["id_kategori"]),
+                "category_path" => KmsKategori::CategoryPath($issue["id_kategori"]),
               ]
             ];
             break;
@@ -369,7 +582,7 @@ class HelpdeskController extends \yii\rest\Controller
             return [
               'status' => 'not ok',
               'pesan' => 'REST API request failed: ' . $res->getBody(),
-              'result' => $thread
+              'result' => $issue
             ];
             break;
         }
@@ -395,7 +608,7 @@ class HelpdeskController extends \yii\rest\Controller
 
   }
 
-  //  Menghapus (soft delete) suatu thread
+  //  Menghapus (soft delete) suatu issue
   //  Hanya dilakukan pada database SPBE
   //
   //  Method: DELETE
@@ -419,12 +632,12 @@ class HelpdeskController extends \yii\rest\Controller
     $is_id_valid = isset($payload["id"]);
     $is_id_user_actor_valid = isset($payload["id_user_actor"]);
 
-    $test = ForumThread::findOne($payload["id"]);
+    $test = HdIssue::findOne($payload["id"]);
     if( is_null($test) == true )
     {
       return[
         "status" => "not ok",
-        "pesan" => "Record thread tidak ditemukan",
+        "pesan" => "Record issue tidak ditemukan",
       ];
     }
 
@@ -440,16 +653,16 @@ class HelpdeskController extends \yii\rest\Controller
 
     if( $is_id_valid == true && $is_id_user_actor_valid == true )
     {
-      $thread = ForumThread::findOne($payload["id"]);
-      $thread["is_delete"] = 1;
-      $thread["time_delete"] = date("Y-m-d H:i:s");
-      $thread["id_user_delete"] = $payload["id_user_actor"];
-      $thread->save();
+      $issue = HdIssue::findOne($payload["id"]);
+      $issue["is_delete"] = 1;
+      $issue["time_delete"] = date("Y-m-d H:i:s");
+      $issue["id_user_delete"] = $payload["id_user_actor"];
+      $issue->save();
 
       return [
         "status" => "ok",
         "pesan" => "Record berhasil dihapus",
-        "result" => $thread
+        "result" => $issue
       ];
     }
     else
@@ -457,7 +670,7 @@ class HelpdeskController extends \yii\rest\Controller
       return [
         "status" => "ok",
         "pesan" => "Record berhasil dihapus",
-        "result" => $thread
+        "result" => $issue
       ];
     }
   }
@@ -467,7 +680,7 @@ class HelpdeskController extends \yii\rest\Controller
       return $this->render('retrieve');
   }
 
-  //  Mengupdate record thread
+  //  Mengupdate record issue
   //
   //  Method : POST
   //  Request type: JSON
@@ -533,166 +746,62 @@ class HelpdeskController extends \yii\rest\Controller
         $tags_valid == true 
       )
     {
-      // ambil nomor versi bersadarkan id_linked_content
-          /* $thread = ForumThread::findOne($payload["id"]); */
+      // update record hd_issue
+        $issue = HdIssue::find($payload["id"])
+          ->where(
+            [
+              "and",
+              "id = :id",
+              "is_delete = 0",
+              "status = 0"
+            ],
+            [
+              ":id" => $payload["id"]
+            ]
+          )
+          ->one();
+
+        if( is_null($issue) == false )
+        {
+          $issue["judul"] = $payload["judul"];
+          $issue["konten"] = $payload["body"];
+          $issue['time_update'] = date("Y-m-j H:i:s");
+          $issue['id_user_update'] = $payload["id_user"];
+          $issue->save();
           
-          /* $jira_conf = Yii::$app->restconf->confs['confluence']; */
-          /* $client = $this->SetupGuzzleClient(); */
+          // mengupdate informasi tags
 
-          /* $res = null; */
-          /* $res = $client->request( */
-          /*   'GET', */
-          /*   "/rest/questions/1.0/question/{$thread["linked_id_question"]}", */
-          /*   [ */
-          /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
-          /*     /1* 'debug' => true, *1/ */
-          /*     'http_errors' => false, */
-          /*     'headers' => [ */
-          /*       "Content-Type" => "application/json", */
-          /*       "accept" => "application/json", */
-          /*     ], */
-          /*     'auth' => [ */
-          /*       $jira_conf["user"], */
-          /*       $jira_conf["password"] */
-          /*     ], */
-          /*     'query' => [ */
-          /*       'status' => 'current', */
-          /*       'expand' => 'body.view,version', */
-          /*     ], */
-          /*     'body' => Json::encode($request_payload), */
-          /*   ] */
-          /* ); */
-          /* $response = Json::decode($res->getBody()); */
-      // ambil nomor versi bersadarkan id_linked_content
-
-      // WARNING!!
-      //
-      // berdasarkan dokumentasi Confluence-Question, tidak ada API untuk 
-      // melakukan update question. Perlu dipikirkan jalan keluarnya. Apakah
-      // thread dikirim ke Confluence-Question saat thread pindah status dari
-      // "new" menjadi "publish" ??
-      //
-      /* // update content */
-      /* $request_payload = [ */
-      /*   'version' => [ */
-      /*     'number' => $version */
-      /*   ], */
-      /*   'title' => $payload['judul'], */
-      /*   'type' => 'page', */
-      /*   'space' => [ */
-      /*     'key' => 'PS', */
-      /*   ], */
-      /*   'body' => [ */
-      /*     'storage' => [ */
-      /*       'value' => $payload['body'], */
-      /*       'representation' => 'storage', */
-      /*     ], */
-      /*   ], */
-      /* ]; */
+              // refresh tag/label
+                  $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
+              // refresh tag/label
+                   
+          // mengupdate informasi tags
 
 
-      /* $res = null; */
-      /* try */
-      /* { */
-      /*   // update kontent artikel pada confluence */
-      /*   $res = $client->request( */
-      /*     'PUT', */
-      /*     "/rest/api/content/{$artikel["linked_id_question"]}", */
-      /*     [ */
-      /*       /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
-      /*       /1* 'debug' => true, *1/ */
-      /*       'http_errors' => false, */
-      /*       'headers' => [ */
-      /*         "Content-Type" => "application/json", */
-      /*         "accept" => "application/json", */
-      /*       ], */
-      /*       'auth' => [ */
-      /*         $jira_conf["user"], */
-      /*         $jira_conf["password"] */
-      /*       ], */
-      /*       'query' => [ */
-      /*         'status' => 'current', */
-      /*       ], */
-      /*       'body' => Json::encode($request_payload), */
-      /*     ] */
-      /*   ); */
+          // kembalikan response
+              $tags = HdIssueTag::findAll("id_issue = {$issue["id"]}");
 
-      /*   switch( $res->getStatusCode() ) */
-      /*   { */
-      /*     case 200: */
-      /*       // ambil id dari result */
-      /*       $response_payload = $res->getBody(); */
-      /*       $response_payload = Json::decode($response_payload); */
-
-      /*       $linked_id_question = $response_payload['id']; */
-
-
-            // update record forum_thread
-            $thread = ForumThread::findOne($payload["id"]);
-            $thread["judul"] = $payload["judul"];
-            $thread["konten"] = $payload["body"];
-            $thread['time_update'] = date("Y-m-j H:i:s");
-            $thread['id_user_update'] = $payload["id_user"];
-            $thread->save();
-
-            // mengupdate informasi tags
-
-                //hapus label pada confluence
-                //  WARNING!!
-                //
-                //  CQ tidak mendukung API untuk mencopot tag dari thread.
-                //  Oleh karena itu proses ini dilakukan di dalam SPBE.
-
-                    /* $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
-                //hapus label pada confluence
-
-                // refresh tag/label
-                    $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
-                // refresh tag/label
-                     
-            // mengupdate informasi tags
-
-
-            //$this->ActivityLog($id_artikel, 123, 1);
-            //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
-
-            // kembalikan response
-                $tags = ForumThreadTag::findAll("id_thread = {$thread["id"]}");
-
-                return 
+              return 
+              [
+                'status' => 'ok',
+                'pesan' => 'Record issue telah diupdate',
+                'result' => 
                 [
-                  'status' => 'ok',
-                  'pesan' => 'Record thread telah diupdate',
-                  'result' => 
-                  [
-                    "forum_thread" => $thread,
-                    "tags" => $tags
-                  ]
-                ];
-            // kembalikan response
-            break;
-
-          default:
-            // kembalikan response
-            return [
-              'status' => 'not ok',
-              'pesan' => 'REST API request failed: ' . $res->getBody(),
-              'result' => $thread
-            ];
-            break;
+                  "helpdesk_issue" => $issue,
+                  "tags" => $tags
+                ]
+              ];
+          // kembalikan response
         }
-      }
-      catch(\GuzzleHttp\Exception\BadResponseException $e)
-      {
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          'pesan' => 'REST API request failed: ' . $e->getMessage(),
-        ];
-      }
-
-      // update content
-
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record issue tidak bisa di-update",
+            "issue" => $issue,
+            "payload" => $payload,
+          ];
+        }
     }
     else
     {
@@ -704,18 +813,18 @@ class HelpdeskController extends \yii\rest\Controller
       return $this->render('update');
   }
 
-  /* Menghapus tags dari suatu thread.
+  /* Menghapus tags dari suatu issue.
    *
    * Tetapi berdasarkan dokumentasi Confluence-Question, tidak ada API untuk
-   * menghapus tags (topic) dari suatu thread.
+   * menghapus tags (topic) dari suatu issue.
    * Apakah tags akan diterapkan secara eksklusif di dalam SPBE?
    *
     * */
-  private function DeleteTags($client, $jira_conf, $linked_id_question)
+  private function DeleteTags($client, $jira_conf, $linked_id_issue)
   {
     $res = $client->request(
       'GET',
-      "/rest/api/content/{$linked_id_question}/label",
+      "/rest/api/content/{$linked_id_issue}/label",
       [
         /* 'sink' => Yii::$app->basePath . "/guzzledump1.txt", */
         /* 'debug' => true, */
@@ -736,7 +845,7 @@ class HelpdeskController extends \yii\rest\Controller
     {
       $res2 = $client->request(
         'DELETE',
-        "/rest/api/content/{$linked_id_question}/label/{$object["name"]}",
+        "/rest/api/content/{$linked_id_issue}/label/{$object["name"]}",
         [
           'sink' => Yii::$app->basePath . "/guzzledump2.txt",
           /* 'debug' => true, */
@@ -754,11 +863,11 @@ class HelpdeskController extends \yii\rest\Controller
     }
   }
 
-  private function UpdateTags($client, $jira_conf, $id_thread, $linked_id_question, $payload)
+  private function UpdateTags($client, $jira_conf, $id_issue, $linked_id_issue, $payload)
   {
 
     //hapus label pada spbe
-        ForumThreadTag::deleteAll("id_thread = {$id_thread}");
+        HdIssueTag::deleteAll("id_issue = {$id_issue}");
     //hapus label pada spbe
 
 
@@ -794,47 +903,28 @@ class HelpdeskController extends \yii\rest\Controller
       }
 
       // relate id_artikel dengan id_tag
-      $new = new ForumThreadTag();
-      $new["id_thread"] = $id_thread;
+      $new = new HdIssueTag();
+      $new["id_issue"] = $id_issue;
       $new["id_tag"] = $id_tag;
       $new->save();
 
     } // loop tags
 
-    // kirim tag ke Confluence
-    /* $res = $client->request( */
-    /*   'POST', */
-    /*   "/rest/api/content/{$linked_id_question}/label", */
-    /*   [ */
-    /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
-    /*     /1* 'debug' => true, *1/ */
-    /*     'http_errors' => false, */
-    /*     'headers' => [ */
-    /*       "Content-Type" => "application/json", */
-    /*       "accept" => "application/json", */
-    /*     ], */
-    /*     'auth' => [ */
-    /*       $jira_conf["user"], */
-    /*       $jira_conf["password"] */
-    /*     ], */
-    /*     'body' => Json::encode($tags), */
-    /*   ] */
-    /* ); */
   }
 
   /*
-   *  Mengambil forum_thread_activity_log berdasarkan filter yang dapat disetup secara dinamis.
+   *  Mengambil hd_issue_activity_log berdasarkan filter yang dapat disetup secara dinamis.
    *
    *  Method: GET
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "object_type": "t/u",
+   *    "object_type": "i/u",
    *    "filter":
    *    {
    *      "waktu_awal"    : "y-m-j H:i:s",
    *      "waktu_akhir"   : "y-m-j H:i:s",
-   *      "actions"       : [1, 2, ...],
+   *      "status"        : [1, 2, ...],
    *      "id_kategori"   : 123,
    *      "id_artikel"    : 123,
    *    }
@@ -864,19 +954,19 @@ class HelpdeskController extends \yii\rest\Controller
       case $payload["object_type"] == "u" :
         $q->select("u.id");
         $q->from("user u");
-        $q->join("join", "forum_thread_activity_log l", "l.id_user = u.id");
+        $q->join("join", "hd_issue_activity_log l", "l.id_user = u.id");
         break;
 
-      case $payload["object_type"] == "t" :
-        $q->select("t.id");
-        $q->from("forum_thread t");
-        $q->join("join", "forum_thread_activity_log l", "l.id_thread = t.id");
+      case $payload["object_type"] == "i" :
+        $q->select("i.id");
+        $q->from("hd_issue i");
+        $q->join("join", "hd_issue_activity_log l", "l.id_issue = i.id");
         break;
 
       default :
         return [
           "status" => "not ok",
-          "pesan" => "Parameter tidak valid. object_type diisi dengan 'a' atau 'u'.",
+          "pesan" => "Parameter tidak valid. object_type diisi dengan 'i' atau 'u'.",
         ];
         break;
     }
@@ -898,17 +988,17 @@ class HelpdeskController extends \yii\rest\Controller
           $where[] = "l.time_action <= '$value'";
         break;
 
-        case $key == "actions":
+        case $key == "status":
           $temp = [];
-          foreach( $value as $type_action )
+          foreach( $value as $type_status )
           {
-            $temp[] = $type_action;
+            $temp[] = $type_status;
           }
-          $where[] = ["in", "l.action", $temp];
+          $where[] = ["in", "l.status", $temp];
         break;
 
         case $key == "id_kategori":
-          $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
+          $q->join("join", "hd_issue i2", "i2.id = l.id_issue");
           /* $q->join("join", "kms_kategori k", "a2.id_kategori = k.id"); */
 
           $temp = [];
@@ -916,21 +1006,21 @@ class HelpdeskController extends \yii\rest\Controller
           {
             $temp[] = $id_kategori;
           }
-          $where[] = ["in", "t2.id_kategori", $temp];
+          $where[] = ["in", "i2.id_kategori", $temp];
         break;
 
-        case $key == "id_thread":
-          $where[] = "l.id_thread = " . $value;
+        case $key == "id_issue":
+          $where[] = "l.id_issue = " . $value;
         break;
       }// switch filter key
     } //loop keys in filter
 
     $q->where($where);
 
-    if( $payload["object_type"] == 't' )
+    if( $payload["object_type"] == 'i' )
     {
       $q->distinct()
-        ->groupBy("t.id");
+        ->groupBy("i.id");
     }
     else
     {
@@ -944,119 +1034,80 @@ class HelpdeskController extends \yii\rest\Controller
     $hasil = [];
     foreach($records as $record)
     {
-      if( $payload["object_type"] == 't' )
+      if( $payload["object_type"] == 'i' )
       {
-        $thread = ForumThread::findOne($record["id"]);
-        $user = User::findOne($thread["id_user_create"]);
+        $issue = HdIssue::findOne($record["id"]);
+        $user = User::findOne($issue["id_user_create"]);
 
-        $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+        $response = $this->Conf_GetQuestion($client, $issue["linked_id_issue"]);
         $response_payload = $response->getBody();
         $response_payload = Json::decode($response_payload);
 
         $temp = [];
-        $temp["forum_thread"] = $thread;
-        $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $temp["hd_issue"] = $issue;
+        $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
         $temp["data_user"]["user_create"] = $user;
-        $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $temp["confluence"]["id"] = $response_payload["id"];
-        $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+        $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+        $temp["servicedesk"]["id"] = $response_payload["issueId"];
+        $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+        $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
 
 
-        // filter by action
-        // ================
-            // berapa banyak action yang diterima suatu artikel dalam rentang waktu tertentu?
+        // ServiceDesk tidak mengenal konsep action (view, like, dislike, comment).
+        //
+        /* // filter by action */
+        /* // ================ */
+        /*     // berapa banyak action yang diterima suatu artikel dalam rentang waktu tertentu? */
 
-            //ambil data view
-            $type_action = -1;
-            $temp["view"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        /*     //ambil data view */
+        /*     $type_action = -1; */
+        /*     $temp["view"] = HdIssue::ActionReceivedInRange($issue["id"], $type_action, $tanggal_awal, $tanggal_akhir); */
             
-            //ambil data like
-            $type_action = 1;
-            $temp["like"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
+        /*     //ambil data like */
+        /*     $type_action = 1; */
+        /*     $temp["like"] = HdIssue::ActionReceivedInRange($issue["id"], $type_action, $tanggal_awal, $tanggal_akhir); */
 
-            //ambil data dislike
-            $type_action = 2;
-            $temp["dislike"] = ForumThread::ActionReceivedInRange($thread["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-        // ================
-        // filter by action
+        /*     //ambil data dislike */
+        /*     $type_action = 2; */
+        /*     $temp["dislike"] = HdIssue::ActionReceivedInRange($issue["id"], $type_action, $tanggal_awal, $tanggal_akhir); */
+        /* // ================ */
+        /* // filter by action */
 
         // filter by status
         // ================
-            // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
+            // apakah suatu issue mengalami status tertentu dalam rentang waktu?
+            // status yang dikenal: 0=draft, 1=new, 2=un-assign, 3=progress, 4=closed/resolved
+            // rujuk pada database untuk mendapatkan value.
 
             //ambil data draft
-            $type_status = -1;
-            $temp["draft"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+            $type_status = 0;
+            $temp["draft"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
             //ambil data new
-            $type_status = 0;
-            $temp["new"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
-
-            //ambil data publish
             $type_status = 1;
-            $temp["publish"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+            $temp["new"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
-            //ambil data un-publish
+            //ambil data un-assign
             $type_status = 2;
-            $temp["unpublish"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+            $temp["unassigned"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
-            //ambil data reject
+            //ambil data progress
             $type_status = 3;
-            $temp["reject"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+            $temp["progress"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
-            //ambil data freeze
+            //ambil data solved
             $type_status = 4;
-            $temp["freeze"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+            $temp["solved"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
         // ================
         // filter by status
 
         $is_valid = true;
-        foreach($payload["filter"]["actions"] as $action)
-        {
-          switch(true)
-          {
-          case $action["action"] == -1:
-            if($action["min"] <= $temp["view"] && $action["max"] >= $temp["view"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 1:
-            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 2:
-            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-          }
-        } // loop check action
-
         foreach($payload["filter"]["status"] as $status)
         {
           switch(true)
           {
-          case $status == -1:  //draft
+          case $status == 0:  //draft
             if($temp["draft"] > 0)
             {
               $is_valid = $is_valid && true;
@@ -1067,7 +1118,7 @@ class HelpdeskController extends \yii\rest\Controller
             }
             break;
 
-          case $status == 0:  // new
+          case $status == 1:  // new
             if($temp["new"] > 0)
             {
               $is_valid = $is_valid && true;
@@ -1078,7 +1129,7 @@ class HelpdeskController extends \yii\rest\Controller
             }
             break;
 
-          case $status == 1:  // publish
+          case $status == 2:  // un-assign
             if($temp["publish"] > 0)
             {
               $is_valid = $is_valid && true;
@@ -1088,7 +1139,7 @@ class HelpdeskController extends \yii\rest\Controller
               $is_valid = $is_valid && false;
             }
             break;
-          case $status == 2:  // unpublish
+          case $status == 3:  // progress
             if($temp["unpublish"] > 0)
             {
               $is_valid = $is_valid && true;
@@ -1098,18 +1149,8 @@ class HelpdeskController extends \yii\rest\Controller
               $is_valid = $is_valid && false;
             }
             break;
-          case $status == 3:  // reject
+          case $status == 4:  // solved
             if($temp["reject"] > 0)
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-          case $status == 4:  // freeze
-            if($temp["freeze"] > 0)
             {
               $is_valid = $is_valid && true;
             }
@@ -1124,60 +1165,6 @@ class HelpdeskController extends \yii\rest\Controller
         if($is_valid == true)
           $hasil[] = $temp;
 
-        //ambil data view
-        $type_action = -1;
-        $temp["view"] = ForumThred::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-        
-        //ambil data like
-        $type_action = 1;
-        $temp["like"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        //ambil data dislike
-        $type_action = 2;
-        $temp["dislike"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        $is_valid = true;
-        foreach($payload["filter"]["actions"] as $action)
-        {
-          switch(true)
-          {
-          case $action["action"] == -1:
-            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 1:
-            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 2:
-            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-          }
-        } // loop check action
-
-        if($is_valid == true)
-        $hasil[] = $temp;
       }
       else
       {
@@ -1202,7 +1189,7 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil forum_thread atau user berdasarkan filter yang dapat disetup secara dinamis.
+   *  Mengambil hd_issue atau user berdasarkan filter yang dapat disetup secara dinamis.
    *
    *  Method: GET
    *
@@ -1247,7 +1234,7 @@ class HelpdeskController extends \yii\rest\Controller
    *            "records": 
    *            [
    *              {
-   *                "forum_thread": { object_of_record_artikel },
+   *                "hd_issue": { object_of_record_artikel },
    *                "user_create": { object_of_user },
    *                "confluence": { object_of_confluence},
    *                "category_path": []
@@ -1258,7 +1245,7 @@ class HelpdeskController extends \yii\rest\Controller
    *
    *        ===================================================================
    *        Mengambil daftar user yang melakukan action tertentu terhadap
-   *        thread-thread dari suatu kategori
+   *        issue-issue dari suatu kategori
    *
    *        Request format #02:
    *        {
@@ -1294,7 +1281,7 @@ class HelpdeskController extends \yii\rest\Controller
    *
    *
    *        ===================================================================
-   *        Mengambil daftar thread dari suatu kategori dan mengalami STATUS
+   *        Mengambil daftar issue dari suatu kategori dan mengalami STATUS
    *        tertentu
    *
    *        Request type: JSON
@@ -1322,7 +1309,7 @@ class HelpdeskController extends \yii\rest\Controller
    *            "records": 
    *            [
    *              {
-   *                "forum_thread": { object_of_record_artikel },
+   *                "hd_issue": { object_of_record_artikel },
    *                "user_create": { object_of_user },
    *                "confluence": { object_of_confluence},
    *                "category_path": []
@@ -1381,8 +1368,8 @@ class HelpdeskController extends \yii\rest\Controller
           if( $payload["object_type"] == 'a' )
           {
             $q->select("a.id")
-              ->from("forum_thread t")
-              ->join("JOIN", "forum_thread_activity_log l", "l.id_thread = t.id");
+              ->from("hd_issue t")
+              ->join("JOIN", "hd_issue_activity_log l", "l.id_issue = t.id");
 
             if( isset($payload["filter"]["action"]) )
             {
@@ -1404,8 +1391,8 @@ class HelpdeskController extends \yii\rest\Controller
           {
             $q->select("u.id")
               ->from("user u")
-              ->join("JOIN", "forum_thread_activity_log l", "l.id_user = u.id")
-              ->join("JOIN", "forum_thread t", "l.id_thread = t.id");
+              ->join("JOIN", "hd_issue_activity_log l", "l.id_user = u.id")
+              ->join("JOIN", "hd_issue t", "l.id_issue = t.id");
 
             if( isset($payload["filter"]["action"]) )
             {
@@ -1438,21 +1425,21 @@ class HelpdeskController extends \yii\rest\Controller
       {
         if( $payload["object_type"] == "a" )
         {
-          $thread = ForumThread::findOne($record["id"]);
+          $issue = HdIssue::findOne($record["id"]);
           $category_path = KmsKategori::CategoryPath($record["id_kategori"]);
-          $tags = ForumThreadTag::GetThreadTags($thread["id"]);
-          $user_create = User::findOne($thread["id_user_create"]);
-          $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+          $tags = HdIssueTag::GetThreadTags($issue["id"]);
+          $user_create = User::findOne($issue["id_user_create"]);
+          $response = $this->Conf_GetQuestion($client, $issue["linked_id_issue"]);
           $response_payload = $response->getBody();
           $response_payload = Json::decode($response_payload);
 
           $temp = [];
-          $temp["record"]["forum_thread"] = $thread;
+          $temp["record"]["hd_issue"] = $issue;
           $temp["record"]["user_create"] = $user_create;
           $temp["record"]["category_path"] = $category_path;
           $temp["record"]["tags"] = $tags;
           $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_question"] = $response_payload["id"];
+          $temp["confluence"]["linked_id_issue"] = $response_payload["id"];
           $temp["confluence"]["judul"] = $response_payload["title"];
           $temp["confluence"]["konten"] = $response_payload["body"]["content"];
           $hasil[] = $temp;
@@ -1485,7 +1472,7 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil daftar thread berdasarkan idkategori, page_no, items_per_page.
+   *  Mengambil daftar issue berdasarkan idkategori, page_no, items_per_page.
    *  Hasil yang dikembalikan diurutkan desc berdasarkan waktu publish.
    *
    *  Method: GET
@@ -1511,7 +1498,7 @@ class HelpdeskController extends \yii\rest\Controller
    *        {
    *          "kms_artikel":
    *          {
-   *            <object dari record thread>
+   *            <object dari record issue>
    *          },
    *          "confluence":
    *          {
@@ -1542,23 +1529,23 @@ class HelpdeskController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
-      //  lakukan query dari tabel forum_thread
-      $test = ForumThread::find()
+      //  lakukan query dari tabel hd_issue
+      $test = HdIssue::find()
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          ["in", "status", [1, 2, 3, 4]],
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
         ->all();
       $total_rows = count($test);
 
-      $list_thread = ForumThread::find()
+      $list_issue = HdIssue::find()
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          ["in", "status", [1, 2, 3, 4]],
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1567,17 +1554,17 @@ class HelpdeskController extends \yii\rest\Controller
         ->all();
 
       //  lakukan query dari Confluence
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $jira_conf = Yii::$app->restconf->confs['jira'];
       $client = $this->SetupGuzzleClient();
 
       $hasil = [];
-      foreach($list_thread as $thread)
+      foreach($list_issue as $issue)
       {
-        $user = User::findOne($thread["id_user_create"]);
+        $user = User::findOne($issue["id_user_create"]);
 
         $res = $client->request(
           'GET',
-          "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
+          "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -1590,10 +1577,10 @@ class HelpdeskController extends \yii\rest\Controller
               $jira_conf["user"],
               $jira_conf["password"]
             ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
+            /* 'query' => [ */
+            /*   'spaceKey' => 'PS', */
+            /*   'expand' => 'history,body.view' */
+            /* ], */
           ]
         );
 
@@ -1606,15 +1593,15 @@ class HelpdeskController extends \yii\rest\Controller
             $response_payload = Json::decode($response_payload);
 
             $temp = [];
-            $temp["forum_thread"] = $thread;
-            $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+            $temp["hd_issue"] = $issue;
+            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
             $temp["user_create"] = $user;
-            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
-            $temp["confluence"]["status"] = "ok";
-            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+            $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+            $temp["servicedesk"]["status"] = "ok";
+            $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -1623,13 +1610,13 @@ class HelpdeskController extends \yii\rest\Controller
           default:
             // kembalikan response
             $temp = [];
-            $temp["forum_thread"] = $thread;
-            $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+            $temp["hd_issue"] = $issue;
+            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
             // $hasil["user_create"] = $user;
-            $temp["confluence"]["status"] = "not ok";
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+            $temp["servicedesk"]["status"] = "not ok";
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -1645,7 +1632,7 @@ class HelpdeskController extends \yii\rest\Controller
           "total_rows" => $total_rows,
           "page_no" => $payload["page_no"],
           "items_per_page" => $payload["items_per_page"],
-          "count" => count($list_thread),
+          "count" => count($list_issue),
           "records" => $hasil
         ]
       ];
@@ -1662,13 +1649,13 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil record thread berdasarkan id_thread
+   *  Mengambil record issue berdasarkan id_issue
    *
    *  Method: GET
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_thread": 123,
+   *    "id_issue": 123,
    *    "id_user_actor": 123
    *  }
    *  Response type: JSON
@@ -1688,9 +1675,9 @@ class HelpdeskController extends \yii\rest\Controller
  *        },
    *      "record":
    *      {
-   *        "forum_thread":
+   *        "hd_issue":
    *        {
-   *          <object dari record forum_thread>
+   *          <object dari record hd_issue>
    *        },
    *        "jawaban":
    *        [
@@ -1709,81 +1696,38 @@ class HelpdeskController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     //  cek parameter
-    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_id_issue_valid = isset($payload["id_issue"]);
 
     if(
-        $is_id_thread_valid == true
+        $is_id_issue_valid == true
       )
     {
       //  lakukan query dari tabel kms_artikel
-      $thread = ForumThread::findOne($payload["id_thread"]);
+      $issue = HdIssue::findOne($payload["id_issue"]);
+      $user = User::findOne($issue["id_user_create"]);
 
-      $user = User::findOne($thread["id_user_create"]);
-      $temp_list_komentar = ForumThreadComment::find()
-        ->where("id_thread = :id", [":id" => $payload["id_thread"]])
-        ->orderBy("time_create desc")
-        ->all();
+      /* $temp_list_komentar = HdIssueComment::find() */
+      /*   ->where("id_issue = :id", [":id" => $payload["id_issue"]]) */
+      /*   ->orderBy("time_create desc") */
+      /*   ->all(); */
 
-      $list_komentar = [];
-      foreach($temp_list_komentar as $komentar_item)
-      {
-        $use = User::findOne($komentar_item["id_user_create"]);
+      /* $list_komentar = []; */
+      /* foreach($temp_list_komentar as $komentar_item) */
+      /* { */
+      /*   $use = User::findOne($komentar_item["id_user_create"]); */
 
-        $temp = [];
-        $temp["record"] = $komentar_item;
-        $temp["user_create"] = $user;
+      /*   $temp = []; */
+      /*   $temp["record"] = $komentar_item; */
+      /*   $temp["user_create"] = $user; */
 
-        $list_komentar[] = $temp;
-      }
+      /*   $list_komentar[] = $temp; */
+      /* } */
 
 
-      $list_jawaban = ForumThreadDiscussion::find()
-        ->where(
-          [
-            "and",
-            "id_thread = :id_thread",
-            "is_delete = 0"
-          ],
-          [":id_thread" => $thread["id"]]
-        )
-        ->orderBy("time_create asc")
-        ->all();
-
-      $jawaban = [];
-      foreach($list_jawaban as $item_jawaban)
-      {
-        $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-          ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
-          ->orderBy("time_create desc")
-          ->all();
-
-        $temp = [];
-        foreach($list_komentar_jawaban as $item_komentar)
-        {
-          $user = User::findOne($item_komentar["id_user_create"]);
-
-          $temp[] = [
-            "komentar" => $item_komentar,
-            "user_create" => $user,
-          ];
-        }
-
-        $user = User::findOne($item_jawaban["id_user_create"]);
-        $jawaban[] = [
-          "jawaban" => $item_jawaban,
-          "user_create" => $user,
-          "list_komentar" => $temp,
-        ];
-      }
-
-      //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
-
-      $hasil = [];
       $res = $client->request(
         'GET',
-        "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
+        "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}/comment",
         [
           /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
           /* 'debug' => true, */
@@ -1797,8 +1741,55 @@ class HelpdeskController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'spaceKey' => 'PS',
-            'expand' => 'history,body.view'
+            'start' => 0,
+            'limit' => 1000,
+          ],
+        ]
+      );
+      $response_payload = $res->getBody();
+      $response_payload = Json::decode($response_payload);
+      $list_linked_jawaban = $response_payload["values"];
+
+      $jawaban = [];
+      foreach($list_inked_jawaban as $item_linked_jawaban)
+      {
+        $record_jawaban = HdIssueDiscussion::find()
+          ->where(
+            "id_linked_discussion = :id", 
+            [":id" => $item_linked_jawaban["id"]]
+          )
+          ->one();
+
+        $user = User::findOne($item_jawaban["id_user_create"]);
+        $jawaban[] = [
+          "jawaban" => $record_jawaban,
+          "user_create" => $user,
+          "jira_comment" => $item_linked_jawaban,
+        ];
+      }
+
+      //  lakukan query dari Confluence
+      $jira_conf = Yii::$app->restconf->confs['jira'];
+
+      $hasil = [];
+      $res = $client->request(
+        'GET',
+        "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"],
+            $jira_conf["password"]
+          ],
+          'query' => [
+            /* 'spaceKey' => 'PS', */
+            'expand' => 'participants'
           ],
         ]
       );
@@ -1812,32 +1803,33 @@ class HelpdeskController extends \yii\rest\Controller
         $response_payload = Json::decode($response_payload);
 
         $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
-        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+        $hasil["record"]["hd_issue"] = $issue;
+        $hasil["record"]["issue_comments"] = $list_komentar;
+        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
         $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "ok";
-        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+        /* $hasil["record"]["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]); */
+        $hasil["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+        $hasil["record"]["servicedesk"]["status"] = "ok";
+        $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+        $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+        $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
         $hasil["jawaban"]["count"] = count($jawaban);
         $hasil["jawaban"]["records"] = $jawaban;
 
-        $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
+        $this->ThreadLog($issue["id"], $payload["id_user_actor"], 2, -1);
         break;
 
       default:
         // kembalikan response
         $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
+        $hasil["record"]["hd_issue"] = $issue;
+        $hasil["record"]["issue_comments"] = $list_komentar;
         $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+        $hasil["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
         $hasil["record"]["confluence"]["status"] = "not ok";
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+        $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+        $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+        $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
         break;
       }
 
@@ -1859,14 +1851,17 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Menyimpan action antara user dan thread. Apakah si user menyatakan like,
-   *  dislike terhadap suatu thread. Informasi disimpan pada tabel forum_thread_user_action
+   *  Menyimpan action antara user dan issue. Apakah si user menyatakan like,
+   *  dislike terhadap suatu issue. Informasi disimpan pada tabel hd_issue_user_action
+   *
+   *  WARNING!!
+   *  TAPI: SERVICE DESK tidak mengenal action
    *
    *  Method: PUT
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_thread": 123,
+   *    "id_issue": 123,
    *    "id_user": 123,
    *    "action": 0/1/2,
    *  }
@@ -1877,32 +1872,32 @@ class HelpdeskController extends \yii\rest\Controller
    *    "pesan": "",
    *    "result":
    *    {
-   *      <object record forum_thread_user_action >
+   *      <object record hd_issue_user_action >
    *    }
    *  }
     * */
-  public function actionThreaduseraction()
+  public function actionIssueuseraction()
   {
     $payload = $this->GetPayload();
 
     // cek apakah parameter lengkap
-    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_id_issue_valid = isset($payload["id_issue"]);
     $is_id_user_valid = isset($payload["id_user"]);
     $is_action_valid = isset($payload["action"]);
 
     if(
-        $is_id_thread_valid == true &&
+        $is_id_issue_valid == true &&
         $is_id_user_valid == true &&
         $is_action_valid == true
       )
     {
-      // memastikan id_thread dan id_user valid
-      $test = ForumThread::findOne($payload["id_thread"]);
+      // memastikan id_issue dan id_user valid
+      $test = HdIssue::findOne($payload["id_issue"]);
       if( is_null($test) == true )
       {
         return [
           "status"=> "not ok",
-          "pesan"=> "Thread's record not found",
+          "pesan"=> "Issue's record not found",
         ];
       }
 
@@ -1924,15 +1919,15 @@ class HelpdeskController extends \yii\rest\Controller
       }
 
       // cek record kms_artikel_user_status. insert/update record
-      $test = ForumThreadUserAction::find()
+      $test = HdIssueUserAction::find()
         ->where(
           [
             "and",
-            "id_thread = :idthread",
+            "id_issue = :idissue",
             "id_user = :iduser"
           ],
           [
-            ":idthread" => $payload["id_thread"],
+            ":idissue" => $payload["id_issue"],
             ":iduser" => $payload["id_user"],
           ]
         )
@@ -1940,21 +1935,21 @@ class HelpdeskController extends \yii\rest\Controller
 
       if( is_null($test) == true )
       {
-        $test = new ForumThreadUserAction();
+        $test = new HdIssueUserAction();
       }
 
       if( $test["action"] != $payload["action"] )
       {
         //  Aktifitas akan direkam jika mengakibatkan perubahan status pada
-        //  thread.
+        //  issue.
 
-        $test["id_thread"] = $payload["id_thread"];
+        $test["id_issue"] = $payload["id_issue"];
         $test["id_user"] = $payload["id_user"];
         $test["action"] = $payload["action"];
         $test->save();
 
         // tulis log
-        $this->ThreadLog($payload["id_thread"], $payload["id_user"], 2, $payload["action"]);
+        $this->ThreadLog($payload["id_issue"], $payload["id_user"], 2, $payload["action"]);
 
         // kembalikan response
         return [
@@ -1979,7 +1974,7 @@ class HelpdeskController extends \yii\rest\Controller
       // kembalikan response
       return [
         "status" => "not ok",
-        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_thread, id_user, action",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_issue, id_user, action",
       ];
     }
 
@@ -1987,14 +1982,14 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengganti id_kategori atas suatu thread. Kemudian penyimpan jejak perubahan
-   *  ke dalam tabel forum_thread_log
+   *  Mengganti id_kategori atas suatu issue. Kemudian penyimpan jejak perubahan
+   *  ke dalam tabel hd_issue_log
    *
    *  Method: PUT
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_thread": 123,
+   *    "id_issue": 123,
    *    "id_kategori": 123,
    *    "id_user": 123
    *  }
@@ -2005,7 +2000,7 @@ class HelpdeskController extends \yii\rest\Controller
    *    "pesan": "",
    *    "result": 
    *    {
-   *      <object record thread>
+   *      <object record issue>
    *    }
    *  }
     * */
@@ -2014,23 +2009,23 @@ class HelpdeskController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     // cek apakah parameter lengkap
-    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_id_issue_valid = isset($payload["id_issue"]);
     $is_id_user_valid = isset($payload["id_user"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
 
     if(
-        $is_id_thread_valid == true &&
+        $is_id_issue_valid == true &&
         $is_id_user_valid == true &&
         $is_id_kategori_valid == true
       )
     {
-      // memastikan id_thread, id_kategori dan id_user valid
-      $test = ForumThread::findOne($payload["id_thread"]);
+      // memastikan id_issue, id_kategori dan id_user valid
+      $test = HdIssue::findOne($payload["id_issue"]);
       if( is_null($test) == true )
       {
         return [
           "status"=> "not ok",
-          "pesan"=> "Thread's record not found",
+          "pesan"=> "Issue's record not found",
         ];
       }
 
@@ -2052,12 +2047,12 @@ class HelpdeskController extends \yii\rest\Controller
         ];
       }
 
-      // update kms_thread
-      $thread = ForumThread::findOne($payload["id_thread"]);
-      $thread["id_kategori"] = $payload["id_kategori"];
-      $thread->save();
+      // update kms_issue
+      $issue = HdIssue::findOne($payload["id_issue"]);
+      $issue["id_kategori"] = $payload["id_kategori"];
+      $issue->save();
 
-      //  simpan history pada tabel forum_thread_activity_log
+      //  simpan history pada tabel hd_issue_activity_log
       /* $log = new KmsArtikelActivityLog(); */
       /* $log["id_artikel"] = $payload["id_artikel"]; */
       /* $log["id_user"] = $payload["id_user"]; */
@@ -2067,9 +2062,9 @@ class HelpdeskController extends \yii\rest\Controller
 
       return [
         "status" => "ok",
-        "pesan" => "Kategori thread sudah disimpan",
-        "result" => $thread,
-        "category_path" => KmsKategori::CategoryPath($thread["id_kategori"])
+        "pesan" => "Kategori issue sudah disimpan",
+        "result" => $issue,
+        "category_path" => KmsKategori::CategoryPath($issue["id_kategori"])
       ];
     }
     else
@@ -2077,7 +2072,7 @@ class HelpdeskController extends \yii\rest\Controller
       // kembalikan response
       return [
         "status" => "not ok",
-        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_thread, id_kategori, id_user",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_issue, id_kategori, id_user",
       ];
     }
 
@@ -2086,7 +2081,7 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mencari thread berdasarkan daftar id_kategori dan keywords. Search keywords
+   *  Mencari issue berdasarkan daftar id_kategori dan keywords. Search keywords
    *  yang diterima akan dipisah-pisah berdasarkan penggalan kata dan akan dilakukan
    *  pencarian menggunakan operator '~'.
    *
@@ -2139,39 +2134,15 @@ class HelpdeskController extends \yii\rest\Controller
           $keywords .= " OR ";
         }
 
-        $keywords .= "(text ~ $keyword)";
+        $keywords .= "$keyword*";
       }
-      $keywords = "($keywords)";
 
-      //ambil daftar linked_id_question berdasarkan array id_kategori
-      $daftar_thread = ForumThread::find()
-        ->where(
-          [
-            "id_kategori" => $payload["id_kategori"],
-            "is_delete" => 0,
-            "status" => 1
-          ]
-        )
-        ->all();
-
-      $daftar_id = "";
-      foreach($daftar_thread as $thread)
-      {
-        if($daftar_id != "")
-        {
-          $daftar_id .= ", ";
-        }
-
-        $daftar_id .= $thread["linked_id_question"];
-      }
-      $daftar_id = "ID IN ($daftar_id)";
-
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $jira_conf = Yii::$app->restconf->confs['jira'];
       $client = $this->SetupGuzzleClient();
 
       $res = $client->request(
         'GET',
-        "/rest/questions/1.0/search",
+        "/rest/servicedeskapi/request",
         [
           /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
           /* 'debug' => true, */
@@ -2185,11 +2156,10 @@ class HelpdeskController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'type' => "question",
-            'query' => "$keywords",
             'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
             'limit' => $payload["items_per_page"],
-            'spaceKey' => "PS",
+            'searchTerm' => "$keywords",
+            'serviceDeskId' => 3,  // perlu konfirmasi dari BPPT
           ],
         ]
       );
@@ -2201,25 +2171,25 @@ class HelpdeskController extends \yii\rest\Controller
         $response_payload = Json::decode($response_payload);
 
         $hasil = array();
-        foreach($response_payload["results"] as $item)
+        foreach($response_payload["values"] as $item)
         {
           $temp = array();
-          $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_question"] = $item["id"];
-          $temp["confluence"]["judul"] = $item["title"];
-          $temp["confluence"]["konten"] = $item["body"]["view"];
+          $temp["servicedesk"]["status"] = "ok";
+          $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+          $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+          $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
 
-          $thread = ForumThread::find()
+          $issue = HdIssue::find()
             ->where(
               [
-                "linked_id_question" => $item["id"]
+                "linked_id_issue" => $item["id"]
               ]
             )
             ->one();
-          $user = User::findOne($thread["id_user_create"]);
-          $temp["forum_thread"] = $thread;
+          $user = User::findOne($issue["id_user_create"]);
+          $temp["hd_issue"] = $issue;
           $temp["user_create"] = $user->nama;
-          $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+          $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
 
           $hasil[] = $temp;
         }
@@ -2229,7 +2199,7 @@ class HelpdeskController extends \yii\rest\Controller
           "pesan" => "Search berhasil",
           "result" => 
           [
-            "total_rows" => $response_payload["size"],
+            "total_rows" => $response_payload["values"],
             "page_no" => $payload["page_no"],
             "Items_per_page" => $payload["items_per_page"],
             "records" => $hasil
@@ -2243,8 +2213,8 @@ class HelpdeskController extends \yii\rest\Controller
           'status' => 'not ok',
           'pesan' => 'REST API request failed: ' . $res->getBody(),
           'payload' => $payload,
-          'result' => $thread,
-          'category_path' => KmsKategori::CategoryPath($thread["id_kategori"])
+          'result' => $issue,
+          'category_path' => KmsKategori::CategoryPath($issue["id_kategori"])
         ];
         break;
       }
@@ -2262,21 +2232,19 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengubah status suatu thread.
+   *  Mengubah status suatu issue.
    *  Status artikel:
-   *  -1 = draft
    *  0 = new
    *  1 = publish
-   *  2 = un-publish
-   *  3 = reject
-   *  4 = freeze
-   *  5 = knowledge
+   *  2 = un-assign
+   *  3 = progress
+   *  4 = solved
    *
    *  Method: PUT
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_thread": [123, 124, ...],
+   *    "id_issue": [123, 124, ...],
    *    "status": 123,
    *    "id_user": 123
    *  }
@@ -2296,24 +2264,24 @@ class HelpdeskController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
-    $is_id_thread_valid = isset($payload["id_thread"]);
-    $is_id_thread_valid = $is_id_thread_valid && is_array($payload["id_thread"]);
+    $is_id_issue_valid = isset($payload["id_issue"]);
+    $is_id_issue_valid = $is_id_issue_valid && is_array($payload["id_issue"]);
     $is_status_valid = isset($payload["status"]);
     $is_status_valid = $is_status_valid && is_numeric($payload["status"]);
     $is_id_user_valid = isset($payload["id_user"]);
     $is_id_user_valid = $is_id_user_valid && is_numeric($payload["id_user"]);
 
     if(
-        $is_id_thread_valid == true &&
+        $is_id_issue_valid == true &&
         $is_status_valid == true &&
         $is_id_user_valid == true
       )
     {
       $daftar_sukses = [];
       $daftar_gagal = [];
-      foreach($payload["id_thread"] as $id_thread)
+      foreach($payload["id_issue"] as $id_issue)
       {
-        if( is_numeric($id_thread) )
+        if( is_numeric($id_issue) )
         {
           if( is_numeric($payload["id_user"]) )
           {
@@ -2322,20 +2290,20 @@ class HelpdeskController extends \yii\rest\Controller
 
             if( is_null($test) == false )
             {
-              $thread = ForumThread::findOne($id_thread);
-              if( is_null($thread) == false )
+              $issue = HdIssue::findOne($id_issue);
+              if( is_null($issue) == false )
               {
-                $thread["status"] = $payload["status"];
-                $thread->save();
+                $issue["status"] = $payload["status"];
+                $issue->save();
 
-                $daftar_sukses[] = $thread;
+                $daftar_sukses[] = $issue;
 
                 // tulis log
-                $this->ThreadLog($id_thread, $payload["id_user"], 1, $payload["status"]);
+                $this->ThreadLog($id_issue, $payload["id_user"], 1, $payload["status"]);
               }
               else
               {
-                $daftar_gagal[] = $id_thread;
+                $daftar_gagal[] = $id_issue;
               }
             }
             else
@@ -2356,7 +2324,7 @@ class HelpdeskController extends \yii\rest\Controller
         }
         else
         {
-          $daftar_gagal[] = $id_thread;
+          $daftar_gagal[] = $id_issue;
         }
       }
 
@@ -2375,13 +2343,13 @@ class HelpdeskController extends \yii\rest\Controller
     {
       return [
         "status" => "not ok",
-        "pesan" => "Parameter yang diperlukan tidak ada: id_thread (array), status",
+        "pesan" => "Parameter yang diperlukan tidak ada: id_issue (array), status",
       ];
     }
   }
 
   /*
-   *  Mengambil daftar thread berdasarkan kesamaan tags yang berasal dari
+   *  Mengambil daftar issue berdasarkan kesamaan tags yang berasal dari
    *  kategori selain id_kategori yang dikirim.
    *
    *  Method: GET
@@ -2398,9 +2366,9 @@ class HelpdeskController extends \yii\rest\Controller
    *    "records" :
    *    [
    *      {
-   *        "forum_thread":
+   *        "hd_issue":
    *        {
-   *          <object dari record forum_thread>
+   *          <object dari record hd_issue>
    *        },
    *        "confluence":
    *        {
@@ -2426,8 +2394,8 @@ class HelpdeskController extends \yii\rest\Controller
       $temp_daftar_tag = 
         $q->select("t.*")
           ->from("kms_tags t")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
-          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
+          ->join("JOIN", "hd_issue_tag atag", "atag.id_tag = t.id")
+          ->join("JOIN", "hd_issue f", "f.id = atag.id_issue")
           ->where(["in", "f.id_kategori", $payload["id_kategori"]])
           ->distinct()
           ->all();
@@ -2438,12 +2406,12 @@ class HelpdeskController extends \yii\rest\Controller
         $daftar_tag[] = $item["id"];
       }
 
-      // mengambil daftar thread terkait
+      // mengambil daftar issue terkait
       $q = new Query();
-      $daftar_thread = 
+      $daftar_issue = 
         $q->select("t.*")
-          ->from("forum_thread t")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
+          ->from("hd_issue t")
+          ->join("JOIN", "hd_issue_tag atag", "atag.id_issue = t.id")
           ->where([
             "and",
             ["in", "atag.id_tag", $daftar_tag],
@@ -2458,17 +2426,17 @@ class HelpdeskController extends \yii\rest\Controller
 
       // ambil informasi dari confluence
       $hasil = [];
-      foreach($daftar_thread as $record)
+      foreach($daftar_issue as $record)
       {
         $user = User::findOne($record["id_user_create"]);
 
         //  lakukan query dari Confluence
-        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $jira_conf = Yii::$app->restconf->confs['jira'];
         $client = $this->SetupGuzzleClient();
 
         $res = $client->request(
           'GET',
-          "/rest/questions/1.0/question/{$record["linked_id_question"]}",
+          "/rest/questions/1.0/question/{$record["linked_id_issue"]}",
           [
             /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
             /* 'debug' => true, */
@@ -2497,7 +2465,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           $response_payload = Json::decode($response_payload);
 
-          $temp["forum_thread"] = $record;
+          $temp["hd_issue"] = $record;
           $temp["user_create"] = $user;
           $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
           $temp["confluence"]["judul"] = $response_payload["title"];
@@ -2505,7 +2473,7 @@ class HelpdeskController extends \yii\rest\Controller
         }
         catch(yii\base\InvalidArgumentException $e)
         {
-          $temp["forum_thread"] = $record;
+          $temp["hd_issue"] = $record;
           $temp["user_create"] = $user;
           $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
           $temp["confluence"]["status"] = "not ok";
@@ -2574,8 +2542,8 @@ class HelpdeskController extends \yii\rest\Controller
       $temp_daftar_tag = 
         $q->select("t.*")
           ->from("kms_tags t")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
-          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
+          ->join("JOIN", "hd_issue_tag atag", "atag.id_tag = t.id")
+          ->join("JOIN", "hd_issue f", "f.id = atag.id_issue")
           ->where(["in", "f.id_kategori", $payload["id_kategori"]])
           ->distinct()
           ->all();
@@ -2591,8 +2559,8 @@ class HelpdeskController extends \yii\rest\Controller
       $hasil = 
         $q->select("k.*")
           ->from("kms_kategori k")
-          ->join("JOIN", "forum_thread f", "f.id_kategori = k.id")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = f.id")
+          ->join("JOIN", "hd_issue f", "f.id_kategori = k.id")
+          ->join("JOIN", "hd_issue_tag atag", "atag.id_issue = f.id")
           ->where([
             "and",
             ["in", "atag.id_tag", $daftar_tag],
@@ -2640,14 +2608,11 @@ class HelpdeskController extends \yii\rest\Controller
    *    [
    *      {
    *        "tanggal": "yyyy-mm-dd",
+   *        "draft": 123,
    *        "new": 123,
-   *        "publish": 123,
-   *        "unpublish": 123,
-   *        "reject": 123,
-   *        "freeze": 123,
-   *        "like": 123,
-   *        "dislike": 123,
-   *        "neutral": 123,
+   *        "un-assigned": 123,
+   *        "progress": 123,
+   *        "solved": 123,
    *      }, ...
    *    ]
    *  }
@@ -2677,7 +2642,7 @@ class HelpdeskController extends \yii\rest\Controller
         // ambil jumlah kejadian
         $q = new Query();
         $hasil_status = $q->select("log.status, count(log.id) as jumlah")
-          ->from("forum_thread_activity_log log")
+          ->from("hd_issue_activity_log log")
           ->andWhere("time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
           ->andWhere("time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
           ->distinct()
@@ -2685,15 +2650,15 @@ class HelpdeskController extends \yii\rest\Controller
           ->orderBy("log.status asc")
           ->all();
 
-        $q = new Query();
-        $hasil_action = $q->select("log.action, count(log.id) as jumlah")
-          ->from("forum_thread_activity_log log")
-          ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)])
-          ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)])
-          ->distinct()
-          ->orderBy("log.action")
-          ->orderBy("log.action asc")
-          ->all();
+        /* $q = new Query(); */
+        /* $hasil_action = $q->select("log.action, count(log.id) as jumlah") */
+        /*   ->from("hd_issue_activity_log log") */
+        /*   ->andWhere("time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $temp_date->timestamp)]) */
+        /*   ->andWhere("time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $temp_date->timestamp)]) */
+        /*   ->distinct() */
+        /*   ->orderBy("log.action") */
+        /*   ->orderBy("log.action asc") */
+        /*   ->all(); */
 
         $temp = [];
         $temp["tanggal"] = date("Y-m-d", $temp_date->timestamp);
@@ -2702,57 +2667,49 @@ class HelpdeskController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
-            case -1: //draft
+            case 0: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
 
-            case 0: //new
+            case 1: //new
               $temp["data"]["new"] = $record["jumlah"];
               break;
 
-            case 1: //publish
-              $temp["data"]["publish"] = $record["jumlah"];
+            case 2: //un-assigned
+              $temp["data"]["unassigned"] = $record["jumlah"];
               break;
 
-            case 2: //unpublish
-              $temp["data"]["unpublish"] = $record["jumlah"];
+            case 3: //progress
+              $temp["data"]["progress"] = $record["jumlah"];
               break;
 
-            case 3: //reject
-              $temp["data"]["reject"] = $record["jumlah"];
-              break;
-
-            case 4: //freeze
-              $temp["data"]["freeze"] = $record["jumlah"];
-              break;
-
-            case 5: //knowledge
-              $temp["data"]["knowledge"] = $record["jumlah"];
+            case 4: //solved
+              $temp["data"]["solved"] = $record["jumlah"];
               break;
           }
         }
 
-        foreach($hasil_action as $record)
-        {
-          switch( $record["action"] )
-          {
-            case -1: //view
-              $temp["data"]["view"] = $record["jumlah"];
-              break;
+        /* foreach($hasil_action as $record) */
+        /* { */
+        /*   switch( $record["action"] ) */
+        /*   { */
+        /*     case -1: //view */
+        /*       $temp["data"]["view"] = $record["jumlah"]; */
+        /*       break; */
 
-            case 0: //neutral
-              $temp["data"]["neutral"] = $record["jumlah"];
-              break;
+        /*     case 0: //neutral */
+        /*       $temp["data"]["neutral"] = $record["jumlah"]; */
+        /*       break; */
 
-            case 1: //like
-              $temp["data"]["like"] = $record["jumlah"];
-              break;
+        /*     case 1: //like */
+        /*       $temp["data"]["like"] = $record["jumlah"]; */
+        /*       break; */
 
-            case 2: //dislike
-              $temp["data"]["dislike"] = $record["jumlah"];
-              break;
-          }
-        }
+        /*     case 2: //dislike */
+        /*       $temp["data"]["dislike"] = $record["jumlah"]; */
+        /*       break; */
+        /*   } */
+        /* } */
 
         $hasil[] = $temp;
 
@@ -2797,9 +2754,19 @@ class HelpdeskController extends \yii\rest\Controller
    *        "kategori"; "nama_kategori", 
    *        "data": 
    *        {
+   *          "draft" :
+   *          {
+   *            "issue": 123,
+   *            "user": 123
+   *          }, ...
    *          "new" :
    *          {
-   *            "artikel": 123,
+   *            "issue": 123,
+   *            "user": 123
+   *          }, ...
+   *          "unassigned" :
+   *          {
+   *            "issue": 123,
    *            "user": 123
    *          }, ...
    *        }
@@ -2822,12 +2789,12 @@ class HelpdeskController extends \yii\rest\Controller
 
     foreach($daftar_kategori as $kategori)
     {
-      // ambil jumlah thread per kejadian (new, publish, .., freeze)
+      // ambil jumlah issue per kejadian (new, publish, .., freeze)
       $q = new Query();
-      $total_thread = 
+      $total_issue = 
         $q->select("t.id")
-          ->from("forum_thread t")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_thread = t.id")
+          ->from("hd_issue t")
+          ->join("JOIN", "hd_issue_activity_log log", "log.id_issue = t.id")
           ->where(
             [
               "and",
@@ -2860,13 +2827,13 @@ class HelpdeskController extends \yii\rest\Controller
           ->orderBy("log.status asc")
           ->groupBy("a.id")
           ->all();
-      $total_thread = count($total_thread);
+      $total_issue = count($total_issue);
 
       $q = new Query();
-      $thread_status = 
+      $issue_status = 
         $q->select("log.status, count(t.id) as jumlah")
-          ->from("forum_thread t")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_thread = t.id")
+          ->from("hd_issue t")
+          ->join("JOIN", "hd_issue_activity_log log", "log.id_issue = t.id")
           ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
           ->andWhere("log.type_log = 1")
           ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
@@ -2876,93 +2843,93 @@ class HelpdeskController extends \yii\rest\Controller
           ->groupBy("log.status")
           ->all();
 
-      // ambil jumlah thread per action (like/dislike)
-      $q = new Query();
-      $thread_action = 
-        $q->select("log.action, t.id")
-          ->from("forum_thread t")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_thread = t.id")
-          ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.type_log = 2")
-          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
-          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
-          ->distinct()
-          ->orderBy("log.action asc")
-          ->groupBy("log.action, t.id")
-          ->all();
+      // ambil jumlah issue per action (like/dislike)
+      /* $q = new Query(); */
+      /* $issue_action = */ 
+      /*   $q->select("log.action, t.id") */
+      /*     ->from("hd_issue t") */
+      /*     ->join("JOIN", "hd_issue_activity_log log", "log.id_issue = t.id") */
+      /*     ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
+      /*     ->andWhere("log.type_log = 2") */
+      /*     ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
+      /*     ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
+      /*     ->distinct() */
+      /*     ->orderBy("log.action asc") */
+      /*     ->groupBy("log.action, t.id") */
+      /*     ->all(); */
 
       // ambil jumlah user per kejadian (new, publish, .., freeze)
-      $q = new Query();
-      $total_user = 
-        $q->select("u.id")
-          ->from("user u")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
-          ->join("JOIN", "forum_thread t", "log.id_artikel = t.id")
-          ->where(
-            [
-              "and",
-              "t.id_kategori = :id_kategori",
-              "log.type_log = 1",
-              [
-                "or",
-                [
-                  "and",
-                  "log.time_status >= :awal",
-                  "log.time_status <= :akhir"
-                ],
-                [
-                  "and",
-                  "log.time_action >= :awal",
-                  "log.time_action <= :akhir"
-                ]
-              ]
-            ],
-            [
-              ":id_kategori" => $kategori["id"],
-              ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp),
-              ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)
-            ]
-          )
-          /* ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
-          /* ->andWhere("log.type_log = 1") */
-          /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
-          /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
-          /* ->orderBy("log.status asc") */
-          /* ->groupBy("u.id") */
-          ->distinct()
-          ->all();
-      $total_user = count($total_user);
+      /* $q = new Query(); */
+      /* $total_user = */ 
+      /*   $q->select("u.id") */
+      /*     ->from("user u") */
+      /*     ->join("JOIN", "hd_issue_activity_log log", "log.id_user = u.id") */
+      /*     ->join("JOIN", "hd_issue t", "log.id_artikel = t.id") */
+      /*     ->where( */
+      /*       [ */
+      /*         "and", */
+      /*         "t.id_kategori = :id_kategori", */
+      /*         "log.type_log = 1", */
+      /*         [ */
+      /*           "or", */
+      /*           [ */
+      /*             "and", */
+      /*             "log.time_status >= :awal", */
+      /*             "log.time_status <= :akhir" */
+      /*           ], */
+      /*           [ */
+      /*             "and", */
+      /*             "log.time_action >= :awal", */
+      /*             "log.time_action <= :akhir" */
+      /*           ] */
+      /*         ] */
+      /*       ], */
+      /*       [ */
+      /*         ":id_kategori" => $kategori["id"], */
+      /*         ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp), */
+      /*         ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp) */
+      /*       ] */
+      /*     ) */
+      /*     /1* ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) *1/ */
+      /*     /1* ->andWhere("log.type_log = 1") *1/ */
+      /*     /1* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) *1/ */
+      /*     /1* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) *1/ */
+      /*     /1* ->orderBy("log.status asc") *1/ */
+      /*     /1* ->groupBy("u.id") *1/ */
+      /*     ->distinct() */
+      /*     ->all(); */
+      /* $total_user = count($total_user); */
 
-      $q = new Query();
-      $user_status = 
-        $q->select("log.status, count(u.id) as jumlah")
-          ->from("user u")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
-          ->join("JOIN", "forum_thread t", "log.id_thread = t.id")
-          ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.type_log = 1")
-          ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
-          ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
-          ->distinct()
-          ->orderBy("log.status asc")
-          ->groupBy("log.status")
-          ->all();
+      /* $q = new Query(); */
+      /* $user_status = */ 
+      /*   $q->select("log.status, count(u.id) as jumlah") */
+      /*     ->from("user u") */
+      /*     ->join("JOIN", "hd_issue_activity_log log", "log.id_user = u.id") */
+      /*     ->join("JOIN", "hd_issue t", "log.id_issue = t.id") */
+      /*     ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
+      /*     ->andWhere("log.type_log = 1") */
+      /*     ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
+      /*     ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
+      /*     ->distinct() */
+      /*     ->orderBy("log.status asc") */
+      /*     ->groupBy("log.status") */
+      /*     ->all(); */
 
-      // ambil jumlah thread per action (like/dislike)
-      $q = new Query();
-      $user_action = 
-        $q->select("log.action, u.id")
-          ->from("user u")
-          ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
-          ->join("JOIN", "forum_thread t", "log.id_artikel = t.id")
-          ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
-          ->andWhere("log.type_log = 2")
-          ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
-          ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
-          ->distinct()
-          ->orderBy("log.action asc")
-          ->groupBy("log.action, u.id")
-          ->all();
+      /* // ambil jumlah issue per action (like/dislike) */
+      /* $q = new Query(); */
+      /* $user_action = */ 
+      /*   $q->select("log.action, u.id") */
+      /*     ->from("user u") */
+      /*     ->join("JOIN", "hd_issue_activity_log log", "log.id_user = u.id") */
+      /*     ->join("JOIN", "hd_issue t", "log.id_artikel = t.id") */
+      /*     ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
+      /*     ->andWhere("log.type_log = 2") */
+      /*     ->andWhere("log.time_action >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
+      /*     ->andWhere("log.time_action <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
+      /*     ->distinct() */
+      /*     ->orderBy("log.action asc") */
+      /*     ->groupBy("log.action, u.id") */
+      /*     ->all(); */
 
       $temp = [];
       $indent = "";
@@ -2973,60 +2940,60 @@ class HelpdeskController extends \yii\rest\Controller
       $index_name = $indent . $kategori["nama"];
       $category_path = KmsKategori::CategoryPath($kategori["id"]);
 
-      $temp["total"]["thread"] = $total_thread;
-      $temp["total"]["user"] = $total_user;
+      $temp["total"]["issue"] = $total_issue;
+      /* $temp["total"]["user"] = $total_user; */
 
-      foreach($thread_status as $record)
+      foreach($issue_status as $record)
       {
         switch( $record["status"] )
         {
-          case 0: //new
-            $temp["new"]["thread"] = $record["jumlah"];
+          case 0: //draft
+            $temp["draft"]["issue"] = $record["jumlah"];
             break;
 
-          case 1: //publish
-            $temp["publish"]["thread"] = $record["jumlah"];
+          case 1: //new
+            $temp["new"]["issue"] = $record["jumlah"];
             break;
 
-          case 2: //unpublish
-            $temp["unpublish"]["thread"] = $record["jumlah"];
+          case 2: //un-assigned
+            $temp["unassigned"]["issue"] = $record["jumlah"];
             break;
 
-          case 3: //reject
-            $temp["reject"]["thread"] = $record["jumlah"];
+          case 3: //progress
+            $temp["progress"]["issue"] = $record["jumlah"];
             break;
 
-          case 4: //freeze
-            $temp["freeze"]["thread"] = $record["jumlah"];
+          case 4: //solved
+            $temp["solved"]["issue"] = $record["jumlah"];
             break;
         }
       }
 
-      $temp["neutral"]["thread"] = 0;
-      $temp["like"]["thread"] = 0;
-      $temp["dislike"]["thread"] = 0;
-      $temp["view"]["thread"] = 0;
-      foreach($thread_action as $record)
-      {
-        switch( $record["action"] )
-        {
-          case 0: //neutral
-            $temp["neutral"]["thread"]++;
-            break;
+      /* $temp["neutral"]["issue"] = 0; */
+      /* $temp["like"]["issue"] = 0; */
+      /* $temp["dislike"]["issue"] = 0; */
+      /* $temp["view"]["issue"] = 0; */
+      /* foreach($issue_action as $record) */
+      /* { */
+      /*   switch( $record["action"] ) */
+      /*   { */
+      /*     case 0: //neutral */
+      /*       $temp["neutral"]["issue"]++; */
+      /*       break; */
 
-          case 1: //like
-            $temp["like"]["thread"]++;
-            break;
+      /*     case 1: //like */
+      /*       $temp["like"]["issue"]++; */
+      /*       break; */
 
-          case 2: //dislike
-            $temp["dislike"]["thread"]++;
-            break;
+      /*     case 2: //dislike */
+      /*       $temp["dislike"]["issue"]++; */
+      /*       break; */
 
-          case -1: //view
-            $temp["view"]["thread"]++;
-            break;
-        }
-      }
+      /*     case -1: //view */
+      /*       $temp["view"]["issue"]++; */
+      /*       break; */
+      /*   } */
+      /* } */
 
       foreach($user_status as $record)
       {
@@ -3054,31 +3021,31 @@ class HelpdeskController extends \yii\rest\Controller
         }
       }
 
-      $temp["like"]["user"] = 0;
-      $temp["neutral"]["user"] = 0;
-      $temp["dislike"]["user"] = 0;
-      $temp["view"]["user"] = 0;
-      foreach($user_action as $record)
-      {
-        switch( $record["action"] )
-        {
-          case 0: //neutral
-            $temp["neutral"]["user"]++;
-            break;
+      /* $temp["like"]["user"] = 0; */
+      /* $temp["neutral"]["user"] = 0; */
+      /* $temp["dislike"]["user"] = 0; */
+      /* $temp["view"]["user"] = 0; */
+      /* foreach($user_action as $record) */
+      /* { */
+      /*   switch( $record["action"] ) */
+      /*   { */
+      /*     case 0: //neutral */
+      /*       $temp["neutral"]["user"]++; */
+      /*       break; */
 
-          case 1: //like
-            $temp["like"]["user"]++;
-            break;
+      /*     case 1: //like */
+      /*       $temp["like"]["user"]++; */
+      /*       break; */
 
-          case 2: //dislike
-            $temp["dislike"]["user"]++;
-            break;
+      /*     case 2: //dislike */
+      /*       $temp["dislike"]["user"]++; */
+      /*       break; */
 
-          case -1: //view
-            $temp["view"]["user"]++;
-            break;
-        }
-      }
+      /*     case -1: //view */
+      /*       $temp["view"]["user"]++; */
+      /*       break; */
+      /*   } */
+      /* } */
 
       $hasil[] = [
         "kategori" => $index_name,
@@ -3098,15 +3065,17 @@ class HelpdeskController extends \yii\rest\Controller
 
 
   /*
-   *  Membuat atau mengedit comment. Comment punya relasi kepada thread atau 
+   *  Membuat atau mengedit comment. Comment punya relasi kepada issue atau 
    *  jawaban. Oleh karena itu, request create atau update harus menyertakan
-   *  tipe comment (1 = comment of thread; 2= comment of jawaban)
+   *  tipe comment (1 = comment of issue; 2= comment of jawaban)
+   *
+   *  WARNING!!
+   *  JIRA tidak mengenal konsep komen. Hanya mengenal konsep jawaban.
    *
    *  Method : POST
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "type": 1/2,
    *    "id_parent": 123,
    *    "id_user": 123,
    *    "konten": "asdf"
@@ -3184,69 +3153,39 @@ class HelpdeskController extends \yii\rest\Controller
     if( Yii::$app->request->isPost )
     {
       // membuat record comment
-      $is_type_valid = isset($payload["type"]);
       $is_id_parent_valid = isset($payload["id_parent"]);
       $is_id_user_valid = isset($payload["id_user"]);
       $is_konten_valid = isset($payload["konten"]);
       
       if(
-          $is_type_valid == true &&
           $is_id_parent_valid == true &&
           $is_id_user_valid == true &&
           $is_konten_valid == true
         )
       {
-        //cek type
-        if( is_numeric($payload["type"]) == false )
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Parameter tidak valid. type (integer)",
-          ];
-        }
-        
         //cek id_parent
         if( is_numeric($payload["id_parent"]) == false )
         {
           return [
             "status" => "not ok",
-            "pesan" => "Parameter tidak valid. type (integer)",
+            "pesan" => "Parameter tidak valid: id_parent (integer)",
           ];
         }
         else
         {
-          if( $payload["type"] == 1 ) // comment of thread
-          {
-            $test = ForumThread::findOne($payload["id_parent"]);
+          $issue = HdIssue::findOne($payload["id_parent"]);
 
-            if( is_null($test) == true )
-            {
-              return [
-                "status" => "not ok",
-                "pesan" => "id_parent tidak ditemukan",
-              ];
-            }
-          }
-          else if( $payload["type"] == 2 ) // comment of jawaban
+          if( is_null($issue) == false )
           {
-            $test = ForumThreadDiscussion::findOne($payload["id_parent"]);
-
-            if( is_null($test) == true )
-            {
-              return [
-                "status" => "not ok",
-                "pesan" => "id_parent tidak ditemukan",
-              ];
-            }
           }
           else
           {
             return [
               "status" => "not ok",
-              "pesan" => "Parameter tidak valid. type diisi dengan 1 atau 2",
+              "pesan" => "id_parent tidak ditemukan",
             ];
-          }
 
+          }
         }
         
         
@@ -3261,59 +3200,33 @@ class HelpdeskController extends \yii\rest\Controller
         }
         
         //eksekusi
-        if( $payload["type"] == 1 ) // comment of thread
-        {
-          $new = new ForumThreadComment();
-          $new["id_user_create"] = $payload["id_user"];
-          $new["time_create"] = date("Y-m-d H:i:s");
-          $new["id_thread"] = $payload["id_parent"];
-          $new["judul"] = "---";
-          $new["konten"] = $payload["konten"];
-          $new->save();
+        $discussion = new HdIssueDiscussion();
+        $discussion["id_issue"] = $issue["id"];
+        $discussion["judul"] = "---";
+        $discussion["konten"] = $payload["body"];
+        $discussion["time_create"] = date("Y-m-d H:i:s");
+        $discussion["id_user_create"] = $payload["id_usre"];
+        $discussion->save();
 
-          $user = User::findOne($payload["id_user"]);
 
-          return [
-            "status" => "ok",
-            "pesan" => "Record comment berhasil dibikin",
-            "result" => 
-            [
-              "record" => $new,
-              "user" => $user
-            ]
-          ];
-        }
-        else
-        {
-          // comment of jawaban
+        $user = User::findOne($payload["id_user"]);
 
-          $new = new ForumThreadDiscussionComment();
-          $new["id_user_create"] = $payload["id_user"];
-          $new["time_create"] = date("Y-m-d H:i:s");
-          $new["id_discussion"] = $payload["id_parent"];
-          $new["judul"] = "---";
-          $new["konten"] = $payload["konten"];
-          $new->save();
-
-          $user = User::findOne($payload["id_user"]);
-
-          return [
-            "status" => "ok",
-            "pesan" => "Record comment berhasil dibikin",
-            "result" => 
-            [
-              "record" => $new,
-              "user" => $user
-            ]
-          ];
-        }
+        return [
+          "status" => "ok",
+          "pesan" => "Record comment berhasil dibikin",
+          "result" => 
+          [
+            "record" => $discussion,
+            "user" => $user
+          ]
+        ];
         
       }
       else
       {
         return [
           "status" => "not ok",
-          "pesan" => "Parameter yang diperlukan tidak valid: type, id_user, id_parent, konten",
+          "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_parent, konten",
         ];
       }
     }
@@ -3324,9 +3237,9 @@ class HelpdeskController extends \yii\rest\Controller
       $is_type_valid = isset($payload["type"]);
       $is_id_valid = isset($payload["id"]);
 
-      if( $payload["type"] == 1 ) // comment of thread
+      if( $payload["type"] == 1 ) // comment of issue
       {
-        $test = ForumThreadComment::findOne($payload["id"]);
+        $test = HdIssueComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3346,7 +3259,7 @@ class HelpdeskController extends \yii\rest\Controller
       }
       else if( $payload["type"] == 2 ) //comment of jawaban
       {
-        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+        $test = HdIssueDiscussionComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3380,9 +3293,9 @@ class HelpdeskController extends \yii\rest\Controller
       $is_id_valid = isset($payload["id"]);
       $is_konten_valid = isset($payload["konten"]);
 
-      if( $payload["type"] == 1 ) // comment of thread
+      if( $payload["type"] == 1 ) // comment of issue
       {
-        $test = ForumThreadComment::findOne($payload["id"]);
+        $test = HdIssueComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3408,7 +3321,7 @@ class HelpdeskController extends \yii\rest\Controller
       }
       else if( $payload["type"] == 2 ) //comment of jawaban
       {
-        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+        $test = HdIssueDiscussionComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3445,9 +3358,9 @@ class HelpdeskController extends \yii\rest\Controller
       $is_type_valid = isset($payload["type"]);
       $is_id_valid = isset($payload["id"]);
 
-      if( $payload["type"] == 1 ) // comment of thread
+      if( $payload["type"] == 1 ) // comment of issue
       {
-        $test = ForumThreadComment::findOne($payload["id"]);
+        $test = HdIssueComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3473,7 +3386,7 @@ class HelpdeskController extends \yii\rest\Controller
       }
       else if( $payload["type"] == 2 ) //comment of jawaban
       {
-        $test = ForumThreadDiscussionComment::findOne($payload["id"]);
+        $test = HdIssueDiscussionComment::findOne($payload["id"]);
 
         if( is_null($test) == false )
         {
@@ -3513,7 +3426,7 @@ class HelpdeskController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_parent": 123,
+   *    "id_issue": 123,
    *    "id_user": 123,
    *    "konten": "asdf"
    *  }
@@ -3583,7 +3496,7 @@ class HelpdeskController extends \yii\rest\Controller
   public function actionAnswer()
   {
     $payload = $this->GetPayload();
-    $thread = null;
+    $issue = null;
     $user = null;
     
     if( Yii::$app->request->isPost )
@@ -3609,9 +3522,9 @@ class HelpdeskController extends \yii\rest\Controller
         }
         else
         {
-          $thread = ForumThread::findOne($payload["id_parent"]);
+          $issue = HdIssue::findOne($payload["id_parent"]);
 
-          if( is_null($thread) == true )
+          if( is_null($issue) == true )
           {
             return [
               "status" => "not ok",
@@ -3633,57 +3546,17 @@ class HelpdeskController extends \yii\rest\Controller
         
         //eksekusi
 
-            // bikin answer draft
+            // bikin answer 
                 $client = $this->SetupGuzzleClient();
-                $jira_conf = Yii::$app->restconf->confs['confluence'];
+                $jira_conf = Yii::$app->restconf->confs['jira'];
 
-                $request_payload = [
-                  "questionId" => $thread["linked_id_question"],
-                  "body" => 
-                  [
-                    "content" => $payload["konten"],
-                    "bodyFormat" => "VIEW",
-                  ]
-                ];
-                $res = $client->request(
-                  'POST',
-                  "/rest/questions/1.0/question/{$thread["linked_id_question"]}/answerDrafts",
-                  [
-                    /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-                    /* 'debug' => true, */
-                    'http_errors' => false,
-                    'headers' => [
-                      "Content-Type" => "application/json",
-                      "Media-Type" => "application/json",
-                      "accept" => "application/json",
-                    ],
-                    'auth' => [
-                      $jira_conf["user"],
-                      $jira_conf["password"]
-                    ],
-                    'body' => Json::encode($request_payload),
-                  ]
-                );
-
-                $response_payload = $res->getBody();
-                $response_payload = Json::decode($response_payload);
-
-                $id_answer_draft = $response_payload["id"];
-            // bikin answer draft
-
-
-
-
-            // kirim ke CQ
                 $request_payload = [
                   "body" => $payload["konten"],
-                  "draftId" => $id_answer_draft,
-                  "dateAnswered" => date("Y-m-d"),
+                  "public" => true
                 ];
-
                 $res = $client->request(
                   'POST',
-                  "/rest/questions/1.0/question/{$thread["linked_id_question"]}/answers",
+                  "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}/comment",
                   [
                     /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
                     /* 'debug' => true, */
@@ -3703,20 +3576,55 @@ class HelpdeskController extends \yii\rest\Controller
 
                 $response_payload = $res->getBody();
                 $response_payload = Json::decode($response_payload);
-            // kirim ke CQ
 
+                $id_answer = $response_payload["id"];
+            // bikin answer
 
 
             // simpan di SPBE
-                $new = new ForumThreadDiscussion();
+                $new = new HdIssueDiscussion();
                 $new["id_user_create"] = $payload["id_user"];
                 $new["time_create"] = date("Y-m-j H:i:s");
-                $new["id_thread"] = $payload["id_parent"];
-                $new["linked_id_answer"] = $response_payload["id"];
+                $new["id_issue"] = $payload["id_parent"];
+                $new["linked_id_answer"] = $id_answer;
                 $new["judul"] = "---";
                 $new["konten"] = $payload["konten"];
                 $new->save();
             // simpan di SPBE
+
+
+
+            /* // kirim ke CQ */
+            /*     $request_payload = [ */
+            /*       "body" => $payload["konten"], */
+            /*       "draftId" => $id_answer_draft, */
+            /*       "dateAnswered" => date("Y-m-d"), */
+            /*     ]; */
+
+            /*     $res = $client->request( */
+            /*       'POST', */
+            /*       "/rest/questions/1.0/question/{$issue["linked_id_issue"]}/answers", */
+            /*       [ */
+            /*         /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+            /*         /1* 'debug' => true, *1/ */
+            /*         'http_errors' => false, */
+            /*         'headers' => [ */
+            /*           "Content-Type" => "application/json", */
+            /*           "Media-Type" => "application/json", */
+            /*           "accept" => "application/json", */
+            /*         ], */
+            /*         'auth' => [ */
+            /*           $jira_conf["user"], */
+            /*           $jira_conf["password"] */
+            /*         ], */
+            /*         'body' => Json::encode($request_payload), */
+            /*       ] */
+            /*     ); */
+
+            /*     $response_payload = $res->getBody(); */
+            /*     $response_payload = Json::decode($response_payload); */
+            /* // kirim ke CQ */
+
 
         //eksekusi
 
@@ -3737,7 +3645,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         return [
           "status" => "not ok",
-          "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_parent, konten",
+          "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_issue, konten",
         ];
       }
     }
@@ -3748,7 +3656,7 @@ class HelpdeskController extends \yii\rest\Controller
       $is_type_valid = isset($payload["type"]);
       $is_id_valid = isset($payload["id"]);
 
-      $test = ForumThreadDiscussion::findOne($payload["id"]);
+      $test = HdIssueDiscussion::findOne($payload["id"]);
 
       if( is_null($test) == false )
       {
@@ -3774,7 +3682,7 @@ class HelpdeskController extends \yii\rest\Controller
       $is_id_valid = isset($payload["id"]);
       $is_konten_valid = isset($payload["konten"]);
 
-      $test = ForumThreadDiscussion::findOne($payload["id"]);
+      $test = HdIssueDiscussion::findOne($payload["id"]);
 
       if( is_null($test) == false )
       {
@@ -3805,7 +3713,7 @@ class HelpdeskController extends \yii\rest\Controller
       $is_id_valid = isset($payload["id"]);
 
 
-      $test = ForumThreadDiscussion::findOne($payload["id"]);
+      $test = HdIssueDiscussion::findOne($payload["id"]);
 
       if( is_null($test) == false )
       {
@@ -3833,11 +3741,11 @@ class HelpdeskController extends \yii\rest\Controller
   ///
 
   // ==========================================================================
-  // my threads
+  // my issues
   // ==========================================================================
   
 
-      //  Mengembalikan daftar thread berdasarkan
+      //  Mengembalikan daftar issue berdasarkan
       //  
       //  Method: GET
       //  Request type: JSON
@@ -3856,7 +3764,7 @@ class HelpdeskController extends \yii\rest\Controller
       //      records:
       //      [
       //        {
-      //          object of thread
+      //          object of issue
       //        }, ...
       //      ]
       //    }
@@ -3868,7 +3776,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         if( $is_id_user_valid == true && $is_status_valid == true )
         {
-          $list_thread = ForumThread::find()
+          $list_issue = HdIssue::find()
             ->where(
               [
                 "and",
@@ -3886,23 +3794,23 @@ class HelpdeskController extends \yii\rest\Controller
 
           $hasil = [];
           $client = $this->SetupGuzzleClient();
-          foreach($list_thread as $thread)
+          foreach($list_issue as $issue)
           {
             // get record CQ
-            $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
+            $response = $this->Conf_GetQuestion($client, $issue["linked_id_issue"]);
             $response_payload = $response->getBody();
             $response_payload = Json::decode($response_payload);
 
-            $user = User::findOne($thread["id_user_create"]);
+            $user = User::findOne($issue["id_user_create"]);
 
             $temp = [];
-            $temp["record"]["forum_thread"] = $thread;
-            $temp["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+            $temp["record"]["hd_issue"] = $issue;
+            $temp["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $temp["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
             $temp["record"]["user_create"] = $user;
-            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+            $temp["servicedesk"]["id"] = $response_payload["issueId"];
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
 
             $hasil[] = $temp;
           }
@@ -4000,6 +3908,6 @@ class HelpdeskController extends \yii\rest\Controller
 
 
   // ==========================================================================
-  // my threads
+  // my issues
   // ==========================================================================
 }
