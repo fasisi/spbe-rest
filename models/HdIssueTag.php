@@ -3,6 +3,7 @@
 namespace app\models;
 
 use Yii;
+use yii\db\Query;
 
 /**
  * This is the model class for table "hd_issue_tag".
@@ -42,4 +43,17 @@ class HdIssueTag extends \yii\db\ActiveRecord
             'id_tag' => 'Id Tag',
         ];
     }
+
+
+    public static function GetIssueTags($id_issue)
+    {
+      $q = new Query();
+      $q->select("t.*")
+        ->from("kms_tags t")
+        ->join("JOIN", "hd_issue_tag ft", "ft.id_tag = t.id")
+        ->where("ft.id_issue = :id", [":id" => $id_issue]);
+
+      return $q->all();
+    }
+
 }
