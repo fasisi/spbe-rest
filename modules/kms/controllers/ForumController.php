@@ -543,6 +543,7 @@ class ForumController extends \yii\rest\Controller
       {
         $thread["judul"] = $payload["judul"];
         $thread["konten"] = $payload["body"];
+        $thread["id_kategori"] = $payload["id_kategori"];
         $thread['time_update'] = date("Y-m-j H:i:s");
         $thread['id_user_update'] = $payload["id_user"];
         $thread->save();
@@ -1148,9 +1149,6 @@ class ForumController extends \yii\rest\Controller
           }
         } // loop check filter status
 
-        if($is_valid == true)
-          $hasil[] = $temp;
-
         //ambil data view
         $type_action = -1;
         $temp["view"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
@@ -1204,7 +1202,7 @@ class ForumController extends \yii\rest\Controller
         } // loop check action
 
         if($is_valid == true)
-        $hasil[] = $temp;
+          $hasil[] = $temp;
       }
       else
       {
