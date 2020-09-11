@@ -147,7 +147,7 @@ class UserController extends \yii\rest\Controller
         foreach($list_kategori_user as $kategori_item)
         {
           $temp = [];
-          $temp["category"] = KmsKategori::fineOne($kategori_item["id_kategori"]);
+          $temp["category"] = KmsKategori::findOne($kategori_item["id_kategori"]);
           $temp["category_path"] = KmsKategori::CategoryPath($kategori_item["id_kategori"]);
 
           $categories[] = $temp;
