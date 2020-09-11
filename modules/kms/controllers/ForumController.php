@@ -169,6 +169,7 @@ class ForumController extends \yii\rest\Controller
 
 
 
+
   //  Membuat record question
   //
   //  Method : POST
@@ -194,7 +195,7 @@ class ForumController extends \yii\rest\Controller
   //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
-  public function actionCreate()
+  public function actionDraft()
   {
     $judul_valid = true;
     $body_valid = true;
@@ -234,9 +235,114 @@ class ForumController extends \yii\rest\Controller
         $tags[] = $temp;
       }
 
+      $thread = new ForumThread();
+      $thread['time_create'] = date("Y-m-j H:i:s");
+      $thread['id_user_create'] = $payload['id_user'];
+      $thread['id_kategori'] = $payload['id_kategori'];
+      $thread['status'] = $payload["status"];
+      $thread->save();
+      $id_thread = $thread->primaryKey;
+
+      $client = $this->SetupGuzzleClient();
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $this->UpdateTags($client, $jira_conf, $id_thread, null, $payload);
+
+      // ambil ulang tags atas thread ini. untuk menjadi response.
+      $tags = ForumThreadTag::find()
+        ->where(
+          "id_thread = :id_thread",
+          [
+            ":id_thread" => $id_thread
+          ]
+        )
+        ->all();
+
+      //$this->ActivityLog($id_artikel, 123, 1);
+      $this->ThreadLog($id_thread, $payload["id_user"], 1, -1);
+
+      // kembalikan response
+      return 
+      [
+        'status' => 'ok',
+        'pesan' => 'Record thread telah dibikin',
+        'result' => 
+        [
+          "artikel" => $thread,
+          "tags" => $tags,
+          "category_path" => KmsKategori::CategoryPath($thread["id_kategori"]),
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        'status' => 'not ok',
+        'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tags',
+      ];
+    }
+
+  }
+
+
+
+  //  Membuat record question
+  //
+  //  Method : POST
+  //  Request type: JSON
+  //  Request format:
+  //  {
+  //    "id_thread": 123,
+  //    "id_user_actor": 123
+  //  }
+  //  Response type: JSON
+  //  Response format:
+  //  {
+  //    "status": "",
+  //    "pesan": "",
+  //    "result": 
+  //    {
+  //      "thread": record_object,
+  //      "tags": [ <record_of_tag>, .. ]
+  //    }
+  //  }
+  public function actionCreate()
+  {
+    $id_thread_valid = true;
+    $judul_valid = true;
+    $body_valid = true;
+    $kategori_valid = true;
+    $tags_valid = true;
+    $status_valid = true;
+
+    // pastikan request parameter lengkap
+    $payload = $this->GetPayload();
+
+    if( isset($payload["id_thread"]) == false )
+      $id_thread_valid = false;
+
+    if( $id_thread_valid == true )
+    {
+      // ambil record thread
+      $thread = ForumThread::findOne($payload["id_thread"]);
+      $tag_list = ForumThreadTag::findAll(
+        "id_thread = :id", 
+        [":id" => $payload["id_thread"]]
+      );
+
+      // panggil POST /rest/api/content
+
+      $tags = [];
+      foreach($tag_list as $tag)
+      {
+        $temp = [];
+        $temp["name"] = $tag;
+
+        $tags[] = $temp;
+      }
+
       $request_payload = [
-        "title" => $payload["judul"],
-        "body" => $payload["body"],
+        "title" => $thread["judul"],
+        "body" => $thread["konten"],
         "topics" => $tags,
         "dateAsked" => date("Y-m-d"),
         "spaceKey" => "PS",
@@ -282,60 +388,10 @@ class ForumController extends \yii\rest\Controller
             $linked_id_question = $response_payload['id'];
 
 
-            // bikin record kms_artikel
-            $thread = new ForumThread();
+            // update linked_id_question pada record kms_artikel
             $thread['linked_id_question'] = $linked_id_question;
-            $thread['time_create'] = date("Y-m-j H:i:s");
-            $thread['id_user_create'] = $payload['id_user'];
-            $thread['id_kategori'] = $payload['id_kategori'];
-            $thread['status'] = $payload["status"];
             $thread->save();
             $id_thread = $thread->primaryKey;
-
-
-            // menyimpan informasi tags
-            $tags = array();
-            foreach( $payload["tags"] as $tag )
-            {
-              // cek apakah tag sudah ada di dalam tabel
-              $test = KmsTags::find()
-                ->where(
-                  "nama = :nama",
-                  [
-                    ":nama" => $tag
-                  ]
-                )
-                ->one();
-
-              // jika belum ada, insert new record
-              $id_tag = 0;
-              if( is_null($test) == false )
-              {
-                $id_tag = $test["id"];
-              }
-              else
-              {
-                $new = new KmsTags();
-                $new["nama"] = $tag;
-                $new["status"] = 1;
-                $new["id_user_create"] = 123;
-                $new["time_create"] = date("Y-m-j H:i:s");
-                $new->save();
-
-                $id_tag = $new->primaryKey;
-              }
-
-              // relate id_artikel dengan id_tag
-              $new = new ForumThreadTag();
-              $new["id_thread"] = $id_thread;
-              $new["id_tag"] = $id_tag;
-              $new->save();
-
-              $temp = [];
-              $temp["prefix"] = "global";
-              $temp["name"] = $tag["nama"];
-              $tags[] = $temp;
-            } // loop tags
 
             // ambil ulang tags atas thread ini. untuk menjadi response.
             $tags = ForumThreadTag::find()
@@ -348,7 +404,7 @@ class ForumController extends \yii\rest\Controller
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
-            $this->ThreadLog($id_thread, $payload["id_user"], 1, 0);
+            $this->ThreadLog($id_thread, $payload["id_user_actor"], 1, 0);
 
             // kembalikan response
             return 
@@ -809,7 +865,7 @@ class ForumController extends \yii\rest\Controller
         $id_tag = $new->primaryKey;
       }
 
-      // relate id_artikel dengan id_tag
+      // relate id_thread dengan id_tag
       $new = new ForumThreadTag();
       $new["id_thread"] = $id_thread;
       $new["id_tag"] = $id_tag;
@@ -1599,6 +1655,10 @@ class ForumController extends \yii\rest\Controller
       foreach($list_thread as $thread)
       {
         $user = User::findOne($thread["id_user_create"]);
+        $jawaban = ForumThreadDiscussion::findAll(
+          "id_thread = :id and is_delete = 0",
+          [":id" => $thread["id"]]
+        );
 
         $res = $client->request(
           'GET',
@@ -1635,12 +1695,13 @@ class ForumController extends \yii\rest\Controller
             $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
             $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             $temp["user_create"] = $user;
+            $temp['data_user']['user_create'] = $user->nama;
             $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
+            $temp["jawaban"]["count"] = count($jawaban);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_question"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["content"];
-            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
 
@@ -1750,13 +1811,13 @@ class ForumController extends \yii\rest\Controller
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
         ->where("id_thread = :id", [":id" => $payload["id_thread"]])
-        ->orderBy("time_create desc")
+        ->orderBy("time_create asc")
         ->all();
 
       $list_komentar = [];
       foreach($temp_list_komentar as $komentar_item)
       {
-        $use = User::findOne($komentar_item["id_user_create"]);
+        $user = User::findOne($komentar_item["id_user_create"]);
 
         $temp = [];
         $temp["record"] = $komentar_item;
@@ -1783,7 +1844,7 @@ class ForumController extends \yii\rest\Controller
       {
         $list_komentar_jawaban = ForumThreadDiscussionComment::find()
           ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
-          ->orderBy("time_create desc")
+          ->orderBy("time_create asc")
           ->all();
 
         $temp = [];
@@ -3952,6 +4013,7 @@ class ForumController extends \yii\rest\Controller
             {
               $response_payload = Json::decode($response_payload);
 
+              $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = $response_payload["body"]["content"];
