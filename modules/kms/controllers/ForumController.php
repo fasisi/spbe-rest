@@ -1984,12 +1984,22 @@ class ForumController extends \yii\rest\Controller
 
         // tulis log
         $this->ThreadLog($payload["id_thread"], $payload["id_user"], 2, $payload["action"]);
+        $thread = ForumThread::findOne($payload["id_thread"]);
+        $jawaban = ForumThreadDiscussion::findAll(
+          "id_thread = :id and is_delete = 0", 
+          [":id" => $payload["id_thread"]]
+        );
 
         // kembalikan response
         return [
           "status" => "ok",
           "pesan" => "Action saved. Log saved.",
-          "result" => $test
+          "result" => 
+          [
+            "forum_thread_user_action" => $test,
+            "forum_thread" => $thread,
+            "jumlah_jawaban" => count($jawaban),
+          ]
         ];
       }
       else
