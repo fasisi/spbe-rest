@@ -2461,7 +2461,8 @@ class ForumController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_kategori": [123, 124, ...]
+   *    "id_kategori": [123, 124, ...],
+   *    "id_user": 12
    *  }
    *  Response type: JSON
    *  Response format:
@@ -2511,19 +2512,45 @@ class ForumController extends \yii\rest\Controller
         $daftar_tag[] = $item["id"];
       }
 
+      // ambil daftar kategori yang melekat pada user
+      $my_categories = [];
+      $temp_where = [];
+      if( isset($payload["id_user"]) == true )
+      {
+        $test = User::findOne($payload["id_user"]);
+
+        if( is_null($test) == false )
+        {
+          $list_temp = KategoriUser::findAll(["id_user" => $payload["id_user"]]);
+
+          foreach($list_temp as $item)
+          {
+            $my_categories[] = $item["id_kategori"];
+          }
+
+          $temp_where = ["in", "t.id_kategori", $my_categories];
+        }
+      }
+
       // mengambil daftar thread terkait
       $q = new Query();
+      $where = [];
+      $where[] = "and";
+      $where[] = ["in", "atag.id_tag", $daftar_tag];
+      $where[] = "t.is_delete = 0";
+      $where[] = "t.status = 1";
+      $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
+
+      if( count($temo_where) > 0 )
+      {
+        $where[] = $temp_where;
+      }
+
       $daftar_thread = 
         $q->select("t.*")
           ->from("forum_thread t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
-          ->where([
-            "and",
-            ["in", "atag.id_tag", $daftar_tag],
-            "t.is_delete = 0",
-            "t.status = 1",
-            ["not", ["in", "t.id_kategori", $payload["id_kategori"]]]
-          ])
+          ->where($where)
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
@@ -2659,18 +2686,47 @@ class ForumController extends \yii\rest\Controller
         $daftar_tag[] = $item["id"];
       }
 
-      // mengambil daftar kategori terkait
+      // ambil daftar kategori yang melekat pada user
+      $my_categories = [];
+      $temp_where = [];
+      if( isset($payload["id_user"]) == true )
+      {
+        $test = User::findOne($payload["id_user"]);
+
+        if( is_null($test) == false )
+        {
+          $list_temp = KategoriUser::findAll(["id_user" => $payload["id_user"]]);
+
+          foreach($list_temp as $item)
+          {
+            $my_categories[] = $item["id_kategori"];
+          }
+
+          $temp_where = ["in", "t.id_kategori", $my_categories];
+        }
+      }
+
+
+      // mengambil daftar thread terkait
       $q = new Query();
+      $where = [];
+      $where[] = "and";
+      $where[] = ["in", "atag.id_tag", $daftar_tag];
+      $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
+
+      if( count($temo_where) > 0 )
+      {
+        $where[] = $temp_where;
+      }
+
+
+      // mengambil daftar kategori terkait
       $hasil = 
         $q->select("k.*")
           ->from("kms_kategori k")
-          ->join("JOIN", "forum_thread f", "f.id_kategori = k.id")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = f.id")
-          ->where([
-            "and",
-            ["in", "atag.id_tag", $daftar_tag],
-            ["not", ["in", "f.id_kategori", $payload["id_kategori"]]]
-          ])
+          ->join("JOIN", "forum_thread t", "t.id_kategori = k.id")
+          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
+          ->where($where)
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
