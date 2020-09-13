@@ -959,45 +959,67 @@ class ForumController extends \yii\rest\Controller
     Yii::info("filter = " . print_r($payload["filter"], true));
 
     $where[] = "and";
-    foreach( $payload["filter"] as $key => $value )
-    {
-      switch(true)
-      {
-        case $key == "tanggal_awal":
-          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
-          $where[] = "l.time_action >= '$value'";
-        break;
 
-        case $key == "tanggal_akhir":
-          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
-          $where[] = "l.time_action <= '$value'";
-        break;
+    // tanggal awal dan tanggal akhir
+        $value_awal = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
+        $value_akhir = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
+        $where[] = [
+          "or", 
+          ["and", "l.time_action >= '$value_awal'", "l.time_action <= '$value_akhir'"],
+          ["and", "l.time_status >= '$value_awal'", "l.time_status <= '$value_akhir'"],
+        ];
+    // tanggal awal dan tanggal akhir
+       
 
-        case $key == "actions":
+
+    // actions and status =====================================================
+        $temp_where = [];
+        if( count($payload["filter"]["status"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $type_action )
+          foreach( $payload["filter"]["status"] as $type_status )
           {
-            $temp[] = $type_action["action"];
+            $temp[] = $type_status;
           }
-          $where[] = ["in", "l.action", $temp];
-        break;
 
-        case $key == "id_kategori":
-          $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
+          $temp_where[] = ["in", "l.status", $temp];
+        }
 
+        if( count($payload["filter"]["actions"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $id_kategori )
+          foreach( $payload["filter"]["actions"] as $type_actions )
           {
-            $temp[] = $id_kategori;
+            $temp[] = $type_actions["action"];
           }
-          $where[] = ["in", "t2.id_kategori", $temp];
-        break;
 
-        case $key == "id_thread":
-          $where[] = "l.id_thread = " . $value;
-        break;
-      }// switch filter key
-    } //loop keys in filter
+          $temp_where[] = ["in", "l.action", $temp];
+        }
+
+        if( count($temp_where) > 0 )
+        {
+          if( count($temp_where) == 1 )
+          {
+            /* $where[] = $temp_where[0]; */
+          }
+          else
+          {
+            /* $where[] = ["or", $temp_where[0], $temp_where[1]]; */
+          }
+        }
+    // actions and status =====================================================
+
+
+    // id_kategori
+        $temp = [];
+        $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
+        foreach( $payload["filter"]["id_kategori"] as $id_kategori )
+        {
+          $temp[] = $id_kategori;
+        }
+        $where[] = ["in", "t2.id_kategori", $temp];
+    // id_kategori
+
 
     $q->where($where);
 
@@ -1204,58 +1226,6 @@ class ForumController extends \yii\rest\Controller
             break;
           }
         } // loop check filter status
-
-        //ambil data view
-        $type_action = -1;
-        $temp["view"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-        
-        //ambil data like
-        $type_action = 1;
-        $temp["like"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        //ambil data dislike
-        $type_action = 2;
-        $temp["dislike"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        $is_valid = true;
-        foreach($payload["filter"]["actions"] as $action)
-        {
-          switch(true)
-          {
-          case $action["action"] == -1:
-            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 1:
-            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 2:
-            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-          }
-        } // loop check action
 
         if($is_valid == true)
           $hasil[] = $temp;
@@ -1656,8 +1626,7 @@ class ForumController extends \yii\rest\Controller
       {
         $user = User::findOne($thread["id_user_create"]);
         $jawaban = ForumThreadDiscussion::findAll(
-          "id_thread = :id and is_delete = 0",
-          [":id" => $thread["id"]]
+          ["id_thread" => $thread["id"], "is_delete" => 0]
         );
 
         $res = $client->request(
@@ -1696,7 +1665,7 @@ class ForumController extends \yii\rest\Controller
             $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             $temp["user_create"] = $user;
             $temp['data_user']['user_create'] = $user->nama;
-            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
+            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
             $temp["jawaban"]["count"] = count($jawaban);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_question"] = $response_payload["id"];
@@ -2968,7 +2937,7 @@ class ForumController extends \yii\rest\Controller
 
       $q = new Query();
       $thread_status = 
-        $q->select("log.status, count(t.id) as jumlah")
+        $q->select("log.status, t.id")
           ->from("forum_thread t")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_thread = t.id")
           ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
@@ -2977,7 +2946,7 @@ class ForumController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, t.id")
           ->all();
 
       // ambil jumlah thread per action (like/dislike)
@@ -3039,7 +3008,7 @@ class ForumController extends \yii\rest\Controller
 
       $q = new Query();
       $user_status = 
-        $q->select("log.status, count(u.id) as jumlah")
+        $q->select("log.status, u.id")
           ->from("user u")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "forum_thread t", "log.id_thread = t.id")
@@ -3049,7 +3018,7 @@ class ForumController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, u.id")
           ->all();
 
       // ambil jumlah thread per action (like/dislike)
@@ -3080,28 +3049,33 @@ class ForumController extends \yii\rest\Controller
       $temp["total"]["thread"] = $total_thread;
       $temp["total"]["user"] = $total_user;
 
+      $temp["new"]["thread"] = 0;
+      $temp["publish"]["thread"] = 0;
+      $temp["unpublish"]["thread"] = 0;
+      $temp["reject"]["thread"] = 0;
+      $temp["freeze"]["thread"] = 0;
       foreach($thread_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["thread"] = $record["jumlah"];
+            $temp["new"]["thread"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["thread"] = $record["jumlah"];
+            $temp["publish"]["thread"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["thread"] = $record["jumlah"];
+            $temp["unpublish"]["thread"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["thread"] = $record["jumlah"];
+            $temp["reject"]["thread"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["thread"] = $record["jumlah"];
+            $temp["freeze"]["thread"]++;
             break;
         }
       }
@@ -3132,28 +3106,33 @@ class ForumController extends \yii\rest\Controller
         }
       }
 
+      $temp["new"]["user"] = 0;
+      $temp["publish"]["user"] = 0;
+      $temp["unpublish"]["user"] = 0;
+      $temp["reject"]["user"] = 0;
+      $temp["freeze"]["user"] = 0;
       foreach($user_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["user"] = $record["jumlah"];
+            $temp["new"]["user"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["user"] = $record["jumlah"];
+            $temp["publish"]["user"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["user"] = $record["jumlah"];
+            $temp["unpublish"]["user"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["user"] = $record["jumlah"];
+            $temp["reject"]["user"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["user"] = $record["jumlah"];
+            $temp["freeze"]["user"]++;
             break;
         }
       }
