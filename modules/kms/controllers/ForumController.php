@@ -18,6 +18,7 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
+use app\models\KategoriUser;
 
 use Carbon\Carbon;
 
@@ -236,6 +237,9 @@ class ForumController extends \yii\rest\Controller
       }
 
       $thread = new ForumThread();
+      $thread["judul"] = $payload["judul"];
+      $thread["konten"] = $payload["body"];
+      $thread["linked_id_question"] = -1;
       $thread['time_create'] = date("Y-m-j H:i:s");
       $thread['id_user_create'] = $payload['id_user'];
       $thread['id_kategori'] = $payload['id_kategori'];
@@ -277,7 +281,8 @@ class ForumController extends \yii\rest\Controller
     {
       return [
         'status' => 'not ok',
-        'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tags',
+        'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, body, id_kategori, tags',
+        'request_payload' => $payload
       ];
     }
 
@@ -325,17 +330,17 @@ class ForumController extends \yii\rest\Controller
       // ambil record thread
       $thread = ForumThread::findOne($payload["id_thread"]);
       $tag_list = ForumThreadTag::findAll(
-        "id_thread = :id", 
-        [":id" => $payload["id_thread"]]
+        ["id_thread" => $payload["id_thread"]]
       );
 
       // panggil POST /rest/api/content
 
       $tags = [];
-      foreach($tag_list as $tag)
+      foreach($tag_list as $tag_item)
       {
+        $tag = KmsTags::findOne($tag_item["id_tag"]);
         $temp = [];
-        $temp["name"] = $tag;
+        $temp["name"] = $tag["nama"];
 
         $tags[] = $temp;
       }
@@ -390,6 +395,9 @@ class ForumController extends \yii\rest\Controller
 
             // update linked_id_question pada record kms_artikel
             $thread['linked_id_question'] = $linked_id_question;
+            $thread['status'] = 0;
+            $thread['id_user_update'] = $payload["id_user_actor"];
+            $thread['time_update'] = date("Y-m-d H:i:s");
             $thread->save();
             $id_thread = $thread->primaryKey;
 
@@ -427,6 +435,7 @@ class ForumController extends \yii\rest\Controller
               'pesan' => 'REST API request failed: ' . $res->getBody(),
               'result' => $thread,
               'payload' => $payload,
+              'request_payload' => $request_payload,
             ];
             break;
         }
@@ -595,7 +604,7 @@ class ForumController extends \yii\rest\Controller
       // update record forum_thread
       $thread = ForumThread::findOne($payload["id"]);
 
-      if( $thread["status"] == 0 ) // hanya draft yang dapat di-edit
+      if( $thread["status"] == -1 ) // hanya draft yang dapat di-edit
       {
         $thread["judul"] = $payload["judul"];
         $thread["konten"] = $payload["body"];
@@ -623,7 +632,7 @@ class ForumController extends \yii\rest\Controller
 
 
         // kembalikan response
-            $tags = ForumThreadTag::findAll("id_thread = {$thread["id"]}");
+            $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
 
             return 
             [
@@ -2541,7 +2550,7 @@ class ForumController extends \yii\rest\Controller
       $where[] = "t.status = 1";
       $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
 
-      if( count($temo_where) > 0 )
+      if( count($temp_where) > 0 )
       {
         $where[] = $temp_where;
       }
@@ -2669,23 +2678,6 @@ class ForumController extends \yii\rest\Controller
 
     if( $is_id_kategori_valid == true )
     {
-      // ambil daftar tags yang berasal dari id_kategori
-      $q  = new Query();
-      $temp_daftar_tag = 
-        $q->select("t.*")
-          ->from("kms_tags t")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
-          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
-          ->where(["in", "f.id_kategori", $payload["id_kategori"]])
-          ->distinct()
-          ->all();
-
-      $daftar_tag = [];
-      foreach($temp_daftar_tag as $item)
-      {
-        $daftar_tag[] = $item["id"];
-      }
-
       // ambil daftar kategori yang melekat pada user
       $my_categories = [];
       $temp_where = [];
@@ -2706,15 +2698,39 @@ class ForumController extends \yii\rest\Controller
         }
       }
 
+      // ambil daftar tags yang berasal dari id_kategori
+      $q  = new Query();
+      $temp_daftar_tag = 
+        $q->select("t.*")
+          ->from("kms_tags t")
+          ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
+          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
+          ->where([
+            "and",
+            "f.status = 1",
+            "f.is_delete = 0",
+            ["in", "f.id_kategori", $payload["id_kategori"]]
+          ])
+          ->distinct()
+          ->all();
+
+      $daftar_tag = [];
+      foreach($temp_daftar_tag as $item)
+      {
+        $daftar_tag[] = $item["id"];
+      }
+
 
       // mengambil daftar thread terkait
       $q = new Query();
       $where = [];
       $where[] = "and";
+      $where[] = "t.status = 1";
+      $where[] = "t.is_delete = 0";
       $where[] = ["in", "atag.id_tag", $daftar_tag];
       $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
 
-      if( count($temo_where) > 0 )
+      if( count($temp_where) > 0 )
       {
         $where[] = $temp_where;
       }
