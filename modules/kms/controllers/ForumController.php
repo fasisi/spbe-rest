@@ -18,6 +18,7 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
+use app\models\KategoriUser;
 
 use Carbon\Carbon;
 
@@ -169,6 +170,7 @@ class ForumController extends \yii\rest\Controller
 
 
 
+
   //  Membuat record question
   //
   //  Method : POST
@@ -194,7 +196,7 @@ class ForumController extends \yii\rest\Controller
   //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
-  public function actionCreate()
+  public function actionDraft()
   {
     $judul_valid = true;
     $body_valid = true;
@@ -234,9 +236,118 @@ class ForumController extends \yii\rest\Controller
         $tags[] = $temp;
       }
 
+      $thread = new ForumThread();
+      $thread["judul"] = $payload["judul"];
+      $thread["konten"] = $payload["body"];
+      $thread["linked_id_question"] = -1;
+      $thread['time_create'] = date("Y-m-j H:i:s");
+      $thread['id_user_create'] = $payload['id_user'];
+      $thread['id_kategori'] = $payload['id_kategori'];
+      $thread['status'] = $payload["status"];
+      $thread->save();
+      $id_thread = $thread->primaryKey;
+
+      $client = $this->SetupGuzzleClient();
+      $jira_conf = Yii::$app->restconf->confs['confluence'];
+      $this->UpdateTags($client, $jira_conf, $id_thread, null, $payload);
+
+      // ambil ulang tags atas thread ini. untuk menjadi response.
+      $tags = ForumThreadTag::find()
+        ->where(
+          "id_thread = :id_thread",
+          [
+            ":id_thread" => $id_thread
+          ]
+        )
+        ->all();
+
+      //$this->ActivityLog($id_artikel, 123, 1);
+      $this->ThreadLog($id_thread, $payload["id_user"], 1, -1);
+
+      // kembalikan response
+      return 
+      [
+        'status' => 'ok',
+        'pesan' => 'Record thread telah dibikin',
+        'result' => 
+        [
+          "artikel" => $thread,
+          "tags" => $tags,
+          "category_path" => KmsKategori::CategoryPath($thread["id_kategori"]),
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        'status' => 'not ok',
+        'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, body, id_kategori, tags',
+        'request_payload' => $payload
+      ];
+    }
+
+  }
+
+
+
+  //  Membuat record question
+  //
+  //  Method : POST
+  //  Request type: JSON
+  //  Request format:
+  //  {
+  //    "id_thread": 123,
+  //    "id_user_actor": 123
+  //  }
+  //  Response type: JSON
+  //  Response format:
+  //  {
+  //    "status": "",
+  //    "pesan": "",
+  //    "result": 
+  //    {
+  //      "thread": record_object,
+  //      "tags": [ <record_of_tag>, .. ]
+  //    }
+  //  }
+  public function actionCreate()
+  {
+    $id_thread_valid = true;
+    $judul_valid = true;
+    $body_valid = true;
+    $kategori_valid = true;
+    $tags_valid = true;
+    $status_valid = true;
+
+    // pastikan request parameter lengkap
+    $payload = $this->GetPayload();
+
+    if( isset($payload["id_thread"]) == false )
+      $id_thread_valid = false;
+
+    if( $id_thread_valid == true )
+    {
+      // ambil record thread
+      $thread = ForumThread::findOne($payload["id_thread"]);
+      $tag_list = ForumThreadTag::findAll(
+        ["id_thread" => $payload["id_thread"]]
+      );
+
+      // panggil POST /rest/api/content
+
+      $tags = [];
+      foreach($tag_list as $tag_item)
+      {
+        $tag = KmsTags::findOne($tag_item["id_tag"]);
+        $temp = [];
+        $temp["name"] = $tag["nama"];
+
+        $tags[] = $temp;
+      }
+
       $request_payload = [
-        "title" => $payload["judul"],
-        "body" => $payload["body"],
+        "title" => $thread["judul"],
+        "body" => $thread["konten"],
         "topics" => $tags,
         "dateAsked" => date("Y-m-d"),
         "spaceKey" => "PS",
@@ -282,60 +393,13 @@ class ForumController extends \yii\rest\Controller
             $linked_id_question = $response_payload['id'];
 
 
-            // bikin record kms_artikel
-            $thread = new ForumThread();
+            // update linked_id_question pada record kms_artikel
             $thread['linked_id_question'] = $linked_id_question;
-            $thread['time_create'] = date("Y-m-j H:i:s");
-            $thread['id_user_create'] = $payload['id_user'];
-            $thread['id_kategori'] = $payload['id_kategori'];
-            $thread['status'] = $payload["status"];
+            $thread['status'] = 0;
+            $thread['id_user_update'] = $payload["id_user_actor"];
+            $thread['time_update'] = date("Y-m-d H:i:s");
             $thread->save();
             $id_thread = $thread->primaryKey;
-
-
-            // menyimpan informasi tags
-            $tags = array();
-            foreach( $payload["tags"] as $tag )
-            {
-              // cek apakah tag sudah ada di dalam tabel
-              $test = KmsTags::find()
-                ->where(
-                  "nama = :nama",
-                  [
-                    ":nama" => $tag
-                  ]
-                )
-                ->one();
-
-              // jika belum ada, insert new record
-              $id_tag = 0;
-              if( is_null($test) == false )
-              {
-                $id_tag = $test["id"];
-              }
-              else
-              {
-                $new = new KmsTags();
-                $new["nama"] = $tag;
-                $new["status"] = 1;
-                $new["id_user_create"] = 123;
-                $new["time_create"] = date("Y-m-j H:i:s");
-                $new->save();
-
-                $id_tag = $new->primaryKey;
-              }
-
-              // relate id_artikel dengan id_tag
-              $new = new ForumThreadTag();
-              $new["id_thread"] = $id_thread;
-              $new["id_tag"] = $id_tag;
-              $new->save();
-
-              $temp = [];
-              $temp["prefix"] = "global";
-              $temp["name"] = $tag["nama"];
-              $tags[] = $temp;
-            } // loop tags
 
             // ambil ulang tags atas thread ini. untuk menjadi response.
             $tags = ForumThreadTag::find()
@@ -348,7 +412,7 @@ class ForumController extends \yii\rest\Controller
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
-            $this->ThreadLog($id_thread, $payload["id_user"], 1, 0);
+            $this->ThreadLog($id_thread, $payload["id_user_actor"], 1, 0);
 
             // kembalikan response
             return 
@@ -371,6 +435,7 @@ class ForumController extends \yii\rest\Controller
               'pesan' => 'REST API request failed: ' . $res->getBody(),
               'result' => $thread,
               'payload' => $payload,
+              'request_payload' => $request_payload,
             ];
             break;
         }
@@ -539,7 +604,7 @@ class ForumController extends \yii\rest\Controller
       // update record forum_thread
       $thread = ForumThread::findOne($payload["id"]);
 
-      if( $thread["status"] == 0 ) // hanya draft yang dapat di-edit
+      if( $thread["status"] == -1 ) // hanya draft yang dapat di-edit
       {
         $thread["judul"] = $payload["judul"];
         $thread["konten"] = $payload["body"];
@@ -567,7 +632,7 @@ class ForumController extends \yii\rest\Controller
 
 
         // kembalikan response
-            $tags = ForumThreadTag::findAll("id_thread = {$thread["id"]}");
+            $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
 
             return 
             [
@@ -809,7 +874,7 @@ class ForumController extends \yii\rest\Controller
         $id_tag = $new->primaryKey;
       }
 
-      // relate id_artikel dengan id_tag
+      // relate id_thread dengan id_tag
       $new = new ForumThreadTag();
       $new["id_thread"] = $id_thread;
       $new["id_tag"] = $id_tag;
@@ -903,45 +968,67 @@ class ForumController extends \yii\rest\Controller
     Yii::info("filter = " . print_r($payload["filter"], true));
 
     $where[] = "and";
-    foreach( $payload["filter"] as $key => $value )
-    {
-      switch(true)
-      {
-        case $key == "tanggal_awal":
-          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
-          $where[] = "l.time_action >= '$value'";
-        break;
 
-        case $key == "tanggal_akhir":
-          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
-          $where[] = "l.time_action <= '$value'";
-        break;
+    // tanggal awal dan tanggal akhir
+        $value_awal = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
+        $value_akhir = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
+        $where[] = [
+          "or", 
+          ["and", "l.time_action >= '$value_awal'", "l.time_action <= '$value_akhir'"],
+          ["and", "l.time_status >= '$value_awal'", "l.time_status <= '$value_akhir'"],
+        ];
+    // tanggal awal dan tanggal akhir
+       
 
-        case $key == "actions":
+
+    // actions and status =====================================================
+        $temp_where = [];
+        if( count($payload["filter"]["status"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $type_action )
+          foreach( $payload["filter"]["status"] as $type_status )
           {
-            $temp[] = $type_action["action"];
+            $temp[] = $type_status;
           }
-          $where[] = ["in", "l.action", $temp];
-        break;
 
-        case $key == "id_kategori":
-          $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
+          $temp_where[] = ["in", "l.status", $temp];
+        }
 
+        if( count($payload["filter"]["actions"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $id_kategori )
+          foreach( $payload["filter"]["actions"] as $type_actions )
           {
-            $temp[] = $id_kategori;
+            $temp[] = $type_actions["action"];
           }
-          $where[] = ["in", "t2.id_kategori", $temp];
-        break;
 
-        case $key == "id_thread":
-          $where[] = "l.id_thread = " . $value;
-        break;
-      }// switch filter key
-    } //loop keys in filter
+          $temp_where[] = ["in", "l.action", $temp];
+        }
+
+        if( count($temp_where) > 0 )
+        {
+          if( count($temp_where) == 1 )
+          {
+            /* $where[] = $temp_where[0]; */
+          }
+          else
+          {
+            /* $where[] = ["or", $temp_where[0], $temp_where[1]]; */
+          }
+        }
+    // actions and status =====================================================
+
+
+    // id_kategori
+        $temp = [];
+        $q->join("join", "forum_thread t2", "t2.id = l.id_thread");
+        foreach( $payload["filter"]["id_kategori"] as $id_kategori )
+        {
+          $temp[] = $id_kategori;
+        }
+        $where[] = ["in", "t2.id_kategori", $temp];
+    // id_kategori
+
 
     $q->where($where);
 
@@ -1148,58 +1235,6 @@ class ForumController extends \yii\rest\Controller
             break;
           }
         } // loop check filter status
-
-        //ambil data view
-        $type_action = -1;
-        $temp["view"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-        
-        //ambil data like
-        $type_action = 1;
-        $temp["like"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        //ambil data dislike
-        $type_action = 2;
-        $temp["dislike"] = ForumThread::ActionByUserInRange($user["id"], $type_action, $tanggal_awal, $tanggal_akhir);
-
-        $is_valid = true;
-        foreach($payload["filter"]["actions"] as $action)
-        {
-          switch(true)
-          {
-          case $action["action"] == -1:
-            if($action["min"] <= $temp["new"] && $action["max"] >= $temp["new"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 1:
-            if($action["min"] <= $temp["like"] && $action["max"] >= $temp["like"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-
-          case $action["action"] == 2:
-            if($action["min"] <= $temp["dislike"] && $action["max"] >= $temp["dislike"])
-            {
-              $is_valid = $is_valid && true;
-            }
-            else
-            {
-              $is_valid = $is_valid && false;
-            }
-            break;
-          }
-        } // loop check action
 
         if($is_valid == true)
           $hasil[] = $temp;
@@ -1599,6 +1634,9 @@ class ForumController extends \yii\rest\Controller
       foreach($list_thread as $thread)
       {
         $user = User::findOne($thread["id_user_create"]);
+        $jawaban = ForumThreadDiscussion::findAll(
+          ["id_thread" => $thread["id"], "is_delete" => 0]
+        );
 
         $res = $client->request(
           'GET',
@@ -1635,12 +1673,13 @@ class ForumController extends \yii\rest\Controller
             $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
             $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             $temp["user_create"] = $user;
-            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
+            $temp['data_user']['user_create'] = $user->nama;
+            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
+            $temp["jawaban"]["count"] = count($jawaban);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_question"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["content"];
-            $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
 
@@ -1750,13 +1789,13 @@ class ForumController extends \yii\rest\Controller
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
         ->where("id_thread = :id", [":id" => $payload["id_thread"]])
-        ->orderBy("time_create desc")
+        ->orderBy("time_create asc")
         ->all();
 
       $list_komentar = [];
       foreach($temp_list_komentar as $komentar_item)
       {
-        $use = User::findOne($komentar_item["id_user_create"]);
+        $user = User::findOne($komentar_item["id_user_create"]);
 
         $temp = [];
         $temp["record"] = $komentar_item;
@@ -1783,7 +1822,7 @@ class ForumController extends \yii\rest\Controller
       {
         $list_komentar_jawaban = ForumThreadDiscussionComment::find()
           ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
-          ->orderBy("time_create desc")
+          ->orderBy("time_create asc")
           ->all();
 
         $temp = [];
@@ -2431,7 +2470,8 @@ class ForumController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_kategori": [123, 124, ...]
+   *    "id_kategori": [123, 124, ...],
+   *    "id_user": 12
    *  }
    *  Response type: JSON
    *  Response format:
@@ -2481,19 +2521,45 @@ class ForumController extends \yii\rest\Controller
         $daftar_tag[] = $item["id"];
       }
 
+      // ambil daftar kategori yang melekat pada user
+      $my_categories = [];
+      $temp_where = [];
+      if( isset($payload["id_user"]) == true )
+      {
+        $test = User::findOne($payload["id_user"]);
+
+        if( is_null($test) == false )
+        {
+          $list_temp = KategoriUser::findAll(["id_user" => $payload["id_user"]]);
+
+          foreach($list_temp as $item)
+          {
+            $my_categories[] = $item["id_kategori"];
+          }
+
+          $temp_where = ["in", "t.id_kategori", $my_categories];
+        }
+      }
+
       // mengambil daftar thread terkait
       $q = new Query();
+      $where = [];
+      $where[] = "and";
+      $where[] = ["in", "atag.id_tag", $daftar_tag];
+      $where[] = "t.is_delete = 0";
+      $where[] = "t.status = 1";
+      $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
+
+      if( count($temp_where) > 0 )
+      {
+        $where[] = $temp_where;
+      }
+
       $daftar_thread = 
         $q->select("t.*")
           ->from("forum_thread t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
-          ->where([
-            "and",
-            ["in", "atag.id_tag", $daftar_tag],
-            "t.is_delete = 0",
-            "t.status = 1",
-            ["not", ["in", "t.id_kategori", $payload["id_kategori"]]]
-          ])
+          ->where($where)
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
@@ -2612,6 +2678,26 @@ class ForumController extends \yii\rest\Controller
 
     if( $is_id_kategori_valid == true )
     {
+      // ambil daftar kategori yang melekat pada user
+      $my_categories = [];
+      $temp_where = [];
+      if( isset($payload["id_user"]) == true )
+      {
+        $test = User::findOne($payload["id_user"]);
+
+        if( is_null($test) == false )
+        {
+          $list_temp = KategoriUser::findAll(["id_user" => $payload["id_user"]]);
+
+          foreach($list_temp as $item)
+          {
+            $my_categories[] = $item["id_kategori"];
+          }
+
+          $temp_where = ["in", "t.id_kategori", $my_categories];
+        }
+      }
+
       // ambil daftar tags yang berasal dari id_kategori
       $q  = new Query();
       $temp_daftar_tag = 
@@ -2619,7 +2705,12 @@ class ForumController extends \yii\rest\Controller
           ->from("kms_tags t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
           ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
-          ->where(["in", "f.id_kategori", $payload["id_kategori"]])
+          ->where([
+            "and",
+            "f.status = 1",
+            "f.is_delete = 0",
+            ["in", "f.id_kategori", $payload["id_kategori"]]
+          ])
           ->distinct()
           ->all();
 
@@ -2629,18 +2720,29 @@ class ForumController extends \yii\rest\Controller
         $daftar_tag[] = $item["id"];
       }
 
-      // mengambil daftar kategori terkait
+
+      // mengambil daftar thread terkait
       $q = new Query();
+      $where = [];
+      $where[] = "and";
+      $where[] = "t.status = 1";
+      $where[] = "t.is_delete = 0";
+      $where[] = ["in", "atag.id_tag", $daftar_tag];
+      $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
+
+      if( count($temp_where) > 0 )
+      {
+        $where[] = $temp_where;
+      }
+
+
+      // mengambil daftar kategori terkait
       $hasil = 
         $q->select("k.*")
           ->from("kms_kategori k")
-          ->join("JOIN", "forum_thread f", "f.id_kategori = k.id")
-          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = f.id")
-          ->where([
-            "and",
-            ["in", "atag.id_tag", $daftar_tag],
-            ["not", ["in", "f.id_kategori", $payload["id_kategori"]]]
-          ])
+          ->join("JOIN", "forum_thread t", "t.id_kategori = k.id")
+          ->join("JOIN", "forum_thread_tag atag", "atag.id_thread = t.id")
+          ->where($where)
           ->distinct()
           ->orderBy("time_create desc")
           ->limit(10)
@@ -2907,7 +3009,7 @@ class ForumController extends \yii\rest\Controller
 
       $q = new Query();
       $thread_status = 
-        $q->select("log.status, count(t.id) as jumlah")
+        $q->select("log.status, t.id")
           ->from("forum_thread t")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_thread = t.id")
           ->andWhere("t.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
@@ -2916,7 +3018,7 @@ class ForumController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, t.id")
           ->all();
 
       // ambil jumlah thread per action (like/dislike)
@@ -2978,7 +3080,7 @@ class ForumController extends \yii\rest\Controller
 
       $q = new Query();
       $user_status = 
-        $q->select("log.status, count(u.id) as jumlah")
+        $q->select("log.status, u.id")
           ->from("user u")
           ->join("JOIN", "forum_thread_activity_log log", "log.id_user = u.id")
           ->join("JOIN", "forum_thread t", "log.id_thread = t.id")
@@ -2988,7 +3090,7 @@ class ForumController extends \yii\rest\Controller
           ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)])
           ->distinct()
           ->orderBy("log.status asc")
-          ->groupBy("log.status")
+          ->groupBy("log.status, u.id")
           ->all();
 
       // ambil jumlah thread per action (like/dislike)
@@ -3019,28 +3121,33 @@ class ForumController extends \yii\rest\Controller
       $temp["total"]["thread"] = $total_thread;
       $temp["total"]["user"] = $total_user;
 
+      $temp["new"]["thread"] = 0;
+      $temp["publish"]["thread"] = 0;
+      $temp["unpublish"]["thread"] = 0;
+      $temp["reject"]["thread"] = 0;
+      $temp["freeze"]["thread"] = 0;
       foreach($thread_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["thread"] = $record["jumlah"];
+            $temp["new"]["thread"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["thread"] = $record["jumlah"];
+            $temp["publish"]["thread"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["thread"] = $record["jumlah"];
+            $temp["unpublish"]["thread"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["thread"] = $record["jumlah"];
+            $temp["reject"]["thread"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["thread"] = $record["jumlah"];
+            $temp["freeze"]["thread"]++;
             break;
         }
       }
@@ -3071,28 +3178,33 @@ class ForumController extends \yii\rest\Controller
         }
       }
 
+      $temp["new"]["user"] = 0;
+      $temp["publish"]["user"] = 0;
+      $temp["unpublish"]["user"] = 0;
+      $temp["reject"]["user"] = 0;
+      $temp["freeze"]["user"] = 0;
       foreach($user_status as $record)
       {
         switch( $record["status"] )
         {
           case 0: //new
-            $temp["new"]["user"] = $record["jumlah"];
+            $temp["new"]["user"]++;
             break;
 
           case 1: //publish
-            $temp["publish"]["user"] = $record["jumlah"];
+            $temp["publish"]["user"]++;
             break;
 
           case 2: //unpublish
-            $temp["unpublish"]["user"] = $record["jumlah"];
+            $temp["unpublish"]["user"]++;
             break;
 
           case 3: //reject
-            $temp["reject"]["user"] = $record["jumlah"];
+            $temp["reject"]["user"]++;
             break;
 
           case 4: //freeze
-            $temp["freeze"]["user"] = $record["jumlah"];
+            $temp["freeze"]["user"]++;
             break;
         }
       }
@@ -3952,6 +4064,7 @@ class ForumController extends \yii\rest\Controller
             {
               $response_payload = Json::decode($response_payload);
 
+              $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = $response_payload["body"]["content"];
