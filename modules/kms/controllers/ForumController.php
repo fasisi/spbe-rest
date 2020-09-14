@@ -1791,7 +1791,7 @@ class ForumController extends \yii\rest\Controller
 
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
-        ->where("id_thread = :id", [":id" => $payload["id_thread"]])
+        ->where("id_thread = :id and is_delete = 0", [":id" => $payload["id_thread"]])
         ->orderBy("time_create asc")
         ->all();
 
@@ -1875,41 +1875,39 @@ class ForumController extends \yii\rest\Controller
       );
 
       //  kembalikan hasilnya
+
+
+      $hasil = [];
+      $hasil["record"]["forum_thread"] = $thread;
+      $hasil["record"]["thread_comments"] = $list_komentar;
+      $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+      $hasil["record"]["user_create"] = $user;
+      $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
+      $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+      $hasil["jawaban"]["count"] = count($jawaban);
+      $hasil["jawaban"]["records"] = $jawaban;
+
       switch( $res->getStatusCode() )
       {
-      case 200:
-        // ambil id dari result
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          // ambil id dari result
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
-        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "ok";
-        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
-        $hasil["jawaban"]["count"] = count($jawaban);
-        $hasil["jawaban"]["records"] = $jawaban;
+          $hasil["record"]["confluence"]["status"] = "ok";
+          $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
+          $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
 
-        $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
-        break;
+          $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
+          break;
 
-      default:
-        // kembalikan response
-        $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
-        $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "not ok";
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
-        break;
+        default:
+          // kembalikan response
+          $hasil["record"]["confluence"]["status"] = "not ok";
+          $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+          break;
       }
 
       return [
@@ -4068,7 +4066,6 @@ class ForumController extends \yii\rest\Controller
           $file_name = $file->baseName . "-" . $time_hash . "." . $file->extension;
 
           ini_set("display_errors", 1);
-          ini_set("memory_limit", "1000MB");
           error_reporting(E_ALL);
 
           if($file->saveAs($path . $file_name) == true)
