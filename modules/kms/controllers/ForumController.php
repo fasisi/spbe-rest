@@ -1749,7 +1749,7 @@ class ForumController extends \yii\rest\Controller
 
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
-        ->where("id_thread = :id", [":id" => $payload["id_thread"]])
+        ->where("id_thread = :id and is_delete = 0", [":id" => $payload["id_thread"]])
         ->orderBy("time_create desc")
         ->all();
 
