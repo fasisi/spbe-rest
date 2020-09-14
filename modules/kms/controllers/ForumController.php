@@ -6,6 +6,7 @@ use Yii;
 use yii\base;
 use yii\helpers\Json;
 use yii\db\Query;
+use yii\web\UploadedFile;
 
 use app\models\ForumThread;
 use app\models\ForumThreadActivityLog;
@@ -16,11 +17,13 @@ use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
 use app\models\KmsTags;
 use app\models\ForumTags;
+use app\models\ForumFiles;
 use app\models\User;
 use app\models\KmsKategori;
 use app\models\KategoriUser;
 
 use Carbon\Carbon;
+use WideImage\WideImage;
 
 class ForumController extends \yii\rest\Controller
 {
@@ -3987,6 +3990,164 @@ class ForumController extends \yii\rest\Controller
     }
   }
   ///
+
+  /*
+   * Membuat, mengupdate, menghapus attachment dari thread
+   * Harus merupakan multipart request. Siapkan parameter dengan nama 'file'
+   * untuk menyimpan data byte dari file yang dikirim.
+   *
+   * Method: POST
+   * Request type: JSON,
+   * Request format:
+   * {
+   *   "id_user_actor": 123
+   * }
+   * Reponse type: JSON
+   * Reponse format:
+   * {
+   *   "status": "ok/ not ok",
+   *   "pesan": "",
+   *   "result": { object of record attachment }
+   * }
+   *
+   * Method: PUT
+   * Request type: JSON
+   * Request format:
+   * {
+   *   "id_file": 123,
+   *   "id_user_actor": 123
+   * }
+   * Response type: JSON,
+   * Response format:
+   * {
+   *   "status": "ok/not ok",
+   *   "pesan": "",
+   *   "result": { object of attachment record }
+   * }
+   *
+   * Method: DELETE
+   * Request type: JSON
+   * Request format:
+   * {
+   *   "id_file": 123,
+   *   "id_user_actor": 123
+   * }
+   * Response type: JSON,
+   * Response format:
+   * {
+   *   "status": "ok/not ok",
+   *   "pesan": "",
+   *   "result": { object of attachment record }
+   * }
+   *
+    * */
+  public function actionAttachment()
+  {
+    $payload = $this->GetPayload();
+
+    if( Yii::$app->request->isPost )
+    {
+      $file = (UploadedFile::getInstanceByName("file"));
+
+      if( $file->hasError == false )
+      {
+        $id_user_actor = Yii::$app->request->post("id_user_actor");
+        $is_id_user_valid = isset($id_user_actor);
+        $is_file_valid = isset($file);
+
+        if( $is_id_user_valid == true && $is_file_valid == true )
+        {
+          $path = Yii::$app->basePath . 
+            DIRECTORY_SEPARATOR . 'web' .
+            DIRECTORY_SEPARATOR . 'files'.
+            DIRECTORY_SEPARATOR;
+
+          Yii::info("path = $path");
+
+          $time_hash = md5(date("YmdHis"));
+          $file_name = $file->baseName . "-" . $time_hash . "." . $file->extension;
+
+          ini_set("display_errors", 1);
+          ini_set("memory_limit", "1000MB");
+          error_reporting(E_ALL);
+
+          if($file->saveAs($path . $file_name) == true)
+          {
+            $asal = WideImage::loadFromFile($path . $file_name);
+            $file_name_2 = $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
+            $resize = $asal->resize("50%", "50%");
+            $resize->saveToFile($path . $file_name_2);
+
+            $ff = new ForumFiles();
+            $ff["nama"] = $file_name;
+            $ff["thumbnail"] = $file_name_2;
+            $ff["id_user_create"] = $id_user_actor;
+            $ff["time_create"] = date("Y-m-d H:i:s");
+            $ff->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Berhasil menyimpan file",
+              "result" => $ff
+            ];
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Gagal menyimpan file",
+              "result" => 
+              [
+                "path.file_name" => $path . $file_name,
+                "UploadedFile" => $file,
+                "last error" => error_get_last()
+              ]
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang diperlukan tidak lengkap: id_user_actor, file",
+            "request" =>
+            [
+              "payload" => $payload,
+              "params" => Yii::$app->request->bodyParams
+            ]
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "There is something wrong",
+          "result" => 
+          [
+            "UploadedFile" => $file
+          ]
+        ];
+      }
+
+    }
+    else if( Yii::$app->request->isPut )
+    {
+    }
+    else if( Yii::$app->request->isDelete )
+    {
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Request hanya menerima method POST, PUT atau DELETE",
+      ];
+    }
+  }
+
 
   // ==========================================================================
   // my threads
