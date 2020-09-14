@@ -132,6 +132,58 @@ class KmsKategori extends \yii\db\ActiveRecord
     return $hasil;
   }
 
+
+    /*
+     * Memeriksa validitas max_child_depth jika suatu node ditambahkan
+     * sebagai child dari id_parent.
+     *
+    * */
+  public static function CheckDepthValidity($id_parent)
+  {
+    $hasil = true;
+
+    if($id_parent != -1)  // bukan root
+    {
+      $depth = 0;
+      $valid = true;
+      $terus = true;
+
+      do
+      {
+        $test = KmsKategori::findOne($id_parent);
+
+        if( is_null($test) == false )
+        {
+          $depth++;
+
+          if($test["max_child_depth"] > -1)
+          {
+            if( $depth <= $test["max_child_depth"] )
+            {
+              $id_parent = $test["id_parent"];
+
+              if($id_parent == -1) //sudah di root.
+              {
+                $terus = false;
+              }
+            }
+            else
+            {
+              $terus = false;
+              $hasil = false;
+            }
+          }
+        }
+        else
+        {
+          $terus = false;
+          $hasil = false;
+        }
+      }while($terus == true);
+
+    }
+  }
+
   public static function CategoryPath($id_kategori)
   {
     $path = [];
