@@ -150,20 +150,32 @@ class GeneralController extends \yii\rest\Controller
               $is_id_parent_valid == true
             )
           {
-            $new = new KmsKategori();
-            $new["id_parent"] = $payload["id_parent"];
-            $new["nama"] = $payload["nama"];
-            $new["deskripsi"] = $payload["deskripsi"];
-            $new["id_user_create"] = 123;
-            $new["time_create"] = date("Y-m-j H:i:s");
-            $new->save();
-            $id = $new->primaryKey;
+            if(KmsKategori::CheckDepthValidity($payload["id_parent"]) == true)
+            {
+              $new = new KmsKategori();
+              $new["id_parent"] = $payload["id_parent"];
+              $new["nama"] = $payload["nama"];
+              $new["deskripsi"] = $payload["deskripsi"];
+              $new["id_user_create"] = 123;
+              $new["time_create"] = date("Y-m-j H:i:s");
+              $new->save();
+              $id = $new->primaryKey;
 
-            return [
-              "status" => "ok",
-              "pesan" => "Kategori telah disimpan",
-              "result" => $new
-            ];
+              return [
+                "status" => "ok",
+                "pesan" => "Kategori telah disimpan",
+                "result" => $new
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Maximum Child Depth violation",
+                "payload" => $payload
+              ];
+            }
+
           }
           else
           {
@@ -228,16 +240,27 @@ class GeneralController extends \yii\rest\Controller
 
             if( is_null($record) == false )
             {
-              $record["id_parent"] = $payload["id_parent"];
-              $record["nama"] = $payload["nama"];
-              $record["deskripsi"] = $payload["deskripsi"];
-              $record->save();
+              if(KmsKategori::CheckDepthValidity($payload["id_parent"]) == true)
+              {
+                $record["id_parent"] = $payload["id_parent"];
+                $record["nama"] = $payload["nama"];
+                $record["deskripsi"] = $payload["deskripsi"];
+                $record->save();
 
-              return [
-                "status" => "ok",
-                "pesan" => "Kategori telah disimpan",
-                "result" => $record
-              ];
+                return [
+                  "status" => "ok",
+                  "pesan" => "Kategori telah disimpan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "not ok",
+                  "pesan" => "Maximum Child Depth violation",
+                ];
+              }
+
             }
             else
             {
