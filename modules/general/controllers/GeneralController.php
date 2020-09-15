@@ -72,6 +72,7 @@ class GeneralController extends \yii\rest\Controller
        *  {
        *    "nama": "abc",
        *    "id_parent": "-1/123",
+       *    "max_child_depth": "-1/123",
        *    "deskripsi": "abc"
        *  }
        *  Response type: JSON
@@ -143,6 +144,8 @@ class GeneralController extends \yii\rest\Controller
           $is_deskripsi_valid = isset($payload["deskripsi"]);
           $is_id_parent_valid = isset($payload["id_parent"]);
           $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+          $is_max_child_depth_valid = isset($payload["max_child_depth"]);
+          $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
 
           if(
               $is_nama_valid == true &&
@@ -150,10 +153,12 @@ class GeneralController extends \yii\rest\Controller
               $is_id_parent_valid == true
             )
           {
-            if(KmsKategori::CheckDepthValidity($payload["id_parent"]) == true)
+            $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
+            if( $test["hasil"] == true)
             {
               $new = new KmsKategori();
               $new["id_parent"] = $payload["id_parent"];
+              $new["max_child_depth"] = $payload["max_child_depth"];
               $new["nama"] = $payload["nama"];
               $new["deskripsi"] = $payload["deskripsi"];
               $new["id_user_create"] = 123;
@@ -171,7 +176,7 @@ class GeneralController extends \yii\rest\Controller
             {
               return [
                 "status" => "not ok",
-                "pesan" => "Maximum Child Depth violation",
+                "pesan" => $test["pesan"],
                 "payload" => $payload
               ];
             }
@@ -240,7 +245,8 @@ class GeneralController extends \yii\rest\Controller
 
             if( is_null($record) == false )
             {
-              if(KmsKategori::CheckDepthValidity($payload["id_parent"]) == true)
+              $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
+              if( $test["hasil"] == true)
               {
                 $record["id_parent"] = $payload["id_parent"];
                 $record["nama"] = $payload["nama"];
@@ -257,7 +263,7 @@ class GeneralController extends \yii\rest\Controller
               {
                 return [
                   "status" => "not ok",
-                  "pesan" => "Maximum Child Depth violation",
+                  "pesan" => $test["pesan"],
                 ];
               }
 
@@ -404,16 +410,29 @@ class GeneralController extends \yii\rest\Controller
 
         if( $is_id_kategori_valid == true && $is_id_parent_valid == true )
         {
-          // lakukan update
-          $kategori = KmsKategori::findOne($payload["id_kategori"]);
-          $kategori["id_parent"] = $payload["id_parent"];
-          $kategori->save();
+          $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
 
-          return [
-            "status" => "ok",
-            "pesan" => "Record berhasil di-update",
-            "result" => $kategori
-          ];
+          if( $test["hasil"] == true )
+          {
+            // lakukan update
+            $kategori = KmsKategori::findOne($payload["id_kategori"]);
+            $kategori["id_parent"] = $payload["id_parent"];
+            $kategori->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record berhasil di-update",
+              "result" => $kategori
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => $test["pesan"],
+            ];
+          }
+
         }
         else
         {
