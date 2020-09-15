@@ -141,6 +141,7 @@ class KmsKategori extends \yii\db\ActiveRecord
   public static function CheckDepthValidity($id_parent)
   {
     $hasil = true;
+    $pesan = "";
 
     if($id_parent != -1)  // bukan root
     {
@@ -171,6 +172,17 @@ class KmsKategori extends \yii\db\ActiveRecord
             {
               $terus = false;
               $hasil = false;
+              $pesan = "Mencapai kedalaman maksimum pada " . $test["nama"];
+            }
+          }
+          else
+          {
+            $id_parent = $test["id_parent"];
+
+            if($id_parent == -1) //sudah di root.
+            {
+              $terus = false;
+              $hasil = true;
             }
           }
         }
@@ -178,9 +190,20 @@ class KmsKategori extends \yii\db\ActiveRecord
         {
           $terus = false;
           $hasil = false;
+          $pesan = "Parent tidak dikenal";
         }
       }while($terus == true);
 
+      return [
+        "hasil" => $hasil,
+        "pesan" => $pesan,
+      ];
+    }
+    else
+    {
+      return [
+        "hasil" => true,
+      ];
     }
   }
 
