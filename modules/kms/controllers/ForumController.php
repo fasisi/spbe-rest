@@ -1824,7 +1824,10 @@ class ForumController extends \yii\rest\Controller
       foreach($list_jawaban as $item_jawaban)
       {
         $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-          ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
+          ->where(
+            "id_discussion = :id and is_delete = 0", 
+            [":id" => $item_jawaban["id"]]
+          )
           ->orderBy("time_create asc")
           ->all();
 
@@ -2175,6 +2178,7 @@ class ForumController extends \yii\rest\Controller
    *  {
    *    "search_keyword": "abc abc abc",
    *    "id_kategori": [1, 2, ...],
+   *    "id_user_actor": 123,
    *    "page_no": 123,
    *    "items_per_page": 123
    *  }
@@ -2201,6 +2205,7 @@ class ForumController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     $is_keyword_valid = isset($payload["search_keyword"]);
+    $is_id_user_actor_valid = isset($payload["id_user_actor"]);
     $is_start_valid = is_numeric($payload["page_no"]);
     $is_limit_valid = is_numeric($payload["items_per_page"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
@@ -2216,11 +2221,11 @@ class ForumController extends \yii\rest\Controller
 
       $res = $client->request(
         'GET',
-        "/rest/questions/1.0/question/search",
+        "/rest/questions/1.0/search",
         [
-          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'sink' => Yii::$app->basePath . "/guzzledump_search.txt", */
           /* 'debug' => true, */
-          'http_errors' => false,
+          /* 'http_errors' => true, */
           'headers' => [
             "Content-Type" => "application/json",
             "Media-Type" => "application/json",
@@ -2232,7 +2237,7 @@ class ForumController extends \yii\rest\Controller
           ],
           'query' => [
             'type' => 'question',
-            'query' => $keywords,
+            'query' => $payload["search_keyword"],
             'limit' => 1000,
             'start' => 0,
             'spaceKey' => 'PS',
@@ -2256,6 +2261,7 @@ class ForumController extends \yii\rest\Controller
             try
             {
               $response_payload = $response->getBody();
+              $response_payload = Json::decode($response_payload);
 
               $thread = ForumThread::find()
                 ->where(
@@ -2335,7 +2341,8 @@ class ForumController extends \yii\rest\Controller
           return [
             "status" => "not ok",
             "pesan" => "Pencarian tidak berhasil dilakukan",
-            "payload" => $payload
+            "payload" => $payload,
+            "guzzle response" => $res
           ];
           break;
       }
