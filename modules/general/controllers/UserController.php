@@ -394,6 +394,9 @@ class UserController extends \yii\rest\Controller
         'roles',
         'roles.id =user_roles.id_roles'
       )
+      ->where(
+      	'is_deleted = 0'
+      )
       ->groupBy(
         'id_user'
       );

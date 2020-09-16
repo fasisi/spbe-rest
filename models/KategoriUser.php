@@ -55,9 +55,9 @@ class KategoriUser extends \yii\db\ActiveRecord
       {
         //pastikan validitas id_kategori
         $test = KmsKategori::find()
-          ->andWhere(["id = :id"])
-          ->andWhere(["is_delete = 0"])
-          ->params([":id" => $id_kategori])
+          ->andWhere("id = :id", [":id" => $id_kategori])
+          ->andWhere("is_delete = 0")
+          // ->params([":id" => $id_kategori])
           ->one();
 
         if( is_null($test) == false )
