@@ -260,7 +260,7 @@ class UserController extends \yii\rest\Controller
             }
           }
 
-          $categories = $user->getKategori()->all();
+          $categories = $user->getCategories()->all();
           // update kategori
 
           return [
