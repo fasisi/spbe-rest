@@ -4059,9 +4059,9 @@ class ForumController extends \yii\rest\Controller
 
     if( Yii::$app->request->isPost )
     {
-      $file = (UploadedFile::getInstanceByName("file"));
+      $file = UploadedFile::getInstanceByName("file");
 
-      if( $file->hasError == false )
+      if( is_null($file) == false )
       {
         $id_user_actor = Yii::$app->request->post("id_user_actor");
         $is_id_user_valid = isset($id_user_actor);
@@ -4126,7 +4126,8 @@ class ForumController extends \yii\rest\Controller
             "request" =>
             [
               "payload" => $payload,
-              "params" => Yii::$app->request->bodyParams
+              "UploadedFile" => $file,
+              "full_path" => Yii::$app->request->post("full_path")
             ]
           ];
         }
@@ -4138,7 +4139,8 @@ class ForumController extends \yii\rest\Controller
           "pesan" => "There is something wrong",
           "result" => 
           [
-            "UploadedFile" => $file
+            "UploadedFile" => $file,
+            "full_path" => Yii::$app->request->post("full_path")
           ]
         ];
       }
