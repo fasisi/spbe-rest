@@ -2279,7 +2279,7 @@ class ForumController extends \yii\rest\Controller
                 $temp = [];
                 $temp["forum_thread"] = $thread;
                 $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-                $temp["data_user"]["user_create"] = $user;
+                $temp["data_user"]["user_create"] = $user["nama"];
                 $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
                 $temp["confluence"]["id"] = $response_payload["id"];
                 $temp["confluence"]["judul"] = $response_payload["title"];
