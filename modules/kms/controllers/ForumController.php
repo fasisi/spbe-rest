@@ -2195,6 +2195,9 @@ class ForumController extends \yii\rest\Controller
 
   public function actionSearch()
   {
+    $hasil = [];
+    $gagal = [];
+
     $payload = $this->GetPayload();
 
     $is_keyword_valid = isset($payload["search_keyword"]);
@@ -2208,54 +2211,19 @@ class ForumController extends \yii\rest\Controller
         $is_id_kategori_valid == true
       )
     {
-      // pecah keyword berdasarkan kata
-      $daftar_keyword = explode(" ", $payload["search_keyword"]);
-      $keywords = "";
-      foreach($daftar_keyword as $keyword)
-      {
-        if($keywords != "")
-        {
-          $keywords .= " ";
-        }
-
-        $keywords .= "$keyword";
-      }
-
-      //ambil daftar linked_id_question berdasarkan array id_kategori
-      $daftar_thread = ForumThread::find()
-        ->where(
-          [
-            "id_kategori" => $payload["id_kategori"],
-            "is_delete" => 0,
-            "status" => 1
-          ]
-        )
-        ->all();
-
-      $daftar_id = "";
-      foreach($daftar_thread as $thread)
-      {
-        if($daftar_id != "")
-        {
-          $daftar_id .= ", ";
-        }
-
-        $daftar_id .= $thread["linked_id_question"];
-      }
-      $daftar_id = "ID IN ($daftar_id)";
-
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $client = $this->SetupGuzzleClient();
 
       $res = $client->request(
         'GET',
-        "/rest/questions/1.0/search",
+        "/rest/questions/1.0/question/search",
         [
           /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
           /* 'debug' => true, */
           'http_errors' => false,
           'headers' => [
             "Content-Type" => "application/json",
+            "Media-Type" => "application/json",
             "accept" => "application/json",
           ],
           'auth' => [
@@ -2263,75 +2231,114 @@ class ForumController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'type' => "question",
-            'query' => "$keywords",
-            'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
-            'limit' => $payload["items_per_page"],
-            'spaceKey' => "PS",
+            'type' => 'question',
+            'query' => $keywords,
+            'limit' => 1000,
+            'start' => 0,
+            'spaceKey' => 'PS',
           ],
         ]
       );
 
       switch( $res->getStatusCode() )
       {
-      case 200:
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $hasil = array();
-        foreach($response_payload["results"] as $item)
-        {
-          $thread = ForumThread::find()
-            ->where(
-              [
-                "linked_id_question" => $item["id"]
-              ]
-            )
-            ->one();
-          $user = User::findOne($thread["id_user_create"]);
+          $results = $response_payload["results"];
+          foreach( $results as $result_item )
+          {
+            // ambil record confluence
+            $linked_id_question = $result_item["id"];
+            $response = $this->Conf_GetQuestion($client, $linked_id_question);
 
-          $cq_response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
-          $cq_response_payload = $cq_response->getBody();
-          $cq_response_payload = Json::decode($cq_response_payload);
+            try
+            {
+              $response_payload = $response->getBody();
 
-          $temp = array();
-          $temp["forum_thread"] = $thread;
-          $temp["user_create"] = $user->nama;
-          $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+              $thread = ForumThread::find()
+                ->where(
+                  "linked_id_question = :id",
+                  [":id" => $linked_id_question]
+                )
+                ->one();
+              
+              if( is_null($thread) == false)
+              {
+                // ambil record SPBE
 
-          $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_question"] = $item["id"];
-          $temp["confluence"]["judul"] = $cq_response_payload["title"];
-          $temp["confluence"]["konten"] = $cq_response_payload["body"]["content"];
+                $user = User::findOne($thread["id_user_create"]);
 
-          $hasil[] = $temp;
-        }
+                $temp = [];
+                $temp["forum_thread"] = $thread;
+                $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+                $temp["data_user"]["user_create"] = $user;
+                $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+                $temp["confluence"]["id"] = $response_payload["id"];
+                $temp["confluence"]["judul"] = $response_payload["title"];
+                $temp["confluence"]["konten"] = $response_payload["body"]["content"];
 
-        return [
-          "status" => "ok",
-          "pesan" => "Search berhasil",
-          "result" => 
-          [
-            "total_rows" => count($response_payload["results"]),
-            "page_no" => $payload["page_no"],
-            "Items_per_page" => $payload["items_per_page"],
-            "records" => $hasil
-          ]
-        ];
-        break;
+                if( $is_id_user_actor_valid == true )
+                {
+                  // periksa hak akses kategori bagi user ini
+                  $test = KategoriUser::find()
+                    ->where(
+                      [
+                        "and",
+                        "id_user = :id_user",
+                        "id_kategori = :id_kategori"
+                      ],
+                      [
+                        ":id_user" => $payload["id_user_actor"],
+                        ":id_kategori" => $thread["id_kategori"]
+                      ]
+                    )
+                    ->one();
 
-      default:
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          'pesan' => 'REST API request failed: ' . $res->getBody(),
-          'payload' => $payload,
-          'result' => $thread,
-          'category_path' => KmsKategori::CategoryPath($thread["id_kategori"])
-        ];
-        break;
+                  if( is_null($test) == false )
+                  {
+                    $hasil[] = $temp;
+                  }
+                }
+                else
+                {
+                  $hasil[] = $temp;
+                }
+              }
+              else
+              {
+                $gagal["thread not found"][] = $linked_id_question;
+              }
+            }
+            catch(yii\base\InvalidArgumentException $e)
+            {
+              $gagal["CQ failed"][] = $linked_id_question;
+            }
+
+            // ambil record SPBE
+          }
+
+          // kembalikan hasilnya
+          return [
+            "status" => "ok",
+            "pesan" => "Pencarian berhasil dilakukan",
+            "result" => 
+            [
+              "records" => $hasil,
+              "failed" => $gagal,
+            ]
+          ];
+          break;
+
+        default:
+          return [
+            "status" => "not ok",
+            "pesan" => "Pencarian tidak berhasil dilakukan",
+            "payload" => $payload
+          ];
+          break;
       }
-
     }
     else
     {
