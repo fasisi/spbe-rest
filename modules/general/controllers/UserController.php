@@ -367,51 +367,147 @@ class UserController extends \yii\rest\Controller
     $payload = Json::decode($payload);
 
     $query = new Query();
-    $query->select([
-      'user.id AS id_user',
-      'user.nama AS nama_user',
-      'user.jenis_kelamin AS jk',
-      'user.is_deleted AS is_deleted',
-      'user.is_banned AS is_banned',
-      'user.nip AS nip',
-      'departments.name AS nama_departments',
-      'GROUP_CONCAT(roles.name) AS nama_roles',
-      '(
-        SELECT
-        GROUP_CONCAT(kms_kategori.nama)
-        FROM 
-          kategori_user
-        JOIN
-          kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-        WHERE
-          id_user = user.id
-        AND
-          kms_kategori.is_delete = 0
-      ) as nama_kategori'
-      ]
-      )
-      ->from('user')
-      ->join(
-        'INNER JOIN',
-        'user_roles',
-        'user_roles.id_user =user.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'departments',
-        'user.id_departments =departments.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'roles',
-        'roles.id =user_roles.id_roles'
-      )
-      ->where(
-      	'is_deleted = 0'
-      )
-      ->groupBy(
-        'id_user'
-      );
+    
+    if($payload["params"] == 0) {
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_deleted = 0 AND is_banned = 0'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    } else if ($payload["params"] == 1) {
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_banned = 1'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    } else if($payload["params"] == 2){
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_deleted = 1'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    }
+
     $command = $query->createCommand();
     $record = $command->queryAll();
 
