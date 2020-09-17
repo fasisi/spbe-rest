@@ -6,6 +6,7 @@ use Yii;
 use yii\base;
 use yii\helpers\Json;
 use yii\db\Query;
+use yii\web\UploadedFile;
 
 use app\models\ForumThread;
 use app\models\ForumThreadActivityLog;
@@ -16,11 +17,13 @@ use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
 use app\models\KmsTags;
 use app\models\ForumTags;
+use app\models\ForumFiles;
 use app\models\User;
 use app\models\KmsKategori;
 use app\models\KategoriUser;
 
 use Carbon\Carbon;
+use WideImage\WideImage;
 
 class ForumController extends \yii\rest\Controller
 {
@@ -1788,7 +1791,7 @@ class ForumController extends \yii\rest\Controller
 
       $user = User::findOne($thread["id_user_create"]);
       $temp_list_komentar = ForumThreadComment::find()
-        ->where("id_thread = :id", [":id" => $payload["id_thread"]])
+        ->where("id_thread = :id and is_delete = 0", [":id" => $payload["id_thread"]])
         ->orderBy("time_create asc")
         ->all();
 
@@ -1821,7 +1824,10 @@ class ForumController extends \yii\rest\Controller
       foreach($list_jawaban as $item_jawaban)
       {
         $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-          ->where("id_discussion = :id", [":id" => $item_jawaban["id"]])
+          ->where(
+            "id_discussion = :id and is_delete = 0", 
+            [":id" => $item_jawaban["id"]]
+          )
           ->orderBy("time_create asc")
           ->all();
 
@@ -1872,41 +1878,39 @@ class ForumController extends \yii\rest\Controller
       );
 
       //  kembalikan hasilnya
+
+
+      $hasil = [];
+      $hasil["record"]["forum_thread"] = $thread;
+      $hasil["record"]["thread_comments"] = $list_komentar;
+      $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+      $hasil["record"]["user_create"] = $user;
+      $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
+      $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+      $hasil["jawaban"]["count"] = count($jawaban);
+      $hasil["jawaban"]["records"] = $jawaban;
+
       switch( $res->getStatusCode() )
       {
-      case 200:
-        // ambil id dari result
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          // ambil id dari result
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
-        $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-        $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "ok";
-        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
-        $hasil["jawaban"]["count"] = count($jawaban);
-        $hasil["jawaban"]["records"] = $jawaban;
+          $hasil["record"]["confluence"]["status"] = "ok";
+          $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
+          $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
 
-        $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
-        break;
+          $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
+          break;
 
-      default:
-        // kembalikan response
-        $hasil = [];
-        $hasil["record"]["forum_thread"] = $thread;
-        $hasil["record"]["thread_comments"] = $list_komentar;
-        $hasil["record"]["user_create"] = $user;
-        $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-        $hasil["record"]["confluence"]["status"] = "not ok";
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
-        break;
+        default:
+          // kembalikan response
+          $hasil["record"]["confluence"]["status"] = "not ok";
+          $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+          break;
       }
 
       return [
@@ -2174,6 +2178,7 @@ class ForumController extends \yii\rest\Controller
    *  {
    *    "search_keyword": "abc abc abc",
    *    "id_kategori": [1, 2, ...],
+   *    "id_user_actor": 123,
    *    "page_no": 123,
    *    "items_per_page": 123
    *  }
@@ -2194,9 +2199,13 @@ class ForumController extends \yii\rest\Controller
 
   public function actionSearch()
   {
+    $hasil = [];
+    $gagal = [];
+
     $payload = $this->GetPayload();
 
     $is_keyword_valid = isset($payload["search_keyword"]);
+    $is_id_user_actor_valid = isset($payload["id_user_actor"]);
     $is_start_valid = is_numeric($payload["page_no"]);
     $is_limit_valid = is_numeric($payload["items_per_page"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
@@ -2207,42 +2216,6 @@ class ForumController extends \yii\rest\Controller
         $is_id_kategori_valid == true
       )
     {
-      // pecah keyword berdasarkan kata
-      $daftar_keyword = explode(" ", $payload["search_keyword"]);
-      $keywords = "";
-      foreach($daftar_keyword as $keyword)
-      {
-        if($keywords != "")
-        {
-          $keywords .= " ";
-        }
-
-        $keywords .= "$keyword";
-      }
-
-      //ambil daftar linked_id_question berdasarkan array id_kategori
-      $daftar_thread = ForumThread::find()
-        ->where(
-          [
-            "id_kategori" => $payload["id_kategori"],
-            "is_delete" => 0,
-            "status" => 1
-          ]
-        )
-        ->all();
-
-      $daftar_id = "";
-      foreach($daftar_thread as $thread)
-      {
-        if($daftar_id != "")
-        {
-          $daftar_id .= ", ";
-        }
-
-        $daftar_id .= $thread["linked_id_question"];
-      }
-      $daftar_id = "ID IN ($daftar_id)";
-
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $client = $this->SetupGuzzleClient();
 
@@ -2250,11 +2223,12 @@ class ForumController extends \yii\rest\Controller
         'GET',
         "/rest/questions/1.0/search",
         [
-          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'sink' => Yii::$app->basePath . "/guzzledump_search.txt", */
           /* 'debug' => true, */
-          'http_errors' => false,
+          /* 'http_errors' => true, */
           'headers' => [
             "Content-Type" => "application/json",
+            "Media-Type" => "application/json",
             "accept" => "application/json",
           ],
           'auth' => [
@@ -2262,75 +2236,116 @@ class ForumController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'type' => "question",
-            'query' => "$keywords",
-            'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
-            'limit' => $payload["items_per_page"],
-            'spaceKey' => "PS",
+            'type' => 'question',
+            'query' => $payload["search_keyword"],
+            'limit' => 1000,
+            'start' => 0,
+            'spaceKey' => 'PS',
           ],
         ]
       );
 
       switch( $res->getStatusCode() )
       {
-      case 200:
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $hasil = array();
-        foreach($response_payload["results"] as $item)
-        {
-          $thread = ForumThread::find()
-            ->where(
-              [
-                "linked_id_question" => $item["id"]
-              ]
-            )
-            ->one();
-          $user = User::findOne($thread["id_user_create"]);
+          $results = $response_payload["results"];
+          foreach( $results as $result_item )
+          {
+            // ambil record confluence
+            $linked_id_question = $result_item["id"];
+            $response = $this->Conf_GetQuestion($client, $linked_id_question);
 
-          $cq_response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
-          $cq_response_payload = $cq_response->getBody();
-          $cq_response_payload = Json::decode($cq_response_payload);
+            try
+            {
+              $response_payload = $response->getBody();
+              $response_payload = Json::decode($response_payload);
 
-          $temp = array();
-          $temp["forum_thread"] = $thread;
-          $temp["user_create"] = $user->nama;
-          $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+              $thread = ForumThread::find()
+                ->where(
+                  "linked_id_question = :id",
+                  [":id" => $linked_id_question]
+                )
+                ->one();
+              
+              if( is_null($thread) == false)
+              {
+                // ambil record SPBE
 
-          $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_question"] = $item["id"];
-          $temp["confluence"]["judul"] = $cq_response_payload["title"];
-          $temp["confluence"]["konten"] = $cq_response_payload["body"]["content"];
+                $user = User::findOne($thread["id_user_create"]);
 
-          $hasil[] = $temp;
-        }
+                $temp = [];
+                $temp["forum_thread"] = $thread;
+                $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+                $temp["data_user"]["user_create"] = $user["nama"];
+                $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+                $temp["confluence"]["id"] = $response_payload["id"];
+                $temp["confluence"]["judul"] = $response_payload["title"];
+                $temp["confluence"]["konten"] = $response_payload["body"]["content"];
 
-        return [
-          "status" => "ok",
-          "pesan" => "Search berhasil",
-          "result" => 
-          [
-            "total_rows" => count($response_payload["results"]),
-            "page_no" => $payload["page_no"],
-            "Items_per_page" => $payload["items_per_page"],
-            "records" => $hasil
-          ]
-        ];
-        break;
+                if( $is_id_user_actor_valid == true )
+                {
+                  // periksa hak akses kategori bagi user ini
+                  $test = KategoriUser::find()
+                    ->where(
+                      [
+                        "and",
+                        "id_user = :id_user",
+                        "id_kategori = :id_kategori"
+                      ],
+                      [
+                        ":id_user" => $payload["id_user_actor"],
+                        ":id_kategori" => $thread["id_kategori"]
+                      ]
+                    )
+                    ->one();
 
-      default:
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          'pesan' => 'REST API request failed: ' . $res->getBody(),
-          'payload' => $payload,
-          'result' => $thread,
-          'category_path' => KmsKategori::CategoryPath($thread["id_kategori"])
-        ];
-        break;
+                  if( is_null($test) == false )
+                  {
+                    $hasil[] = $temp;
+                  }
+                }
+                else
+                {
+                  $hasil[] = $temp;
+                }
+              }
+              else
+              {
+                $gagal["thread not found"][] = $linked_id_question;
+              }
+            }
+            catch(yii\base\InvalidArgumentException $e)
+            {
+              $gagal["CQ failed"][] = $linked_id_question;
+            }
+
+            // ambil record SPBE
+          }
+
+          // kembalikan hasilnya
+          return [
+            "status" => "ok",
+            "pesan" => "Pencarian berhasil dilakukan",
+            "result" => 
+            [
+              "records" => $hasil,
+              "failed" => $gagal,
+            ]
+          ];
+          break;
+
+        default:
+          return [
+            "status" => "not ok",
+            "pesan" => "Pencarian tidak berhasil dilakukan",
+            "payload" => $payload,
+            "guzzle response" => $res
+          ];
+          break;
       }
-
     }
     else
     {
@@ -3987,6 +4002,163 @@ class ForumController extends \yii\rest\Controller
     }
   }
   ///
+
+  /*
+   * Membuat, mengupdate, menghapus attachment dari thread
+   * Harus merupakan multipart request. Siapkan parameter dengan nama 'file'
+   * untuk menyimpan data byte dari file yang dikirim.
+   *
+   * Method: POST
+   * Request type: JSON,
+   * Request format:
+   * {
+   *   "id_user_actor": 123
+   * }
+   * Reponse type: JSON
+   * Reponse format:
+   * {
+   *   "status": "ok/ not ok",
+   *   "pesan": "",
+   *   "result": { object of record attachment }
+   * }
+   *
+   * Method: PUT
+   * Request type: JSON
+   * Request format:
+   * {
+   *   "id_file": 123,
+   *   "id_user_actor": 123
+   * }
+   * Response type: JSON,
+   * Response format:
+   * {
+   *   "status": "ok/not ok",
+   *   "pesan": "",
+   *   "result": { object of attachment record }
+   * }
+   *
+   * Method: DELETE
+   * Request type: JSON
+   * Request format:
+   * {
+   *   "id_file": 123,
+   *   "id_user_actor": 123
+   * }
+   * Response type: JSON,
+   * Response format:
+   * {
+   *   "status": "ok/not ok",
+   *   "pesan": "",
+   *   "result": { object of attachment record }
+   * }
+   *
+    * */
+  public function actionAttachment()
+  {
+    $payload = $this->GetPayload();
+
+    if( Yii::$app->request->isPost )
+    {
+      $file = (UploadedFile::getInstanceByName("file"));
+
+      if( $file->hasError == false )
+      {
+        $id_user_actor = Yii::$app->request->post("id_user_actor");
+        $is_id_user_valid = isset($id_user_actor);
+        $is_file_valid = isset($file);
+
+        if( $is_id_user_valid == true && $is_file_valid == true )
+        {
+          $path = Yii::$app->basePath . 
+            DIRECTORY_SEPARATOR . 'web' .
+            DIRECTORY_SEPARATOR . 'files'.
+            DIRECTORY_SEPARATOR;
+
+          Yii::info("path = $path");
+
+          $time_hash = md5(date("YmdHis"));
+          $file_name = $file->baseName . "-" . $time_hash . "." . $file->extension;
+
+          ini_set("display_errors", 1);
+          error_reporting(E_ALL);
+
+          if($file->saveAs($path . $file_name) == true)
+          {
+            $asal = WideImage::loadFromFile($path . $file_name);
+            $file_name_2 = $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
+            $resize = $asal->resize("50%", "50%");
+            $resize->saveToFile($path . $file_name_2);
+
+            $ff = new ForumFiles();
+            $ff["nama"] = $file_name;
+            $ff["thumbnail"] = $file_name_2;
+            $ff["id_user_create"] = $id_user_actor;
+            $ff["time_create"] = date("Y-m-d H:i:s");
+            $ff->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Berhasil menyimpan file",
+              "result" => $ff
+            ];
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Gagal menyimpan file",
+              "result" => 
+              [
+                "path.file_name" => $path . $file_name,
+                "UploadedFile" => $file,
+                "last error" => error_get_last()
+              ]
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang diperlukan tidak lengkap: id_user_actor, file",
+            "request" =>
+            [
+              "payload" => $payload,
+              "params" => Yii::$app->request->bodyParams
+            ]
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "There is something wrong",
+          "result" => 
+          [
+            "UploadedFile" => $file
+          ]
+        ];
+      }
+
+    }
+    else if( Yii::$app->request->isPut )
+    {
+    }
+    else if( Yii::$app->request->isDelete )
+    {
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Request hanya menerima method POST, PUT atau DELETE",
+      ];
+    }
+  }
+
 
   // ==========================================================================
   // my threads

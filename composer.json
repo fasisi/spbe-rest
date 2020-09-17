@@ -19,7 +19,8 @@
         "yiisoft/yii2-bootstrap": "~2.0.0",
         "yiisoft/yii2-swiftmailer": "~2.0.0 || ~2.1.0",
         "guzzlehttp/guzzle": "^7.0",
-        "nesbot/carbon": "^2.38"
+        "nesbot/carbon": "^2.38",
+        "smottt/wideimage": "^1.1"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",
