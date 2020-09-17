@@ -4148,9 +4148,97 @@ class ForumController extends \yii\rest\Controller
     }
     else if( Yii::$app->request->isPut )
     {
+      // update attachment
     }
     else if( Yii::$app->request->isDelete )
     {
+      // hapus attachment
+
+      $payload = $this->GetPayload();
+
+      $is_id_file_valid = isset($payload["id_file"]);
+      $is_id_thread_valid = isset($payload["id_thread"]);
+      $is_id_user_valid = isset($payload["id_user_actor"]);
+
+      if( 
+          $is_id_file_valid == true && 
+          $is_id_thread_valid == true &&
+          $is_id_user_valid == true 
+        )
+      {
+        $test = ForumFiles::findOne($payload["id_file"]);
+        $test_thread = ForumThread::findOne($payload["id_thread"]);
+
+        if( 
+            is_null($test) == false 
+          )
+        {
+          // hapus record file
+            $test["is_delete"] = 1;
+            $test["id_user_delete"] = $payload["id_user_actor"];
+            $test["time_delete"] = date("Y-m-d H:i:s");
+            $test->save();
+          // hapus record file
+
+          // hapus file-nya
+            $path = Yii::$app->basePath .
+              DIRECTORY_SEPARATOR . "web" .
+              DIRECTORY_SEPARATOR. "files" .
+              DIRECTORY_SEPARATOR;
+
+            unlink($path . $test["nama"]);
+            unlink($path . $test["thumbnail"]);
+          // hapus file-nya
+
+          // hapus relasinya dengan thread
+
+
+            if( is_null($test_thread) == false )
+            {
+              $thread_file = ForumThreadFile::find(
+                "id_thread = :id_thread and id_file = :id_file",
+                [
+                  ":id_thread" => $payload["id_thread"],
+                  ":id_file" => $payload["id_file"],
+                ]
+              )->one();
+
+              $thread_file["is_delete"] = 1;
+              $thread_file["id_user_delete"] = $payload["id_user_actor"];
+              $thread_file["time_delete"] = date("Y-m-d H:i:s");
+              $thread_file->save();
+            }
+            else
+            {
+            }
+
+          // hapus relasinya dengan thread
+
+          return [
+            "status" => "ok",
+            "pesan" => "File berhasil dihapus",
+            "result" => 
+            [
+              "forum_file" => $test,
+              "thread_file" => $thread_file,
+            ]
+          ];
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record file tidak ditemukan",
+            "payload" => $payload
+          ];
+        }
+
+      }
+      else
+      {
+      }
+
     }
     else
     {
