@@ -375,7 +375,19 @@ class UserController extends \yii\rest\Controller
       'user.is_banned AS is_banned',
       'user.nip AS nip',
       'departments.name AS nama_departments',
-      'GROUP_CONCAT(roles.name) AS nama_roles'
+      'GROUP_CONCAT(roles.name) AS nama_roles',
+      '(
+        SELECT
+        GROUP_CONCAT(kms_kategori.nama)
+        FROM 
+          kategori_user
+        JOIN
+          kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+        WHERE
+          id_user = user.id
+        AND
+          kms_kategori.is_delete = 0
+      ) as nama_kategori'
       ]
       )
       ->from('user')
