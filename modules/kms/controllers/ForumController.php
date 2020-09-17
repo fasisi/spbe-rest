@@ -12,6 +12,7 @@ use app\models\ForumThread;
 use app\models\ForumThreadActivityLog;
 use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
+use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
@@ -210,6 +211,8 @@ class ForumController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
+    Yii::info("payload = " . Json::encode($payload));
+
     if( isset($payload["judul"]) == false )
       $judul_valid = false;
 
@@ -254,8 +257,26 @@ class ForumController extends \yii\rest\Controller
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $this->UpdateTags($client, $jira_conf, $id_thread, null, $payload);
 
+      if( isset($payload["id_files"]) == true )
+      {
+        if( is_array( $payload["id_files"] ) == true )
+        {
+          $this->UpdateFiles($id_thread, $payload);
+        }
+      }
+
       // ambil ulang tags atas thread ini. untuk menjadi response.
       $tags = ForumThreadTag::find()
+        ->where(
+          "id_thread = :id_thread",
+          [
+            ":id_thread" => $id_thread
+          ]
+        )
+        ->all();
+
+      // ambil ulang files atas thread ini. untuk menjadi response.
+      $files = ForumThreadFile::find()
         ->where(
           "id_thread = :id_thread",
           [
@@ -276,6 +297,7 @@ class ForumController extends \yii\rest\Controller
         [
           "artikel" => $thread,
           "tags" => $tags,
+          "files" => $files,
           "category_path" => KmsKategori::CategoryPath($thread["id_kategori"]),
         ]
       ];
@@ -634,6 +656,14 @@ class ForumController extends \yii\rest\Controller
         // mengupdate informasi tags
 
 
+        // mengupdate daftar files
+
+          $this->UpdateFiles($thread["id"], $payload);
+
+        // mengupdate daftar files
+
+
+
         // kembalikan response
             $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
 
@@ -835,6 +865,43 @@ class ForumController extends \yii\rest\Controller
           ],
         ]
       );
+    }
+  }
+
+  private function UpdateFiles($id_thread, $payload)
+  {
+    ForumThreadFile::deleteAll("id_thread = :id_thread", [":id_thread" => $id_thread]);
+
+    foreach( $payload["id_files"] as $item_file )
+    {
+      // cek recordnya
+      $test = ForumFiles::findOne($item_file);
+
+      if( is_null($test) == false ) 
+      {
+        $path = Yii::$app->basePath .
+          DIRECTORY_SEPARATOR . "web" .
+          DIRECTORY_SEPARATOR . "files" .
+          DIRECTORY_SEPARATOR;
+
+        // cek filenya
+        if( is_file($path . $test["nama"]) == true )
+        {
+          // pasangkan file dengan thread
+          $new = new ForumThreadFile();
+          $new["id_thread"] = $id_thread;
+          $new["id_file"] = $item_file;
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-d H:i:s");
+          $new->save();
+
+        }
+        else
+        {
+          // jika file sudah tidak ada, maka hapus recordnya
+          $test->delete();
+        }
+      }
     }
   }
 
@@ -4086,7 +4153,7 @@ class ForumController extends \yii\rest\Controller
           {
             $asal = WideImage::loadFromFile($path . $file_name);
             $file_name_2 = $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
-            $resize = $asal->resize("50%", "50%");
+            $resize = $asal->resize("300");
             $resize->saveToFile($path . $file_name_2);
 
             $ff = new ForumFiles();

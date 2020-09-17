@@ -33,11 +33,9 @@ class ForumThreadFile extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_thread', 'nama', 'file_name', 'id_user_create', 'time_create'], 'required'],
-            [['id_thread', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
+            [['id_thread', 'id_file', 'id_user_create', 'time_create'], 'required'],
+            [['id_thread', 'id_file', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
             [['time_create', 'time_delete'], 'safe'],
-            [['nama'], 'string', 'max' => 500],
-            [['file_name'], 'string', 'max' => 1500],
         ];
     }
 
