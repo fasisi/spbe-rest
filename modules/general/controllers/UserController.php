@@ -455,7 +455,7 @@ class UserController extends \yii\rest\Controller
           'roles.id =user_roles.id_roles'
         )
         ->where(
-          'is_banned = 1'
+          'is_banned = 1 AND is_deleted = 0'
         )
         ->groupBy(
           'id_user'
@@ -501,7 +501,7 @@ class UserController extends \yii\rest\Controller
           'roles.id =user_roles.id_roles'
         )
         ->where(
-          'is_deleted = 1'
+          'is_deleted = 1 AND is_banned = 0'
         )
         ->groupBy(
           'id_user'
