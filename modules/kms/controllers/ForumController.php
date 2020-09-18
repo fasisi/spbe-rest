@@ -5,6 +5,7 @@ namespace app\modules\kms\controllers;
 use Yii;
 use yii\base;
 use yii\helpers\Json;
+use yii\helpers\BaseUrl;
 use yii\db\Query;
 use yii\web\UploadedFile;
 
@@ -1677,7 +1678,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          "status IN (1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1688,7 +1689,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          "status IN (1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1887,35 +1888,58 @@ class ForumController extends \yii\rest\Controller
         ->orderBy("time_create asc")
         ->all();
 
-      $jawaban = [];
-      foreach($list_jawaban as $item_jawaban)
-      {
-        $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-          ->where(
-            "id_discussion = :id and is_delete = 0", 
-            [":id" => $item_jawaban["id"]]
-          )
-          ->orderBy("time_create asc")
-          ->all();
-
-        $temp = [];
-        foreach($list_komentar_jawaban as $item_komentar)
+      // jawaban
+        $jawaban = [];
+        foreach($list_jawaban as $item_jawaban)
         {
-          $user = User::findOne($item_komentar["id_user_create"]);
+          $list_komentar_jawaban = ForumThreadDiscussionComment::find()
+            ->where(
+              "id_discussion = :id and is_delete = 0", 
+              [":id" => $item_jawaban["id"]]
+            )
+            ->orderBy("time_create asc")
+            ->all();
 
-          $temp[] = [
-            "komentar" => $item_komentar,
+          $temp = [];
+          foreach($list_komentar_jawaban as $item_komentar)
+          {
+            $user = User::findOne($item_komentar["id_user_create"]);
+
+            $temp[] = [
+              "komentar" => $item_komentar,
+              "user_create" => $user,
+            ];
+          }
+
+          $user = User::findOne($item_jawaban["id_user_create"]);
+          $jawaban[] = [
+            "jawaban" => $item_jawaban,
             "user_create" => $user,
+            "list_komentar" => $temp,
           ];
         }
+      // jawaban
 
-        $user = User::findOne($item_jawaban["id_user_create"]);
-        $jawaban[] = [
-          "jawaban" => $item_jawaban,
-          "user_create" => $user,
-          "list_komentar" => $temp,
-        ];
-      }
+
+      // files
+      
+        $list_files = ForumThreadFile::findAll(
+          ["id_thread" => $thread["id"]]
+        );
+
+        $files = [];
+        foreach($list_files as $item_file)
+        {
+          $file = ForumFiles::findOne($item_file["id_file"]);
+
+          $temp = [];
+          $temp["ForumFile"] = $file;
+          $temp["thumbnail"] = BaseUrl::base(true) . "/files/" . $file["thumbnail"];
+
+          $files[] = $temp;
+        }
+
+      // files
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1954,6 +1978,7 @@ class ForumController extends \yii\rest\Controller
       $hasil["record"]["user_create"] = $user;
       $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
       $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+      $hasil["record"]["files"] = $files;
       $hasil["jawaban"]["count"] = count($jawaban);
       $hasil["jawaban"]["records"] = $jawaban;
 
@@ -4166,7 +4191,8 @@ class ForumController extends \yii\rest\Controller
             return [
               "status" => "ok",
               "pesan" => "Berhasil menyimpan file",
-              "result" => $ff
+              "result" => $ff,
+              "thumbnail" => BaseUrl::base(true) . "/files/" . $ff["thumbnail"], 
             ];
 
           }
