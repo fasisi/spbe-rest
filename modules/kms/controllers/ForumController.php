@@ -5,6 +5,7 @@ namespace app\modules\kms\controllers;
 use Yii;
 use yii\base;
 use yii\helpers\Json;
+use yii\helpers\BaseUrl;
 use yii\db\Query;
 use yii\web\UploadedFile;
 
@@ -12,6 +13,7 @@ use app\models\ForumThread;
 use app\models\ForumThreadActivityLog;
 use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
+use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
@@ -210,6 +212,8 @@ class ForumController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
+    Yii::info("payload = " . Json::encode($payload));
+
     if( isset($payload["judul"]) == false )
       $judul_valid = false;
 
@@ -254,8 +258,26 @@ class ForumController extends \yii\rest\Controller
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $this->UpdateTags($client, $jira_conf, $id_thread, null, $payload);
 
+      if( isset($payload["id_files"]) == true )
+      {
+        if( is_array( $payload["id_files"] ) == true )
+        {
+          $this->UpdateFiles($id_thread, $payload);
+        }
+      }
+
       // ambil ulang tags atas thread ini. untuk menjadi response.
       $tags = ForumThreadTag::find()
+        ->where(
+          "id_thread = :id_thread",
+          [
+            ":id_thread" => $id_thread
+          ]
+        )
+        ->all();
+
+      // ambil ulang files atas thread ini. untuk menjadi response.
+      $files = ForumThreadFile::find()
         ->where(
           "id_thread = :id_thread",
           [
@@ -276,6 +298,7 @@ class ForumController extends \yii\rest\Controller
         [
           "artikel" => $thread,
           "tags" => $tags,
+          "files" => $files,
           "category_path" => KmsKategori::CategoryPath($thread["id_kategori"]),
         ]
       ];
@@ -398,7 +421,7 @@ class ForumController extends \yii\rest\Controller
 
             // update linked_id_question pada record kms_artikel
             $thread['linked_id_question'] = $linked_id_question;
-            $thread['status'] = 0;
+            $thread['status'] = $payload["status"];
             $thread['id_user_update'] = $payload["id_user_actor"];
             $thread['time_update'] = date("Y-m-d H:i:s");
             $thread->save();
@@ -634,6 +657,14 @@ class ForumController extends \yii\rest\Controller
         // mengupdate informasi tags
 
 
+        // mengupdate daftar files
+
+          $this->UpdateFiles($thread["id"], $payload);
+
+        // mengupdate daftar files
+
+
+
         // kembalikan response
             $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
 
@@ -835,6 +866,43 @@ class ForumController extends \yii\rest\Controller
           ],
         ]
       );
+    }
+  }
+
+  private function UpdateFiles($id_thread, $payload)
+  {
+    ForumThreadFile::deleteAll("id_thread = :id_thread", [":id_thread" => $id_thread]);
+
+    foreach( $payload["id_files"] as $item_file )
+    {
+      // cek recordnya
+      $test = ForumFiles::findOne($item_file);
+
+      if( is_null($test) == false ) 
+      {
+        $path = Yii::$app->basePath .
+          DIRECTORY_SEPARATOR . "web" .
+          DIRECTORY_SEPARATOR . "files" .
+          DIRECTORY_SEPARATOR;
+
+        // cek filenya
+        if( is_file($path . $test["nama"]) == true )
+        {
+          // pasangkan file dengan thread
+          $new = new ForumThreadFile();
+          $new["id_thread"] = $id_thread;
+          $new["id_file"] = $item_file;
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-d H:i:s");
+          $new->save();
+
+        }
+        else
+        {
+          // jika file sudah tidak ada, maka hapus recordnya
+          $test->delete();
+        }
+      }
     }
   }
 
@@ -1610,7 +1678,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          "status IN (1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1621,7 +1689,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status = 1",
+          "status IN (1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1820,35 +1888,58 @@ class ForumController extends \yii\rest\Controller
         ->orderBy("time_create asc")
         ->all();
 
-      $jawaban = [];
-      foreach($list_jawaban as $item_jawaban)
-      {
-        $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-          ->where(
-            "id_discussion = :id and is_delete = 0", 
-            [":id" => $item_jawaban["id"]]
-          )
-          ->orderBy("time_create asc")
-          ->all();
-
-        $temp = [];
-        foreach($list_komentar_jawaban as $item_komentar)
+      // jawaban
+        $jawaban = [];
+        foreach($list_jawaban as $item_jawaban)
         {
-          $user = User::findOne($item_komentar["id_user_create"]);
+          $list_komentar_jawaban = ForumThreadDiscussionComment::find()
+            ->where(
+              "id_discussion = :id and is_delete = 0", 
+              [":id" => $item_jawaban["id"]]
+            )
+            ->orderBy("time_create asc")
+            ->all();
 
-          $temp[] = [
-            "komentar" => $item_komentar,
+          $temp = [];
+          foreach($list_komentar_jawaban as $item_komentar)
+          {
+            $user = User::findOne($item_komentar["id_user_create"]);
+
+            $temp[] = [
+              "komentar" => $item_komentar,
+              "user_create" => $user,
+            ];
+          }
+
+          $user = User::findOne($item_jawaban["id_user_create"]);
+          $jawaban[] = [
+            "jawaban" => $item_jawaban,
             "user_create" => $user,
+            "list_komentar" => $temp,
           ];
         }
+      // jawaban
 
-        $user = User::findOne($item_jawaban["id_user_create"]);
-        $jawaban[] = [
-          "jawaban" => $item_jawaban,
-          "user_create" => $user,
-          "list_komentar" => $temp,
-        ];
-      }
+
+      // files
+      
+        $list_files = ForumThreadFile::findAll(
+          ["id_thread" => $thread["id"]]
+        );
+
+        $files = [];
+        foreach($list_files as $item_file)
+        {
+          $file = ForumFiles::findOne($item_file["id_file"]);
+
+          $temp = [];
+          $temp["ForumFile"] = $file;
+          $temp["thumbnail"] = BaseUrl::base(true) . "/files/" . $file["thumbnail"];
+
+          $files[] = $temp;
+        }
+
+      // files
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -1887,6 +1978,7 @@ class ForumController extends \yii\rest\Controller
       $hasil["record"]["user_create"] = $user;
       $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
       $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+      $hasil["record"]["files"] = $files;
       $hasil["jawaban"]["count"] = count($jawaban);
       $hasil["jawaban"]["records"] = $jawaban;
 
@@ -4059,9 +4151,9 @@ class ForumController extends \yii\rest\Controller
 
     if( Yii::$app->request->isPost )
     {
-      $file = (UploadedFile::getInstanceByName("file"));
+      $file = UploadedFile::getInstanceByName("file");
 
-      if( $file->hasError == false )
+      if( is_null($file) == false )
       {
         $id_user_actor = Yii::$app->request->post("id_user_actor");
         $is_id_user_valid = isset($id_user_actor);
@@ -4086,7 +4178,7 @@ class ForumController extends \yii\rest\Controller
           {
             $asal = WideImage::loadFromFile($path . $file_name);
             $file_name_2 = $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
-            $resize = $asal->resize("50%", "50%");
+            $resize = $asal->resize("300");
             $resize->saveToFile($path . $file_name_2);
 
             $ff = new ForumFiles();
@@ -4099,7 +4191,8 @@ class ForumController extends \yii\rest\Controller
             return [
               "status" => "ok",
               "pesan" => "Berhasil menyimpan file",
-              "result" => $ff
+              "result" => $ff,
+              "thumbnail" => BaseUrl::base(true) . "/files/" . $ff["thumbnail"], 
             ];
 
           }
@@ -4126,7 +4219,8 @@ class ForumController extends \yii\rest\Controller
             "request" =>
             [
               "payload" => $payload,
-              "params" => Yii::$app->request->bodyParams
+              "UploadedFile" => $file,
+              "full_path" => Yii::$app->request->post("full_path")
             ]
           ];
         }
@@ -4138,7 +4232,8 @@ class ForumController extends \yii\rest\Controller
           "pesan" => "There is something wrong",
           "result" => 
           [
-            "UploadedFile" => $file
+            "UploadedFile" => $file,
+            "full_path" => Yii::$app->request->post("full_path")
           ]
         ];
       }
@@ -4146,9 +4241,97 @@ class ForumController extends \yii\rest\Controller
     }
     else if( Yii::$app->request->isPut )
     {
+      // update attachment
     }
     else if( Yii::$app->request->isDelete )
     {
+      // hapus attachment
+
+      $payload = $this->GetPayload();
+
+      $is_id_file_valid = isset($payload["id_file"]);
+      $is_id_thread_valid = isset($payload["id_thread"]);
+      $is_id_user_valid = isset($payload["id_user_actor"]);
+
+      if( 
+          $is_id_file_valid == true && 
+          $is_id_thread_valid == true &&
+          $is_id_user_valid == true 
+        )
+      {
+        $test = ForumFiles::findOne($payload["id_file"]);
+        $test_thread = ForumThread::findOne($payload["id_thread"]);
+
+        if( 
+            is_null($test) == false 
+          )
+        {
+          // hapus record file
+            $test["is_delete"] = 1;
+            $test["id_user_delete"] = $payload["id_user_actor"];
+            $test["time_delete"] = date("Y-m-d H:i:s");
+            $test->save();
+          // hapus record file
+
+          // hapus file-nya
+            $path = Yii::$app->basePath .
+              DIRECTORY_SEPARATOR . "web" .
+              DIRECTORY_SEPARATOR. "files" .
+              DIRECTORY_SEPARATOR;
+
+            unlink($path . $test["nama"]);
+            unlink($path . $test["thumbnail"]);
+          // hapus file-nya
+
+          // hapus relasinya dengan thread
+
+
+            if( is_null($test_thread) == false )
+            {
+              $thread_file = ForumThreadFile::find(
+                "id_thread = :id_thread and id_file = :id_file",
+                [
+                  ":id_thread" => $payload["id_thread"],
+                  ":id_file" => $payload["id_file"],
+                ]
+              )->one();
+
+              $thread_file["is_delete"] = 1;
+              $thread_file["id_user_delete"] = $payload["id_user_actor"];
+              $thread_file["time_delete"] = date("Y-m-d H:i:s");
+              $thread_file->save();
+            }
+            else
+            {
+            }
+
+          // hapus relasinya dengan thread
+
+          return [
+            "status" => "ok",
+            "pesan" => "File berhasil dihapus",
+            "result" => 
+            [
+              "forum_file" => $test,
+              "thread_file" => $thread_file,
+            ]
+          ];
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record file tidak ditemukan",
+            "payload" => $payload
+          ];
+        }
+
+      }
+      else
+      {
+      }
+
     }
     else
     {
