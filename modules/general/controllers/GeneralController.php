@@ -233,6 +233,8 @@ class GeneralController extends \yii\rest\Controller
           $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
           $is_id_parent_valid = isset($payload["id_parent"]);
           $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+          $is_max_child_depth_valid = isset($payload["max_child_depth"]);
+          $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
 
           if(
               $is_nama_valid == true &&
@@ -249,6 +251,7 @@ class GeneralController extends \yii\rest\Controller
               if( $test["hasil"] == true)
               {
                 $record["id_parent"] = $payload["id_parent"];
+                $record["max_child_depth"] = $payload["max_child_depth"];
                 $record["nama"] = $payload["nama"];
                 $record["deskripsi"] = $payload["deskripsi"];
                 $record->save();
