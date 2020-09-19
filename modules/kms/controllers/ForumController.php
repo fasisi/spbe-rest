@@ -421,7 +421,7 @@ class ForumController extends \yii\rest\Controller
 
             // update linked_id_question pada record kms_artikel
             $thread['linked_id_question'] = $linked_id_question;
-            $thread['status'] = 0;
+            $thread['status'] = $payload["status"];
             $thread['id_user_update'] = $payload["id_user_actor"];
             $thread['time_update'] = date("Y-m-d H:i:s");
             $thread->save();
