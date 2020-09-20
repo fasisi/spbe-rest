@@ -815,6 +815,7 @@ class ForumController extends \yii\rest\Controller
       return [
         'status' => 'not ok',
         'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tsgs',
+        "payload" => $payload,
       ];
     }
   }
@@ -1934,7 +1935,17 @@ class ForumController extends \yii\rest\Controller
 
           $temp = [];
           $temp["ForumFile"] = $file;
-          $temp["thumbnail"] = BaseUrl::base(true) . "/files/" . $file["thumbnail"];
+
+          if( preg_match_all("/\.(jpg|jpeg)/i", $file["thumbnail"]) == true )
+          {
+            $temp["thumbnail"] = BaseUrl::base(true) . "/files/" . $file["thumbnail"];
+          }
+          else
+          {
+            $temp["thumbnail"] = BaseUrl::base(true) . "/files/" . "logo_pdf.png";
+          }
+
+          $temp["link"] = BaseUrl::base(true) . "/files/" . $file["nama"];
 
           $files[] = $temp;
         }
@@ -4168,18 +4179,29 @@ class ForumController extends \yii\rest\Controller
 
           Yii::info("path = $path");
 
-          $time_hash = md5(date("YmdHis"));
-          $file_name = $file->baseName . "-" . $time_hash . "." . $file->extension;
+          $time_hash = date("YmdHis");
+          $file_name = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "." . $file->extension;
 
           ini_set("display_errors", 1);
           error_reporting(E_ALL);
 
           if($file->saveAs($path . $file_name) == true)
           {
-            $asal = WideImage::loadFromFile($path . $file_name);
-            $file_name_2 = $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
-            $resize = $asal->resize("300");
-            $resize->saveToFile($path . $file_name_2);
+            $file_name_2 = "";
+            $is_image = true;
+            if( preg_match_all("/(jpg|jpeg)/i", $file->extension) == true )
+            {
+              $asal = WideImage::loadFromFile($path . $file_name);
+              $file_name_2 = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
+
+              $resize = $asal->resize("150");
+              $resize->saveToFile($path . $file_name_2);
+            }
+            else
+            {
+              $file_name_2 = "logo_pdf.png";
+              $is_image = false;
+            }
 
             $ff = new ForumFiles();
             $ff["nama"] = $file_name;
@@ -4192,7 +4214,11 @@ class ForumController extends \yii\rest\Controller
               "status" => "ok",
               "pesan" => "Berhasil menyimpan file",
               "result" => $ff,
-              "thumbnail" => BaseUrl::base(true) . "/files/" . $ff["thumbnail"], 
+              "thumbnail" => 
+                $is_image == true ? 
+                  BaseUrl::base(true) . "/files/" . $ff["thumbnail"] : 
+                  BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+              "link" => BaseUrl::base(true) . "/files/" . $ff["nama"], 
             ];
 
           }
@@ -4280,7 +4306,13 @@ class ForumController extends \yii\rest\Controller
               DIRECTORY_SEPARATOR;
 
             unlink($path . $test["nama"]);
-            unlink($path . $test["thumbnail"]);
+
+            // jika attachment tipenya JPG, maka hapus juga thumbnail-nya.
+            if( preg_match_all("/(jpg|jpeg)/i", $test["nama"]) != false )
+            {
+              unlink($path . $test["thumbnail"]);
+            }
+
           // hapus file-nya
 
           // hapus relasinya dengan thread
