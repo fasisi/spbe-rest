@@ -1925,7 +1925,7 @@ class ForumController extends \yii\rest\Controller
       // files
       
         $list_files = ForumThreadFile::findAll(
-          ["id_thread" => $thread["id"]]
+          ["id_thread" => $thread["id"], "is_delete" => 0]
         );
 
         $files = [];
