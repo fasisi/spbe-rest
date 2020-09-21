@@ -696,6 +696,7 @@ class HelpdeskController extends \yii\rest\Controller
   //    "id_user": 123,
   //    "judul": "",
   //    "body": "",
+  //    "status": 123,
   //    "id_kategori": "",
   //    "tags": [
   //      "tag1", "tag2", ...
@@ -771,6 +772,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           $issue["judul"] = $payload["judul"];
           $issue["konten"] = $payload["body"];
+          $issue["status"] = $payload["status"];
           $issue['time_update'] = date("Y-m-j H:i:s");
           $issue['id_user_update'] = $payload["id_user"];
           $issue->save();
@@ -819,7 +821,10 @@ class HelpdeskController extends \yii\rest\Controller
       return $this->render('update');
   }
 
-  /* Menghapus tags dari suatu issue.
+
+  /* OBSOLETE 
+   *
+   * Menghapus tags dari suatu issue.
    *
    * Tetapi berdasarkan dokumentasi Confluence-Question, tidak ada API untuk
    * menghapus tags (topic) dari suatu issue.
@@ -1870,7 +1875,8 @@ class HelpdeskController extends \yii\rest\Controller
 
   }
 
-  /*
+  /*  OBSOLETE
+   *
    *  Menyimpan action antara user dan issue. Apakah si user menyatakan like,
    *  dislike terhadap suatu issue. Informasi disimpan pada tabel hd_issue_user_action
    *
