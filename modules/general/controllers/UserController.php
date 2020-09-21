@@ -10,6 +10,7 @@ use app\models\User;
 use app\models\UserRoles;
 use app\models\KategoriUser;
 use app\models\Roles;
+use app\models\KmsKategori;
 
 class UserController extends \yii\rest\Controller
 {
@@ -81,13 +82,16 @@ class UserController extends \yii\rest\Controller
     $id_user = $new->primaryKey;
 
     // Insert record ke table user_roles
-    $user_roles = new UserRoles();
-    $user_roles['id_user'] = $id_user;
-    $user_roles['id_roles'] = $payload["roles"];
-    $user_roles->save();
+    foreach($payload["roles"] as $id_role)
+    {
+      $user_roles = new UserRoles();
+      $user_roles['id_user'] = $id_user;
+      $user_roles['id_roles'] = $id_role;
+      $user_roles->save();
+    }
 
     //insert record kategori ke tabel kategori_user
-    KategoriUser::Refresh($id_user, $payload["id_kategori"]);
+    KategoriUser::Reset($id_user, $payload["id_kategori"]);
 
     if( $new->hasErrors() == false )
     {
@@ -135,6 +139,19 @@ class UserController extends \yii\rest\Controller
       if( is_null($record) == false )
       {
         $roles = $record->getRoles()->all();
+        $list_kategori_user = KategoriUser::find()
+          ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
+          ->all();
+
+        $categories = [];
+        foreach($list_kategori_user as $kategori_item)
+        {
+          $temp = [];
+          $temp["category"] = KmsKategori::fineOne($kategori_item["id_kategori"]);
+          $temp["category_path"] = KmsKategori::CategoryPath($kategori_item["id_kategori"]);
+
+          $categories[] = $temp;
+        }
 
         return [
           "status" => "ok",
@@ -142,9 +159,8 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "record" => $record,
-            "category" => KmsKategori::findOne($record["id_kategori"]),
-            "category_path" => KmsKategori::GetCategoryPath($record["id_kategori"]),
-            "roles" => $roles
+            "roles" => $roles,
+            "categories" => $categories,
           ]
         ];
       }
@@ -176,7 +192,8 @@ class UserController extends \yii\rest\Controller
   //    username: ...,
   //    id_departments: ...,
   //    jenis_kelamin: ...,
-  //    id_roles: [1,2,...]
+  //    id_roles: [1,2,...],
+  //    id_kategori: [1, 2, 3, ...]
   //  }
   //  Response type: JSON,
   //  Response format:
@@ -205,6 +222,7 @@ class UserController extends \yii\rest\Controller
 
         if( $user->hasErrors() == false )
         {
+          // update roles
           UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
           foreach($payload["id_roles"] as $id_role)
           {
@@ -222,6 +240,28 @@ class UserController extends \yii\rest\Controller
           }
 
           $roles = $user->getRoles()->all();
+          // update roles
+
+
+
+          // update kategori
+          KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+          foreach($payload["id_kategori"] as $id_kategori)
+          {
+            //periksa validitas id_role
+            $test = KmsKategori::findOne($id_kategori);
+
+            if( is_null($test) == false )
+            {
+              $new = new KategoriUser();
+              $new["id_user"] = $payload["id"];
+              $new["id_kategori"] = $id_kategori;
+              $new->save();
+            }
+          }
+
+          $categories = $user->getKategori()->all();
+          // update kategori
 
           return [
             "status" => "ok",
@@ -229,7 +269,9 @@ class UserController extends \yii\rest\Controller
             "result" => 
             [
               "record" => $user,
-              "roles" => $roles
+              "roles" => $roles,
+              "categories" => $categories,
+
             ]
           ];
         }
@@ -447,38 +489,13 @@ class UserController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == true )
     {
-      $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
-        $user["is_banned"]       = 1;
-        $user->save();
+      User::updateAll(['is_banned' => 1],['in','id',$payload["id"]]);
 
-        if( $user->hasErrors() == false )
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record deleted",
-            "result" => $user,
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Fail on delete record",
-            "result" => $user->getErrors(),
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Record not found",
-        ];
-      }
+      return [
+        "status" => "ok",
+        "pesan" => "Record Banned"
+      ];
     }
     else
     {
@@ -497,38 +514,13 @@ class UserController extends \yii\rest\Controller
 
     if( isset($payload["id"]) == true )
     {
-      $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
-        $user["is_banned"]       = 0;
-        $user->save();
+      User::updateAll(['is_banned' => 0],['in','id',$payload["id"]]);
 
-        if( $user->hasErrors() == false )
-        {
-          return [
-            "status" => "ok",
-            "pesan" => "Record deleted",
-            "result" => $user,
-          ];
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Fail on delete record",
-            "result" => $user->getErrors(),
-          ];
-        }
-
-      }
-      else
-      {
-        return [
-          "status" => "not ok",
-          "pesan" => "Record not found",
-        ];
-      }
+      return [
+        "status" => "ok",
+        "pesan" => "Record Banned"
+      ];
     }
     else
     {

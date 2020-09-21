@@ -14,7 +14,7 @@ return [
     "jira" => 
     [
       "ip" => "202.46.6.2",
-      "port" => "8090",
+      "port" => "8080",
       "user" => "ujicoba",
       "password" => "!UjiCobaSPB3!",
     ]
