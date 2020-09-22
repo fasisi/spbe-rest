@@ -176,6 +176,7 @@ class HelpdeskController extends \yii\rest\Controller
   //    "body": "",
   //    "id_user": 123,
   //    "id_kategori": 123,
+  //    "id_files": [1,2,3],
   //    "tags": ["", "", ...]
   //  }
   //  Response type: JSON
@@ -227,12 +228,49 @@ class HelpdeskController extends \yii\rest\Controller
           $issue["status"] = 0;
           $issue->save();
 
+          $client = $this->SetupGuzzleClient();
+          $jira_conf = Yii::$app->restconf->confs['jira'];
           $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
+
+          if( isset($payload["id_files"]) == true )
+          {
+            if( is_array( $payload["id_files"] ) == true )
+            {
+              $this->UpdateFiles($id_thread, $payload);
+            }
+          }
+
+          // ambil ulang tags atas thread ini. untuk menjadi response.
+          $tags = HdIssueTag::find()
+            ->where(
+              "id_issue = :id_issue",
+              [
+                ":id_issue" => $id_issue
+              ]
+            )
+            ->all();
+
+          // ambil ulang files atas thread ini. untuk menjadi response.
+          $files = HdIssueFile::find()
+            ->where(
+              "id_issue = :id_issue",
+              [
+                ":id_issue" => $id_issue
+              ]
+            )
+            ->all();
+
+          $this->IssueLog($id_thread, $payload["id_user"], 1, -1);
 
           return [
             "status" => "ok",
             "pesan" => "Record issue berhasil disimpan",
-            "result" => $issue
+            "result" => 
+            [
+              "issue" => $issue,
+              "tags" => $tags,
+              "files" => $files,
+            ]
           ];
         }
         else
@@ -280,7 +318,7 @@ class HelpdeskController extends \yii\rest\Controller
   //   "pesan": "",
   //   "result": {}
   // }
-  public function actionSubmit()
+  public function actionCreate()
   {
     $payload = $this->GetPayload();
 
@@ -380,6 +418,8 @@ class HelpdeskController extends \yii\rest\Controller
 
 
 
+  //  OBSOLETE
+  //
   //  Membuat record question
   //
   //  Method : POST
@@ -405,7 +445,7 @@ class HelpdeskController extends \yii\rest\Controller
   //      "tags": [ <record_of_tag>, .. ]
   //    }
   //  }
-  public function actionCreate()
+  public function actionCreate_2()
   {
     $judul_valid = true;
     $body_valid = true;
@@ -753,7 +793,12 @@ class HelpdeskController extends \yii\rest\Controller
         $tags_valid == true 
       )
     {
-      // update record hd_issue
+
+      $issue = HdIssue::findOne($payload["id"]);
+
+      if( $issue["status"] == -1 ) // masih draft
+      {
+        // update record hd_issue
         $issue = HdIssue::find($payload["id"])
           ->where(
             [
@@ -810,6 +855,16 @@ class HelpdeskController extends \yii\rest\Controller
             "payload" => $payload,
           ];
         }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Hanya bisa mengupdate record issue ber-status draft",
+          "issue" => $issue,
+          "payload" => $payload,
+        ];
+      }
     }
     else
     {
@@ -923,6 +978,44 @@ class HelpdeskController extends \yii\rest\Controller
 
   }
 
+
+  private function UpdateFiles($id_thread, $payload)
+  {
+    HdIssueFile::deleteAll("id_issue = :id_issue", [":id_issue" => $id_issue]);
+
+    foreach( $payload["id_files"] as $item_file )
+    {
+      // cek recordnya
+      $test = IssueFiles::findOne($item_file);
+
+      if( is_null($test) == false ) 
+      {
+        $path = Yii::$app->basePath .
+          DIRECTORY_SEPARATOR . "web" .
+          DIRECTORY_SEPARATOR . "hd_files" .
+          DIRECTORY_SEPARATOR;
+
+        // cek filenya
+        if( is_file($path . $test["nama"]) == true )
+        {
+          // pasangkan file dengan issue
+          $new = new HdIssueFile();
+          $new["id_issue"] = $id_issue;
+          $new["id_file"] = $item_file;
+          $new["id_user_create"] = $payload["id_user"];
+          $new["time_create"] = date("Y-m-d H:i:s");
+          $new->save();
+
+        }
+        else
+        {
+          // jika file sudah tidak ada, maka hapus recordnya
+          $test->delete();
+        }
+      }
+    }
+  }
+
   /*
    *  Mengambil hd_issue_activity_log berdasarkan filter yang dapat disetup secara dinamis.
    *
@@ -952,11 +1045,13 @@ class HelpdeskController extends \yii\rest\Controller
    *    }
    *  }
    * */
-
   public function actionLogsbyfilter()
   {
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
+
+    $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_awal"]);
+    $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_akhir"]);
 
     $q = new Query();
 
@@ -1036,7 +1131,7 @@ class HelpdeskController extends \yii\rest\Controller
     else
     {
       $q->distinct()
-        ->groupBy("a.id");
+        ->groupBy("u.id");
     }
 
     //execute the query
@@ -1091,7 +1186,7 @@ class HelpdeskController extends \yii\rest\Controller
             // rujuk pada database untuk mendapatkan value.
 
             //ambil data draft
-            $type_status = 0;
+            $type_status = -1;
             $temp["draft"] = HdIssue::StatusInRange($issue["id"], $type_status, $tanggal_awal, $tanggal_akhir);
 
             //ambil data new
@@ -1118,7 +1213,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           switch(true)
           {
-          case $status == 0:  //draft
+          case $status == -1:  //draft
             if($temp["draft"] > 0)
             {
               $is_valid = $is_valid && true;
@@ -1483,14 +1578,14 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil daftar issue berdasarkan idkategori, page_no, items_per_page.
+   *  Mengambil daftar issue berdasarkan status, page_no, items_per_page.
    *  Hasil yang dikembalikan diurutkan desc berdasarkan waktu publish.
    *
    *  Method: GET
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_kategori": [1, 2, ...],
+   *    "status": 123,
    *    "page_no": 123,
    *    "items_per_page": 123
    *  }
@@ -1507,7 +1602,7 @@ class HelpdeskController extends \yii\rest\Controller
    *      "records":
    *      [
    *        {
-   *          "kms_artikel":
+   *          "hd_issue":
    *          {
    *            <object dari record issue>
    *          },
@@ -1526,16 +1621,15 @@ class HelpdeskController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     //  cek parameter
-    $is_kategori_valid = isset($payload["id_kategori"]);
+    $is_status_valid = isset($payload["status"]);
     $is_page_no_valid = isset($payload["page_no"]);
     $is_items_per_page_valid = isset($payload["items_per_page"]);
 
-    $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
 
     if(
-        $is_kategori_valid == true &&
+        $is_status_valid == true &&
         $is_page_no_valid == true &&
         $is_items_per_page_valid == true
       )
@@ -1545,8 +1639,7 @@ class HelpdeskController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          ["in", "status", [1, 2, 3, 4]],
-          ["in", "id_kategori", $payload["id_kategori"]]
+          "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
         ])
         ->orderBy("time_create desc")
         ->all();
@@ -1556,8 +1649,7 @@ class HelpdeskController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          ["in", "status", [1, 2, 3, 4]],
-          ["in", "id_kategori", $payload["id_kategori"]]
+          "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
         ])
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
@@ -1572,6 +1664,10 @@ class HelpdeskController extends \yii\rest\Controller
       foreach($list_issue as $issue)
       {
         $user = User::findOne($issue["id_user_create"]);
+        $jawaban = HdIssueDiscussion::findAll([
+          "id_issue" => $issue["id"],
+          "is_delete" => 0
+        ]);
 
         $res = $client->request(
           'GET',
@@ -1609,6 +1705,7 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
             $temp["user_create"] = $user;
             $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+            $temp["jawaban"]["count"] = count($jawaban);
             $temp["servicedesk"]["status"] = "ok";
             $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -1765,7 +1862,7 @@ class HelpdeskController extends \yii\rest\Controller
         $list_linked_jawaban = $response_payload["values"];
 
         $jawaban = [];
-        foreach($list_inked_jawaban as $item_linked_jawaban)
+        foreach($list_linked_jawaban as $item_linked_jawaban)
         {
           $record_jawaban = HdIssueDiscussion::find()
             ->where(
@@ -1783,8 +1880,6 @@ class HelpdeskController extends \yii\rest\Controller
         }
 
         //  lakukan query dari Confluence
-        $jira_conf = Yii::$app->restconf->confs['jira'];
-
         $hasil = [];
         $res = $client->request(
           'GET',
@@ -1830,7 +1925,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["jawaban"]["count"] = count($jawaban);
           $hasil["jawaban"]["records"] = $jawaban;
 
-          $this->ThreadLog($issue["id"], $payload["id_user_actor"], 2, -1);
+          $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
           break;
 
         default:
@@ -2107,9 +2202,11 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   *  Mencari issue berdasarkan daftar id_kategori dan keywords. Search keywords
-   *  yang diterima akan dipisah-pisah berdasarkan penggalan kata dan akan dilakukan
-   *  pencarian menggunakan operator '~'.
+   *  TODO!!
+   *
+   *  API JIRA hanya melakukan pencarian pada summary. Hal ini dianggap kurang
+   *  berfaedah. Maka pencarian dilakuka pada database SPBE menggnakan fasilitas
+   *  FULLTEXT SEARCH
    *
    *  Method: GET
    *  Request type: JSON
@@ -2133,7 +2230,7 @@ class HelpdeskController extends \yii\rest\Controller
    * */
 
   // WARNING!!
-  // Confluence-Question support fitur pencarian hanya pada judul dan konten
+  // Confluence-Question support fitur pencarian hanya pada summary
 
   public function actionSearch()
   {
@@ -2150,6 +2247,12 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_kategori_valid == true
       )
     {
+      /*
+       * Lakukan pencarian terhadap database spbe. Karena pencarian pada JIRA
+       * tidak dapat memisahkan antara request milik si A atau pun milik si B.
+       *
+       * */
+
       // pecah keyword berdasarkan kata
       $daftar_keyword = explode(" ", $payload["search_keyword"]);
       $keywords = "";
@@ -2260,8 +2363,8 @@ class HelpdeskController extends \yii\rest\Controller
   /*
    *  Mengubah status suatu issue.
    *  Status artikel:
-   *  0 = new
-   *  1 = publish
+   *  -1 = draft
+   *  1 = new
    *  2 = un-assign
    *  3 = progress
    *  4 = solved
@@ -2375,6 +2478,10 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
+   *  OBSOLETE
+   *  Helpdesk sifatnya private maka tidak ada keperluan untuk mencari issue
+   *  lain.
+   *
    *  Mengambil daftar issue berdasarkan kesamaan tags yang berasal dari
    *  kategori selain id_kategori yang dikirim.
    *
@@ -2530,6 +2637,8 @@ class HelpdeskController extends \yii\rest\Controller
 
 
   /*
+   *  OBSOLETE
+   *
    *  Mengambil daftar kategori berdasarkan kesamaan tags yang berasal dari
    *  kategori selain id_kategori yang dikirim.
    *
@@ -2693,7 +2802,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
-            case 0: //draft
+            case -1: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
 
@@ -2743,7 +2852,6 @@ class HelpdeskController extends \yii\rest\Controller
       }
 
       return [
-        "status" => "ok",
         "status" => "ok",
         "result" => $hasil,
       ];
@@ -2926,6 +3034,7 @@ class HelpdeskController extends \yii\rest\Controller
       /*     ->all(); */
       /* $total_user = count($total_user); */
 
+      /* // ambil jumlah user yang melakukan status kepada issue */
       /* $q = new Query(); */
       /* $user_status = */ 
       /*   $q->select("log.status, count(u.id) as jumlah") */
@@ -2941,7 +3050,7 @@ class HelpdeskController extends \yii\rest\Controller
       /*     ->groupBy("log.status") */
       /*     ->all(); */
 
-      /* // ambil jumlah issue per action (like/dislike) */
+      /* // ambil jumlah user per action (like/dislike) */
       /* $q = new Query(); */
       /* $user_action = */ 
       /*   $q->select("log.action, u.id") */
@@ -2973,7 +3082,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
-          case 0: //draft
+          case -1: //draft
             $temp["draft"]["issue"] = $record["jumlah"];
             break;
 
@@ -3025,7 +3134,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
-          case 0: //new
+          case -1: //new
             $temp["new"]["user"] = $record["jumlah"];
             break;
 
@@ -3091,13 +3200,13 @@ class HelpdeskController extends \yii\rest\Controller
 
 
   /*
-   *  Membuat atau mengedit comment. Comment punya relasi kepada issue atau 
-   *  jawaban. Oleh karena itu, request create atau update harus menyertakan
-   *  tipe comment (1 = comment of issue; 2= comment of jawaban)
    *
    *  WARNING!!
    *  JIRA tidak mengenal konsep komen. Hanya mengenal konsep jawaban.
    *
+   *  Membuat atau mengedit comment. Comment punya relasi kepada issue atau 
+   *  jawaban. Oleh karena itu, request create atau update harus menyertakan
+   *  tipe comment (1 = comment of issue; 2= comment of jawaban)
    *  Method : POST
    *  Request type: JSON
    *  Request format:
@@ -3528,6 +3637,8 @@ class HelpdeskController extends \yii\rest\Controller
     if( Yii::$app->request->isPost )
     {
       // membuat record jawaban
+
+
       $is_id_parent_valid = isset($payload["id_parent"]);
       $is_id_user_valid = isset($payload["id_user"]);
       $is_konten_valid = isset($payload["konten"]);
