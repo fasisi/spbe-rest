@@ -164,6 +164,8 @@ class ArticleController extends \yii\rest\Controller
   //    "judul": "",
   //    "body": "",
   //    "id_kategori": "",
+  //    "status": -2/-1/0/1/2/3/4 (-2=draft-rangkuman; -1=draft; 0=new; 1=publish; 2=un-publish; 3=reject; 4=freeze)
+  //    "linked_id_thread": 123,
   //    "tags": [
   //      "tag1", "tag2", ...
   //    ],
@@ -208,7 +210,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( $judul_valid == true && $body_valid == true &&
         $kategori_valid == true && $tags_valid == true &&
-	$status_valid == true
+        $status_valid == true
       )
     {
       // panggil POST /rest/api/content
@@ -229,7 +231,7 @@ class ArticleController extends \yii\rest\Controller
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
-      Yii::info("base_url = $base_url");
+
       $client = new \GuzzleHttp\Client([
         'base_uri' => $base_url
       ]);
@@ -268,11 +270,13 @@ class ArticleController extends \yii\rest\Controller
             $response_payload = Json::decode($response_payload);
 
             $linked_id_artikel = $response_payload['id'];
+            $linked_id_thread = $payload['linked_id_thread'];
 
 
             // bikin record kms_artikel
             $artikel = new KmsArtikel();
             $artikel['linked_id_content'] = $linked_id_artikel;
+            $artikel['linked_id_thread'] = $linked_id_thread;
             $artikel['time_create'] = date("Y-m-j H:i:s");
             $artikel['id_user_create'] = $payload['id_user'];
             $artikel['id_kategori'] = $payload['id_kategori'];
@@ -1027,6 +1031,10 @@ class ArticleController extends \yii\rest\Controller
         // ================
             // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
 
+            //ambil data draft-rangkuman
+            $type_status = -2;
+            $temp["draftrangkuman"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
             //ambil data draft
             $type_status = -1;
             $temp["draft"] = KmsArtikel::StatusInRange($artikel["id"], $type_status, $tanggal_awal, $tanggal_akhir);
@@ -1098,6 +1106,17 @@ class ArticleController extends \yii\rest\Controller
         {
           switch(true)
           {
+          case $status == -2:  //draft-rangkuman
+            if($temp["draftrangkuman"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
           case $status == -1:  //draft
             if($temp["draft"] > 0)
             {
@@ -2111,7 +2130,8 @@ class ArticleController extends \yii\rest\Controller
           [
             "id_kategori" => $payload["id_kategori"],
             "is_delete" => 0,
-            "is_publish" => 0
+            "is_publish" => 0,
+            ["in", "status", [1]]
           ]
         )
         ->all();
@@ -2783,6 +2803,10 @@ class ArticleController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
+            case -2: //draft-rangkuman
+              $temp["data"]["draftrangkuman"] = $record["jumlah"];
+              break;
+
             case -1: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
@@ -3049,6 +3073,8 @@ class ArticleController extends \yii\rest\Controller
       $temp["total"]["artikel"] = $total_artikel;
       $temp["total"]["user"] = $total_user;
 
+      $temp["draftrangkuman"]["artikel"] = 0;
+      $temp["draft"]["artikel"] = 0;
       $temp["new"]["artikel"] = 0;
       $temp["publish"]["artikel"] = 0;
       $temp["unpublish"]["artikel"] = 0;
@@ -3058,6 +3084,14 @@ class ArticleController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -2: //draft-rangkuman
+            $temp["draftrangkuman"]["artikel"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["artikel"]++;
+            break;
+
           case 0: //new
             $temp["new"]["artikel"]++;
             break;
@@ -3115,6 +3149,14 @@ class ArticleController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -2: //draft-rangkuman
+            $temp["draftrangkuman"]["user"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["user"]++;
+            break;
+
           case 0: //new
             $temp["new"]["user"]++;
             break;
