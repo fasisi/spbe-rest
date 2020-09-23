@@ -5,10 +5,10 @@ namespace app\models;
 use Yii;
 
 /**
- * This is the model class for table "forum_thread_file".
+ * This is the model class for table "hd_issue_file".
  *
  * @property int $id
- * @property int $id_thread
+ * @property int $id_issue
  * @property string $nama
  * @property string $file_name
  * @property int $id_user_create
@@ -17,14 +17,14 @@ use Yii;
  * @property string|null $time_delete
  * @property int $is_delete
  */
-class ForumThreadFile extends \yii\db\ActiveRecord
+class HdIssueFile extends \yii\db\ActiveRecord
 {
     /**
      * {@inheritdoc}
      */
     public static function tableName()
     {
-        return 'forum_thread_file';
+        return 'hd_issue_file';
     }
 
     /**
@@ -33,9 +33,11 @@ class ForumThreadFile extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_thread', 'id_file', 'id_user_create', 'time_create'], 'required'],
-            [['id_thread', 'id_file', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
+            [['id_issue', 'nama', 'file_name', 'id_user_create', 'time_create'], 'required'],
+            [['id_issue', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
             [['time_create', 'time_delete'], 'safe'],
+            [['nama'], 'string', 'max' => 500],
+            [['file_name'], 'string', 'max' => 1500],
         ];
     }
 
@@ -46,7 +48,7 @@ class ForumThreadFile extends \yii\db\ActiveRecord
     {
         return [
             'id' => 'ID',
-            'id_thread' => 'Id Thread',
+            'id_issue' => 'Id Issue',
             'nama' => 'Nama',
             'file_name' => 'File Name',
             'id_user_create' => 'Id User Create',
