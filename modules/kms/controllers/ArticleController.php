@@ -652,6 +652,7 @@ class ArticleController extends \yii\rest\Controller
             $artikel['time_update'] = date("Y-m-j H:i:s");
             $artikel['id_user_update'] = $payload["id_user"];
             $artikel['id_kategori'] = $payload["id_kategori"];
+            $artikel['linked_id_thread'] = $payload["linked_id_thread"];
             $artikel->save();
 
             // mengupdate informasi tags
