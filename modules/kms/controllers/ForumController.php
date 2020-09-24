@@ -17,6 +17,7 @@ use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
+use app\models\KmsArticle;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\ForumFiles;
@@ -4250,6 +4251,83 @@ class ForumController extends \yii\rest\Controller
       return [
         "status" => "not ok",
         "pesan" => "Request hanya menerima method POST, PUT atau DELETE",
+      ];
+    }
+  }
+
+
+  /*
+   * Merelasikan record forum_thread dengan record kms_artikel
+   *
+   * Request type; JSON,
+   * Request format:
+   * {
+   *   "id_thread": 123,
+   *   "linked_id_artikel": 123,
+   * }
+   * Response type; JSON,
+   * Response format:
+   * {
+   *   "status": "ok",
+   *   "pesan": "",
+   *   "result":
+   *   {
+   *     object of thread record
+   *   }
+   * }
+    * */
+  public function actionMakerangkuman()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_linked_id_article = isset($payload["linked_id_article"]);
+
+    if( $is_id_thread_valid == true && $is_linked_id_article == true )
+    {
+      $test = ForumThread::findOne($payload["id_thread"]);
+
+      if( is_null($test) == true )
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record forum_thread tidak ditemukan",
+        ];
+      }
+
+      $test = KmsArticle::findOne($payload["linked_id_article"]);
+
+      if( is_null($test) == true )
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record kms_article tidak ditemukan",
+        ];
+      }
+
+      $thread = ForumThread::findOne($payload["id_thread"]);
+      $thread["linked_id_article"] = $payload["linked_id_article"];
+      $thread->save();
+
+      $article = KmsArticle::findOne($payload["linked_id_article"]);
+
+      return [
+        "status" => "ok",
+        "pesan" => "Relasi antara ForumThread dan KmsArticle telah disimpan",
+        "result" => 
+        [
+          "ForumThread" => $thread,
+          "KmsArticle" => $article,
+        ]
+
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+        "payload" => $payload
       ];
     }
   }
