@@ -4201,13 +4201,15 @@ class ForumController extends \yii\rest\Controller
 
             if( is_null($test_thread) == false )
             {
-              $thread_file = ForumThreadFile::find(
-                "id_thread = :id_thread and id_file = :id_file",
-                [
-                  ":id_thread" => $payload["id_thread"],
-                  ":id_file" => $payload["id_file"],
-                ]
-              )->one();
+              $thread_file = ForumThreadFile::find()
+                ->where(
+                  "id_thread = :id_thread and id_file = :id_file",
+                  [
+                    ":id_thread" => $payload["id_thread"],
+                    ":id_file" => $payload["id_file"],
+                  ]
+                )
+                ->one();
 
               $thread_file["is_delete"] = 1;
               $thread_file["id_user_delete"] = $payload["id_user_actor"];
