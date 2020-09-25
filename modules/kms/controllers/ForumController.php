@@ -17,7 +17,7 @@ use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
-use app\models\KmsArticle;
+use app\models\KmsArtikel;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\ForumFiles;
@@ -962,11 +962,11 @@ class ForumController extends \yii\rest\Controller
         {
           if( count($temp_where) == 1 )
           {
-            /* $where[] = $temp_where[0]; */
+            $where[] = $temp_where[0];
           }
           else
           {
-            /* $where[] = ["or", $temp_where[0], $temp_where[1]]; */
+            $where[] = ["or", $temp_where[0], $temp_where[1]];
           }
         }
     // actions and status =====================================================
@@ -1053,6 +1053,14 @@ class ForumController extends \yii\rest\Controller
         // ================
             // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
 
+            //ambil data rangkumselesai
+            $type_status = -3;
+            $temp["rangkumselesai"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data rangkumprogress
+            $type_status = -2;
+            $temp["rangkumprogress"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
             //ambil data draft
             $type_status = -1;
             $temp["draft"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
@@ -1124,6 +1132,28 @@ class ForumController extends \yii\rest\Controller
         {
           switch(true)
           {
+          case $status == -3:  //rangkumselesai
+            if($temp["rangkumselesai"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
+          case $status == -2:  //rangkumprogress
+            if($temp["rangkumprogress"] > 0)
+            {
+              $is_valid = $is_valid && true;
+            }
+            else
+            {
+              $is_valid = $is_valid && false;
+            }
+            break;
+
           case $status == -1:  //draft
             if($temp["draft"] > 0)
             {
@@ -2846,6 +2876,14 @@ class ForumController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
+            case -3: //rangkumselesai
+              $temp["data"]["rangkumselesai"] = $record["jumlah"];
+              break;
+
+            case -2: //prosesrangkum
+              $temp["data"]["rangkumprogress"] = $record["jumlah"];
+              break;
+
             case -1: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
@@ -3120,6 +3158,9 @@ class ForumController extends \yii\rest\Controller
       $temp["total"]["thread"] = $total_thread;
       $temp["total"]["user"] = $total_user;
 
+      $temp["rangkumselesai"]["thread"] = 0;
+      $temp["rangkumprogress"]["thread"] = 0;
+      $temp["draft"]["thread"] = 0;
       $temp["new"]["thread"] = 0;
       $temp["publish"]["thread"] = 0;
       $temp["unpublish"]["thread"] = 0;
@@ -3129,6 +3170,18 @@ class ForumController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -3: //rangkumselesai
+            $temp["rangkumselesai"]["thread"]++;
+            break;
+
+          case -2: //rangkumprogress
+            $temp["rangkumprogress"]["thread"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["thread"]++;
+            break;
+
           case 0: //new
             $temp["new"]["thread"]++;
             break;
@@ -3177,6 +3230,9 @@ class ForumController extends \yii\rest\Controller
         }
       }
 
+      $temp["rangkumselesai"]["user"] = 0;
+      $temp["rangkumprogress"]["user"] = 0;
+      $temp["draft"]["user"] = 0;
       $temp["new"]["user"] = 0;
       $temp["publish"]["user"] = 0;
       $temp["unpublish"]["user"] = 0;
@@ -3186,6 +3242,18 @@ class ForumController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -3: //rangkumselesai
+            $temp["rangkumselesai"]["user"]++;
+            break;
+
+          case -2: //rangkumprogress
+            $temp["rangkumprogress"]["user"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["user"]++;
+            break;
+
           case 0: //new
             $temp["new"]["user"]++;
             break;
@@ -4297,7 +4365,7 @@ class ForumController extends \yii\rest\Controller
         ];
       }
 
-      $test = KmsArticle::findOne($payload["linked_id_article"]);
+      $test = KmsArtikel::findOne($payload["linked_id_article"]);
 
       if( is_null($test) == true )
       {
@@ -4308,10 +4376,11 @@ class ForumController extends \yii\rest\Controller
       }
 
       $thread = ForumThread::findOne($payload["id_thread"]);
-      $thread["linked_id_article"] = $payload["linked_id_article"];
+      $thread["linked_id_artikel"] = $payload["linked_id_article"];
+      $thread["status"] = -2;
       $thread->save();
 
-      $article = KmsArticle::findOne($payload["linked_id_article"]);
+      $article = KmsArtikel::findOne($payload["linked_id_article"]);
 
       return [
         "status" => "ok",
