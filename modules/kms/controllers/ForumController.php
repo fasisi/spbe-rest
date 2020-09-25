@@ -61,6 +61,8 @@ class ForumController extends \yii\rest\Controller
         'logsbytags'            => ['GET'],
         'categoriesbytags'      => ['GET'],
         'itemtag'               => ['POST'],
+
+        'mtpilihjawaban'        => ['PUT'],
       ]
     ];
     return $behaviors;
@@ -4583,6 +4585,92 @@ class ForumController extends \yii\rest\Controller
           "pesan" => "Record berhasil diambil",
           "result" => $hasil
         ];
+      }
+
+      /*
+       * Menandakan suatu jawaban sebagai "dipilih"
+       *
+       * Request type: JSON
+       * Request format:
+       * {
+       *   "id_thread": 123,
+       *   "id_jawaban": 123
+       * }
+       * Response type: JSON
+       * Response format:
+       * {
+       *   "status": "ok",
+       *   "pesan": "",
+       *   "result":
+       *   {
+       *     "forum_thread": { object of thread record },
+       *     "jawaban": [{}, ...]
+       *   } 
+       * }
+        * */
+      public function actionMtpilihjawaban()
+      {
+        $payload = $this->GetPayload();
+
+        $is_id_thread_valid = isset($payload["id_thread"]);
+        $is_id_jawaban_valid = isset($payload["id_jawaban"]);
+
+        if(
+            $is_id_thread_valid == true &&
+            $is_id_jawaban_valid == true
+          )
+        {
+          $thread = ForumThread::findOne($payload["id_thread"]);
+          if( is_null($thread) == true )
+          {
+            return [
+            "status" => "not ok",
+            "pesan" => "Record thread tidak ditemukan",
+            "payload" => $payload
+            ];
+          }
+
+          if( is_numeric($payload["id_jawaban"]) == true )
+          {
+            if( $payload["id_jawaban"] > -1 )  // id_jawaban = -1 berarti membatalkan jawaban
+            {
+              $jawaban = ForumThreadDiscussion::findOne(
+                [
+                  "id_thread" => $payload["id_thread"], 
+                  "id" => $payload["id_jawaban"]
+                ]
+              );
+              if( is_null($jawaban) == true )
+              {
+                return [
+                  "status" => "not ok",
+                  "pesan" => "Record jawaban tidak ditemukan",
+                  "payload" => $payload
+                ];
+              }
+            }
+          }
+
+          $thread["id_discussion"] = $payload["id_jawaban"];
+          $thread->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Jawaban sudah dipilih",
+            "result" => [
+              "ForumThread" => $thread,
+              "ForumThreadDiscussion" => $jawaban
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+            "payload" => $payload
+          ];
+        }
       }
 
 
