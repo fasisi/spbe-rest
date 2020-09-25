@@ -690,126 +690,6 @@ class ForumController extends \yii\rest\Controller
           "result" => $thread
         ];
       }
-
-      // mengupdate informasi tags
-
-          //hapus label pada confluence
-          //  WARNING!!
-          //
-          //  CQ tidak mendukung API untuk mencopot tag dari thread.
-          //  Oleh karena itu proses ini dilakukan di dalam SPBE.
-
-              /* $this->DeleteTags($client, $jira_conf, $artikel["linked_id_question"]); */
-          //hapus label pada confluence
-
-          // refresh tag/label
-              $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
-          // refresh tag/label
-               
-      // mengupdate informasi tags
-
-
-      //$this->ActivityLog($id_artikel, 123, 1);
-      //$this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 1, $payload["status"]);
-
-
-
-
-      // ambil nomor versi bersadarkan id_linked_content
-          /* $thread = ForumThread::findOne($payload["id"]); */
-          
-          /* $jira_conf = Yii::$app->restconf->confs['confluence']; */
-          /* $client = $this->SetupGuzzleClient(); */
-
-          /* $res = null; */
-          /* $res = $client->request( */
-          /*   'GET', */
-          /*   "/rest/questions/1.0/question/{$thread["linked_id_question"]}", */
-          /*   [ */
-          /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
-          /*     /1* 'debug' => true, *1/ */
-          /*     'http_errors' => false, */
-          /*     'headers' => [ */
-          /*       "Content-Type" => "application/json", */
-          /*       "accept" => "application/json", */
-          /*     ], */
-          /*     'auth' => [ */
-          /*       $jira_conf["user"], */
-          /*       $jira_conf["password"] */
-          /*     ], */
-          /*     'query' => [ */
-          /*       'status' => 'current', */
-          /*       'expand' => 'body.view,version', */
-          /*     ], */
-          /*     'body' => Json::encode($request_payload), */
-          /*   ] */
-          /* ); */
-          /* $response = Json::decode($res->getBody()); */
-      // ambil nomor versi bersadarkan id_linked_content
-
-      // WARNING!!
-      //
-      // berdasarkan dokumentasi Confluence-Question, tidak ada API untuk 
-      // melakukan update question. Perlu dipikirkan jalan keluarnya. Apakah
-      // thread dikirim ke Confluence-Question saat thread pindah status dari
-      // "new" menjadi "publish" ??
-      //
-      /* // update content */
-      /* $request_payload = [ */
-      /*   'version' => [ */
-      /*     'number' => $version */
-      /*   ], */
-      /*   'title' => $payload['judul'], */
-      /*   'type' => 'page', */
-      /*   'space' => [ */
-      /*     'key' => 'PS', */
-      /*   ], */
-      /*   'body' => [ */
-      /*     'storage' => [ */
-      /*       'value' => $payload['body'], */
-      /*       'representation' => 'storage', */
-      /*     ], */
-      /*   ], */
-      /* ]; */
-
-
-      /* $res = null; */
-      /* try */
-      /* { */
-      /*   // update kontent artikel pada confluence */
-      /*   $res = $client->request( */
-      /*     'PUT', */
-      /*     "/rest/api/content/{$artikel["linked_id_question"]}", */
-      /*     [ */
-      /*       /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
-      /*       /1* 'debug' => true, *1/ */
-      /*       'http_errors' => false, */
-      /*       'headers' => [ */
-      /*         "Content-Type" => "application/json", */
-      /*         "accept" => "application/json", */
-      /*       ], */
-      /*       'auth' => [ */
-      /*         $jira_conf["user"], */
-      /*         $jira_conf["password"] */
-      /*       ], */
-      /*       'query' => [ */
-      /*         'status' => 'current', */
-      /*       ], */
-      /*       'body' => Json::encode($request_payload), */
-      /*     ] */
-      /*   ); */
-
-      /*   switch( $res->getStatusCode() ) */
-      /*   { */
-      /*     case 200: */
-      /*       // ambil id dari result */
-      /*       $response_payload = $res->getBody(); */
-      /*       $response_payload = Json::decode($response_payload); */
-
-      /*       $linked_id_question = $response_payload['id']; */
-
-
-
     }
     else
     {
@@ -4321,13 +4201,15 @@ class ForumController extends \yii\rest\Controller
 
             if( is_null($test_thread) == false )
             {
-              $thread_file = ForumThreadFile::find(
-                "id_thread = :id_thread and id_file = :id_file",
-                [
-                  ":id_thread" => $payload["id_thread"],
-                  ":id_file" => $payload["id_file"],
-                ]
-              )->one();
+              $thread_file = ForumThreadFile::find()
+                ->where(
+                  "id_thread = :id_thread and id_file = :id_file",
+                  [
+                    ":id_thread" => $payload["id_thread"],
+                    ":id_file" => $payload["id_file"],
+                  ]
+                )
+                ->one();
 
               $thread_file["is_delete"] = 1;
               $thread_file["id_user_delete"] = $payload["id_user_actor"];
