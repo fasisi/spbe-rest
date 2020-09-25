@@ -62,6 +62,7 @@ class ForumThread extends \yii\db\ActiveRecord
             'id' => 'ID',
             'id_kategori' => 'Id Kategori',
             'linked_id_question' => 'Linked Id Question',
+	    'linked_id_artikel' => 'Linked Id Artikel',
             'judul' => 'Judul',
             'konten' => 'Konten',
             'view' => 'View',
@@ -166,8 +167,8 @@ class ForumThread extends \yii\db\ActiveRecord
           "l.id_thread = :id_thread",
           "l.type_log = 1",
           "l.status = :type_status",
-          "l.time_action >= :awal",
-          "l.time_action <= :akhir"
+          "l.time_status >= :awal",
+          "l.time_status <= :akhir"
         ])
         ->params([
           ":id_thread" => $id_thread,
