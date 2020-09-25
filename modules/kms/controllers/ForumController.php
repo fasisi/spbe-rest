@@ -1053,6 +1053,14 @@ class ForumController extends \yii\rest\Controller
         // ================
             // apakah suatu artikel mengalami status tertentu dalam rentang waktu?
 
+            //ambil data rangkumselesai
+            $type_status = -3;
+            $temp["rangkumselesai"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
+            //ambil data rangkumprogress
+            $type_status = -2;
+            $temp["rangkumprogress"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
+
             //ambil data draft
             $type_status = -1;
             $temp["draft"] = ForumThread::StatusInRange($thread["id"], $type_status, $tanggal_awal, $tanggal_akhir);
@@ -2846,6 +2854,14 @@ class ForumController extends \yii\rest\Controller
         {
           switch( $record["status"] )
           {
+            case -3: //rangkumselesai
+              $temp["data"]["rangkumselesai"] = $record["jumlah"];
+              break;
+
+            case -2: //prosesrangkum
+              $temp["data"]["rangkumprogress"] = $record["jumlah"];
+              break;
+
             case -1: //draft
               $temp["data"]["draft"] = $record["jumlah"];
               break;
@@ -3120,6 +3136,9 @@ class ForumController extends \yii\rest\Controller
       $temp["total"]["thread"] = $total_thread;
       $temp["total"]["user"] = $total_user;
 
+      $temp["rangkumselesai"]["thread"] = 0;
+      $temp["rangkumprogress"]["thread"] = 0;
+      $temp["draft"]["thread"] = 0;
       $temp["new"]["thread"] = 0;
       $temp["publish"]["thread"] = 0;
       $temp["unpublish"]["thread"] = 0;
@@ -3129,6 +3148,18 @@ class ForumController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -3: //rangkumselesai
+            $temp["rangkumselesai"]["thread"]++;
+            break;
+
+          case -2: //rangkumprogress
+            $temp["rangkumprogress"]["thread"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["thread"]++;
+            break;
+
           case 0: //new
             $temp["new"]["thread"]++;
             break;
@@ -3177,6 +3208,9 @@ class ForumController extends \yii\rest\Controller
         }
       }
 
+      $temp["rangkumselesai"]["user"] = 0;
+      $temp["rangkumprogress"]["user"] = 0;
+      $temp["draft"]["user"] = 0;
       $temp["new"]["user"] = 0;
       $temp["publish"]["user"] = 0;
       $temp["unpublish"]["user"] = 0;
@@ -3186,6 +3220,18 @@ class ForumController extends \yii\rest\Controller
       {
         switch( $record["status"] )
         {
+          case -3: //rangkumselesai
+            $temp["rangkumselesai"]["user"]++;
+            break;
+
+          case -2: //rangkumprogress
+            $temp["rangkumprogress"]["user"]++;
+            break;
+
+          case -1: //draft
+            $temp["draft"]["user"]++;
+            break;
+
           case 0: //new
             $temp["new"]["user"]++;
             break;
