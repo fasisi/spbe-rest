@@ -2280,9 +2280,15 @@ class ForumController extends \yii\rest\Controller
               $response_payload = Json::decode($response_payload);
 
               $thread = ForumThread::find()
-                ->where(
+                ->where([
+                  "and",
                   "linked_id_question = :id",
-                  [":id" => $linked_id_question]
+                  "is_delete = 0",
+                  ["in", "status", [1, 4, -3]]
+                ],
+                [
+                  ":id" => $linked_id_question,
+                ]
                 )
                 ->one();
               
@@ -3946,12 +3952,14 @@ class ForumController extends \yii\rest\Controller
 
 
         $user = User::findOne($payload["id_user"]);
+        $thread = ForumThread::findOne($payload["id_parent"]);
 
         return [
           "status" => "ok",
           "pesan" => "Record jawaban berhasil dibikin",
           "result" => 
           [
+            "ForumThread" => $thread,
             "record" => $new,
             "user" => $user,
           ]
@@ -4654,12 +4662,47 @@ class ForumController extends \yii\rest\Controller
           $thread["id_discussion"] = $payload["id_jawaban"];
           $thread->save();
 
+          // menyiapkan response
+          $list_jawaban = [];
+          $temp_list_jawaban = ForumThreadDiscussion::findAll(
+            ["id_thread" => $thread["id"]]
+          );
+          foreach($temp_list_jawaban as $item_jawaban)
+          {
+
+            $temp = [];
+            $temp["jawaban"] = $item_jawaban;
+
+            $list_komentar = ForumThreadDiscussionComment::findAll(
+              ["id_discussion" => $item_jawaban["id"]]
+            );
+
+            $temp["list_komentar"] = [];
+            foreach( $list_komentar as $item_komentar )
+            {
+              $user = User::findOne($item_komentar["id_user_create"]);
+
+              $temp2 = [];
+              $temp2["komentar"] = $item_komentar;
+              $temp2["user_create"] = $user;
+
+              $temp["list_komentar"][] = $temp2;
+            }
+
+            $list_jawaban[] = $temp;
+
+          }
+
           return [
             "status" => "ok",
             "pesan" => "Jawaban sudah dipilih",
             "result" => [
-              "ForumThread" => $thread,
-              "ForumThreadDiscussion" => $jawaban
+              "forum_thread" => $thread,
+              "jawaban" => 
+              [
+                "count" => count($list_jawaban),
+                "records" => $list_jawaban,
+              ]
             ]
           ];
         }
