@@ -4337,6 +4337,83 @@ class ForumController extends \yii\rest\Controller
 
 
   /*
+   * Menghapus relasi antara record forum_thread dengan record kms_artikel
+   *
+   * Request type; JSON,
+   * Request format:
+   * {
+   *   "id_thread": 123,
+   * }
+   * Response type; JSON,
+   * Response format:
+   * {
+   *   "status": "ok",
+   *   "pesan": "",
+   *   "result":
+   *   {
+   *     object of thread record
+   *   }
+   * }
+    * */
+  public function actionCancelrangkuman()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_linked_id_article = isset($payload["linked_id_article"]);
+
+    if( $is_id_thread_valid == true && $is_linked_id_article == true )
+    {
+      $test = ForumThread::findOne($payload["id_thread"]);
+
+      if( is_null($test) == true )
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record forum_thread tidak ditemukan",
+        ];
+      }
+
+      $test = KmsArtikel::findOne($payload["linked_id_article"]);
+
+      if( is_null($test) == true )
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record kms_article tidak ditemukan",
+        ];
+      }
+
+      $thread = ForumThread::findOne($payload["id_thread"]);
+      $thread["linked_id_artikel"] = -1;
+      $thread["status"] = 4;  // kembalikan status topik kembali menjadi freeze
+      $thread->save();
+
+      $article = KmsArtikel::findOne($payload["linked_id_article"]);
+
+      return [
+        "status" => "ok",
+        "pesan" => "Relasi antara ForumThread dan KmsArticle telah disimpan",
+        "result" => 
+        [
+          "ForumThread" => $thread,
+          "KmsArticle" => $article,
+        ]
+
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+        "payload" => $payload
+      ];
+    }
+  }
+
+
+  /*
    * Merelasikan record forum_thread dengan record kms_artikel
    *
    * Request type; JSON,
