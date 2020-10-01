@@ -1754,6 +1754,8 @@ class HelpdeskController extends \yii\rest\Controller
           ],
           'query' => [
             'expand' => 'participant',
+            'start' => 0,
+            'limit' => 100,
           ],
         ]
       );
