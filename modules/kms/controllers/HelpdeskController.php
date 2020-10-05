@@ -225,7 +225,7 @@ class HelpdeskController extends \yii\rest\Controller
           $issue["linked_id_issue"] = 0;
           $issue["id_user_create"] = $payload["id_user"];
           $issue["time_create"] = date("Y-m-d H:i:s");
-          $issue["status"] = 0;
+          $issue["status"] = $payload["status"];
           $issue->save();
 
           $client = $this->SetupGuzzleClient();
@@ -1617,6 +1617,8 @@ class HelpdeskController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     //  cek parameter
+    // $is_kategori_valid = isset($payload["id_kategori"]);
+    
     $is_status_valid = isset($payload["status"]);
     $is_list_mode_valid = isset($payload["list_mode"]);
     $is_id_user_valid = isset($payload["id_user"]);
@@ -1634,7 +1636,36 @@ class HelpdeskController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
-      if( $payload["list_mode"] == "r" || $payload["list_mode"] == "s" )
+      //  lakukan query dari tabel hd_issue
+      $test = HdIssue::find()
+        ->where([
+          "and",
+          "is_delete = 0",
+          ["in", "status", $payload["status"]],
+          // ["in", "id_kategori", $payload["id_kategori"]]
+        ])
+        ->orderBy("time_create desc")
+        ->all();
+      $total_rows = count($test);
+
+      $list_issue = HdIssue::find()
+        ->where([
+          "and",
+          "is_delete = 0",
+          ["in", "status", $payload["status"]],
+          // ["in", "id_kategori", $payload["id_kategori"]]
+        ])
+        ->orderBy("time_create desc")
+        ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
+        ->limit( $payload["items_per_page"] )
+        ->all();
+
+      //  lakukan query dari Confluence
+      $jira_conf = Yii::$app->restconf->confs['jira'];
+      $client = $this->SetupGuzzleClient();
+
+      $hasil = [];
+      foreach($list_issue as $issue)
       {
         if( $payload["list_mode"] = "r" )
         {
@@ -1998,6 +2029,8 @@ class HelpdeskController extends \yii\rest\Controller
           ],
           'query' => [
             'expand' => 'participant',
+            'start' => 0,
+            'limit' => 100,
           ],
         ]
       );
@@ -2051,7 +2084,9 @@ class HelpdeskController extends \yii\rest\Controller
             ],
             'query' => [
               /* 'spaceKey' => 'PS', */
-              'expand' => 'participants'
+              'expand' => 'participants',
+	      	'start' => 0,
+	    	'limit' => 100,
             ],
           ]
         );
@@ -2089,7 +2124,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["hd_issue"] = $issue;
           $hasil["record"]["issue_comments"] = $list_komentar;
           $hasil["record"]["user_create"] = $user;
-          $hasil["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+          $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
           $hasil["record"]["confluence"]["status"] = "not ok";
           $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
           $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -4084,6 +4119,8 @@ class HelpdeskController extends \yii\rest\Controller
       //  }
       public function actionMyitems()
       {
+      	$payload = $this->GetPayload();
+	
         $is_id_user_valid = isset($payload["id_user"]);
         $is_status_valid = isset($payload["status"]);
 
@@ -4119,7 +4156,7 @@ class HelpdeskController extends \yii\rest\Controller
             $temp = [];
             $temp["record"]["hd_issue"] = $issue;
             $temp["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-            $temp["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+            $temp["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
             $temp["record"]["user_create"] = $user;
             $temp["servicedesk"]["id"] = $response_payload["issueId"];
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
