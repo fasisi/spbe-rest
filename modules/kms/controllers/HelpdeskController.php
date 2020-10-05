@@ -224,7 +224,7 @@ class HelpdeskController extends \yii\rest\Controller
           $issue["linked_id_issue"] = 0;
           $issue["id_user_create"] = $payload["id_user"];
           $issue["time_create"] = date("Y-m-d H:i:s");
-          $issue["status"] = 0;
+          $issue["status"] = $payload["status"];
           $issue->save();
 
           $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
@@ -1526,16 +1526,20 @@ class HelpdeskController extends \yii\rest\Controller
     $payload = $this->GetPayload();
 
     //  cek parameter
-    $is_kategori_valid = isset($payload["id_kategori"]);
+    // $is_kategori_valid = isset($payload["id_kategori"]);
+    
+    $is_status_valid = isset($payload["status"]);
     $is_page_no_valid = isset($payload["page_no"]);
     $is_items_per_page_valid = isset($payload["items_per_page"]);
 
-    $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
+    // $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
+    $is_status_valid = $is_status_valid && is_array($payload["status"]);
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
 
     if(
-        $is_kategori_valid == true &&
+        // $is_kategori_valid == true &&
+	$is_status_valid == true &&
         $is_page_no_valid == true &&
         $is_items_per_page_valid == true
       )
@@ -1545,8 +1549,8 @@ class HelpdeskController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          ["in", "status", [1, 2, 3, 4]],
-          ["in", "id_kategori", $payload["id_kategori"]]
+          ["in", "status", $payload["status"]],
+          // ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
         ->all();
@@ -1556,8 +1560,8 @@ class HelpdeskController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          ["in", "status", [1, 2, 3, 4]],
-          ["in", "id_kategori", $payload["id_kategori"]]
+          ["in", "status", $payload["status"]],
+          // ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
@@ -1767,7 +1771,7 @@ class HelpdeskController extends \yii\rest\Controller
         $list_linked_jawaban = $response_payload["values"];
 
         $jawaban = [];
-        foreach($list_inked_jawaban as $item_linked_jawaban)
+        foreach($list_linked_jawaban as $item_linked_jawaban)
         {
           $record_jawaban = HdIssueDiscussion::find()
             ->where(
@@ -1805,7 +1809,9 @@ class HelpdeskController extends \yii\rest\Controller
             ],
             'query' => [
               /* 'spaceKey' => 'PS', */
-              'expand' => 'participants'
+              'expand' => 'participants',
+	      	'start' => 0,
+	    	'limit' => 100,
             ],
           ]
         );
@@ -1841,7 +1847,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["hd_issue"] = $issue;
           $hasil["record"]["issue_comments"] = $list_komentar;
           $hasil["record"]["user_create"] = $user;
-          $hasil["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+          $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
           $hasil["record"]["confluence"]["status"] = "not ok";
           $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
           $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -3799,6 +3805,8 @@ class HelpdeskController extends \yii\rest\Controller
       //  }
       public function actionMyitems()
       {
+      	$payload = $this->GetPayload();
+	
         $is_id_user_valid = isset($payload["id_user"]);
         $is_status_valid = isset($payload["status"]);
 
@@ -3834,7 +3842,7 @@ class HelpdeskController extends \yii\rest\Controller
             $temp = [];
             $temp["record"]["hd_issue"] = $issue;
             $temp["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-            $temp["record"]["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+            $temp["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
             $temp["record"]["user_create"] = $user;
             $temp["servicedesk"]["id"] = $response_payload["issueId"];
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
