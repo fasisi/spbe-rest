@@ -11,6 +11,7 @@ use app\models\UserRoles;
 use app\models\KategoriUser;
 use app\models\Roles;
 use app\models\KmsKategori;
+use app\models\HakAksesRole;
 
 class UserController extends \yii\rest\Controller
 {
@@ -25,7 +26,9 @@ class UserController extends \yii\rest\Controller
         'retrieve'  => ['GET'],
         'update'    => ['PUT'],
         'delete'    => ['DELETE'],
-        'getdata'   => ['GET']
+        'getdata'   => ['GET'],
+
+        "hakakses"  => ['POST', 'GET', 'DELETE'],
       ]
     ];
     return $behaviors;
@@ -260,7 +263,7 @@ class UserController extends \yii\rest\Controller
             }
           }
 
-          $categories = $user->getKategori()->all();
+          $categories = $user->getCategories()->all();
           // update kategori
 
           return [
@@ -367,36 +370,147 @@ class UserController extends \yii\rest\Controller
     $payload = Json::decode($payload);
 
     $query = new Query();
-    $query->select([
-      'user.id AS id_user',
-      'user.nama AS nama_user',
-      'user.jenis_kelamin AS jk',
-      'user.is_deleted AS is_deleted',
-      'user.is_banned AS is_banned',
-      'user.nip AS nip',
-      'departments.name AS nama_departments',
-      'GROUP_CONCAT(roles.name) AS nama_roles'
-      ]
-      )
-      ->from('user')
-      ->join(
-        'INNER JOIN',
-        'user_roles',
-        'user_roles.id_user =user.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'departments',
-        'user.id_departments =departments.id'
-      )
-      ->join(
-        'INNER JOIN',
-        'roles',
-        'roles.id =user_roles.id_roles'
-      )
-      ->groupBy(
-        'id_user'
-      );
+    
+    if($payload["params"] == 0) {
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_deleted = 0 AND is_banned = 0'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    } else if ($payload["params"] == 1) {
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_banned = 1 AND is_deleted = 0'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    } else if($payload["params"] == 2){
+      $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+          GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+          AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+        ]
+        )
+        ->from('user')
+        ->join(
+          'INNER JOIN',
+          'user_roles',
+          'user_roles.id_user =user.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'departments',
+          'user.id_departments =departments.id'
+        )
+        ->join(
+          'INNER JOIN',
+          'roles',
+          'roles.id =user_roles.id_roles'
+        )
+        ->where(
+          'is_deleted = 1 AND is_banned = 0'
+        )
+        ->groupBy(
+          'id_user'
+        );
+    }
+
     $command = $query->createCommand();
     $record = $command->queryAll();
 
@@ -527,6 +641,269 @@ class UserController extends \yii\rest\Controller
       return [
         "status" => "not ok",
         "pesan" => "Required parameter not found: id",
+      ];
+    }
+  }
+
+  /*
+   * API untuk membuat, mengubah, mengambil, menghapus hak akses berdasarkan
+   * id_role dan nama module
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_role : 123,
+   *   module : ["abc", "abc", ...]
+   * }
+   * Response type: JSON,
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan : "",
+   *   result: 
+   *   { 
+   *     records : 
+   *     [
+   *       { object_of_record }, 
+   *       ...
+   *     ] 
+   *   }
+   * }
+   *
+   * Method: GET
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_role: 123,
+   *   module: "abc"
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record:
+   *     {
+   *       object of record
+   *     }
+   *   }
+   * }
+   *
+   * Method: DELETE
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_role: 123,
+   *   module: ["abc", ...]
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     records:
+   *     [
+   *       {
+   *         object of record
+   *       }, ...
+   *     ]
+   *   }
+   * }
+    * */
+  public function actionHakakses()
+  {
+
+    $payload = $this->GetPayload();
+    $payload = Json::decode($payload);
+
+    if( Yii::$app->request->isPost )
+    {
+      $is_id_role_valid = isset($payload["id_role"]);
+      $is_module_valid = isset($payload["module"]);
+      $is_module_valid = $is_module_valid && is_array($payload["module"]);
+
+      if( $is_id_role_valid == true && $is_module_valid == true )
+      {
+        $har = new HakAksesRole();
+        $har["id_role"] = $payload["id_role"];
+        $har["modules"] = $payload["modules"];
+        $har["can_create"] = $payload["can_create"];
+        $har["can_retrieve"] = $payload["can_retrieve"];
+        $har["can_update"] = $payload["can_update"];
+        $har["can_delete"] = $payload["can_delete"];
+        $har->save();
+
+
+        return [
+          "status" => "ok",
+          "pesan" => "Hak akses berhasil disimpan",
+          "result" => 
+          [
+            "payload" => $payload,
+            "HakAksesRole" => $har,
+          ]
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Hak akses gagal disimpan",
+          "result" => 
+          [
+            "payload" => $payload,
+          ]
+        ];
+      }
+    }
+    elseif( Yii::$app->request->isGet )
+    {
+      $is_id_role_valid = isset($payload["id_role"]);
+      $is_module_valid = isset($payload["module"]);
+      $is_module_valid = $is_module_valid && is_array($payload["module"]);
+
+      if( $is_id_role_valid == true && $is_module_valid == true )
+      {
+        $har = HakAksesRole::find()
+          ->where(
+            [
+              "and",
+              "id_role = :id_role",
+              "modules = :modules"
+            ],
+            [
+              ":id_role" => $payload["id_role"],
+              ":modules" => $payload["modules"],
+            ]
+          )
+          ->one();
+
+
+        return [
+          "status" => "ok",
+          "pesan" => "Hak akses berhasil diambil",
+          "result" => 
+          [
+            "payload" => $payload,
+            "HakAksesRole" => $har,
+          ]
+        ];
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Hak akses gagal diambil",
+          "result" => 
+          [
+            "payload" => $payload,
+          ]
+        ];
+      }
+    }
+    elseif( Yii::$app->request->isDelete )
+    {
+      $is_id_role_valid = isset($payload["id_role"]);
+      $is_module_valid = isset($payload["module"]);
+      $is_module_valid = $is_module_valid && is_array($payload["module"]);
+
+      if( $is_id_role_valid == true && $is_module_valid == true )
+      {
+
+        $har = HakAksesRole::find()
+          ->where(
+            [
+              "and",
+              "id_role = :id_role",
+              "modules = :modules"
+            ],
+            [
+              ":id_role" => $payload["id_role"],
+              ":modules" => $payload["modules"],
+            ]
+          )
+          ->one();
+
+        if( is_null($har) == false )
+        {
+          $har->delete();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Hak akses berhasil dihapus",
+            "result" => 
+            [
+              "payload" => $payload,
+              "HakAksesRole" => $har,
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record hak akses tidak ditemukan",
+            "result" => 
+            [
+              "payload" => $payload,
+            ]
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+          "result" => 
+          [
+            "payload" => $payload,
+          ]
+        ];
+      }
+    }
+  }
+  
+  public function actionGetnavigation()
+  {
+
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    $query = new Query();
+    
+    
+    $query->select([
+    '*',
+    
+    ])
+    ->from('hak_akses_roles')
+    ->andWhere(["and", "id_roles = :id_roles"], [":id_roles" => $payload["id_roles"]]);
+
+    $command = $query->createCommand();
+    $record = $command->queryAll();
+
+    if( !empty($record) )
+    {
+      return [
+        "status" => "ok",
+        "pesan" => "Record found",
+        "result" => $record,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record not found",
+        "result" => "empty"
       ];
     }
   }
