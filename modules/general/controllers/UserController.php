@@ -715,7 +715,7 @@ class UserController extends \yii\rest\Controller
    *   }
    * }
     * */
-  public function actionGethakakses()
+  public function actionHakakses()
   {
 
     $payload = $this->GetPayload();
