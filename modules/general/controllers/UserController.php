@@ -11,7 +11,7 @@ use app\models\UserRoles;
 use app\models\KategoriUser;
 use app\models\Roles;
 use app\models\KmsKategori;
-use app\models\HakAksesRole;
+use app\models\HakAksesRoles;
 
 class UserController extends \yii\rest\Controller
 {
@@ -654,7 +654,17 @@ class UserController extends \yii\rest\Controller
    * Request format:
    * {
    *   id_role : 123,
-   *   module : ["abc", "abc", ...]
+   *   setups : 
+   *   [
+   *     {
+   *       module: "",
+   *       can_create: 0/1,
+   *       can_retrieve: 0/1,
+   *       can_update: 0/1,
+   *       can_delete: 0/1
+   *     },
+   *     ...
+   *   ]
    * }
    * Response type: JSON,
    * Response format:
@@ -718,26 +728,28 @@ class UserController extends \yii\rest\Controller
   public function actionHakakses()
   {
 
-    $payload = $this->GetPayload();
+    $payload = Yii::$app->request->rawBody;
     $payload = Json::decode($payload);
 
     if( Yii::$app->request->isPost )
     {
       $is_id_role_valid = isset($payload["id_role"]);
-      $is_module_valid = isset($payload["module"]);
-      $is_module_valid = $is_module_valid && is_array($payload["module"]);
+      $is_module_valid = isset($payload["setups"]);
+      $is_module_valid = $is_module_valid && is_array($payload["setups"]);
 
       if( $is_id_role_valid == true && $is_module_valid == true )
       {
-        $har = new HakAksesRole();
-        $har["id_role"] = $payload["id_role"];
-        $har["modules"] = $payload["modules"];
-        $har["can_create"] = $payload["can_create"];
-        $har["can_retrieve"] = $payload["can_retrieve"];
-        $har["can_update"] = $payload["can_update"];
-        $har["can_delete"] = $payload["can_delete"];
-        $har->save();
-
+        foreach($payload["setups"] as $setup)
+        {
+          $har = new HakAksesRoles();
+          $har["id_roles"] = $payload["id_role"];
+          $har["modules"] = $setup["module"];
+          $har["can_create"] = $setup["can_create"];
+          $har["can_retrieve"] = $setup["can_retrieve"];
+          $har["can_update"] = $setup["can_update"];
+          $har["can_delete"] = $setup["can_delete"];
+          $har->save();
+        }
 
         return [
           "status" => "ok",
@@ -745,7 +757,7 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "payload" => $payload,
-            "HakAksesRole" => $har,
+            "HakAksesRoles" => $har,
           ]
         ];
       }
@@ -769,19 +781,18 @@ class UserController extends \yii\rest\Controller
 
       if( $is_id_role_valid == true && $is_module_valid == true )
       {
-        $har = HakAksesRole::find()
+        $har = HakAksesRoles::find()
           ->where(
             [
               "and",
-              "id_role = :id_role",
-              "modules = :modules"
+              "id_roles = :id_role",
+              ["in", "modules", $payload["module"]]
             ],
             [
               ":id_role" => $payload["id_role"],
-              ":modules" => $payload["modules"],
             ]
           )
-          ->one();
+          ->all();
 
 
         return [
@@ -790,7 +801,11 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "payload" => $payload,
-            "HakAksesRole" => $har,
+            "HakAksesRoles" => 
+            [
+              "count" => count($har),
+              "records" => $har
+            ]
           ]
         ];
       }
@@ -815,11 +830,11 @@ class UserController extends \yii\rest\Controller
       if( $is_id_role_valid == true && $is_module_valid == true )
       {
 
-        $har = HakAksesRole::find()
+        $har = HakAksesRoles::find()
           ->where(
             [
               "and",
-              "id_role = :id_role",
+              "id_roles = :id_role",
               "modules = :modules"
             ],
             [
@@ -839,7 +854,7 @@ class UserController extends \yii\rest\Controller
             "result" => 
             [
               "payload" => $payload,
-              "HakAksesRole" => $har,
+              "HakAksesRoles" => $har,
             ]
           ];
         }
