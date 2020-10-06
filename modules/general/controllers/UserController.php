@@ -5,6 +5,7 @@ namespace app\modules\general\controllers;
 use Yii;
 use yii\helpers\Json;
 use yii\db\Query;
+use yii\db\IntegrityException;
 
 use app\models\User;
 use app\models\UserRoles;
@@ -739,6 +740,7 @@ class UserController extends \yii\rest\Controller
 
       if( $is_id_role_valid == true && $is_module_valid == true )
       {
+        $hasil = [];
         foreach($payload["setups"] as $setup)
         {
           $har = new HakAksesRoles();
@@ -748,7 +750,16 @@ class UserController extends \yii\rest\Controller
           $har["can_retrieve"] = $setup["can_retrieve"];
           $har["can_update"] = $setup["can_update"];
           $har["can_delete"] = $setup["can_delete"];
-          $har->save();
+
+          try
+          {
+            $har->save();
+
+            $hasil[] = $har;
+          }
+          catch(\yii\db\IntegrityException $e)
+          {
+          }
         }
 
         return [
@@ -757,7 +768,11 @@ class UserController extends \yii\rest\Controller
           "result" => 
           [
             "payload" => $payload,
-            "HakAksesRoles" => $har,
+            "result" => 
+            [
+              "count" => count($hasil),
+              "records" => $hasil
+            ]
           ]
         ];
       }

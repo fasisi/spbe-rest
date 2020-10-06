@@ -175,6 +175,7 @@ class HelpdeskController extends \yii\rest\Controller
   //    "judul": "",
   //    "body": "",
   //    "id_user": 123,
+  //    "id_solvers": [123, ...],
   //    "id_kategori": 123,
   //    "id_files": [1,2,3],
   //    "tags": ["", "", ...]
@@ -198,13 +199,15 @@ class HelpdeskController extends \yii\rest\Controller
     $is_id_user_valid = isset($payload["id_user"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
     $is_tags_valid = isset($payload["tags"]);
+    $is_solvers_valid = isset($payload["solvers"]);
 
     if(
         $is_judul_valid == true &&
         $is_body_valid == true &&
         $is_id_user_valid == true &&
         $is_id_kategori_valid == true &&
-        $is_tags_valid == true
+        $is_tags_valid == true &&
+        $is_solvers_valid == true
       )
     {
       // periksa id_user
@@ -231,6 +234,9 @@ class HelpdeskController extends \yii\rest\Controller
           $client = $this->SetupGuzzleClient();
           $jira_conf = Yii::$app->restconf->confs['jira'];
           $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
+
+          // pasangkan issue dengan solver
+          $this->UpdateSolvers($issue["id"], $payload["solvers"]);
 
           if( isset($payload["id_files"]) == true )
           {
@@ -738,6 +744,7 @@ class HelpdeskController extends \yii\rest\Controller
   //    "body": "",
   //    "status": 123,
   //    "id_kategori": "",
+  //    "solvers": [123, ...],
   //    "id_files": [],
   //    "tags": [
   //      "tag1", "tag2", ...
@@ -822,6 +829,26 @@ class HelpdeskController extends \yii\rest\Controller
           $issue['time_update'] = date("Y-m-j H:i:s");
           $issue['id_user_update'] = $payload["id_user"];
           $issue->save();
+
+
+          // pasangkan issue dengan solver
+          $this->UpdateSolver($payload["id"], $payload["solvers"]);
+
+          foreach($payload["solvers"] as $solver)
+          {
+            $test = User::findOne($solver);
+
+            if( is_null($test) == false )
+            {
+              $new = new HdIssueSolver();
+              $new["id_issue"] = $issue["id"];
+              $new["id_solver"] = $solver;
+              $new->save();
+            }
+            else
+            {
+            }
+          }
           
           // mengupdate informasi tags
 
@@ -901,7 +928,6 @@ class HelpdeskController extends \yii\rest\Controller
     }
       return $this->render('update');
   }
-
 
   /* OBSOLETE 
    *
@@ -1004,6 +1030,28 @@ class HelpdeskController extends \yii\rest\Controller
 
   }
 
+
+  private function UpdateSolver($id_issue, $solvers)
+  {
+
+    HdIssueSolver::deleteAll(["id_issue" => $id_issue]);
+
+    foreach($solvers as $solver)
+    {
+      $test = User::findOne($solver);
+
+      if( is_null($test) == false )
+      {
+        $new = new HdIssueSolver();
+        $new["id_issue"] = $id_issue;
+        $new["id_solver"] = $solver;
+        $new->save();
+      }
+      else
+      {
+      }
+    }
+  }
 
   private function UpdateFiles($id_thread, $payload)
   {
@@ -1636,293 +1684,252 @@ class HelpdeskController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
-      //  lakukan query dari tabel hd_issue
-      $test = HdIssue::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          ["in", "status", $payload["status"]],
-          // ["in", "id_kategori", $payload["id_kategori"]]
-        ])
-        ->orderBy("time_create desc")
-        ->all();
-      $total_rows = count($test);
-
-      $list_issue = HdIssue::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          ["in", "status", $payload["status"]],
-          // ["in", "id_kategori", $payload["id_kategori"]]
-        ])
-        ->orderBy("time_create desc")
-        ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
-        ->limit( $payload["items_per_page"] )
-        ->all();
-
-      //  lakukan query dari Confluence
-      $jira_conf = Yii::$app->restconf->confs['jira'];
-      $client = $this->SetupGuzzleClient();
-
-      $hasil = [];
-      foreach($list_issue as $issue)
+      if( $payload["list_mode"] = "r" )
       {
-        if( $payload["list_mode"] = "r" )
+
+        //  lakukan query dari tabel hd_issue
+        $test = HdIssue::find()
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
+              "id_user_create = :id_user"
+            ],
+            [
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->orderBy("time_create desc")
+          ->all();
+        $total_rows = count($test);
+
+        $list_issue = HdIssue::find()
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
+              "id_user_create = :id_user"
+            ],
+            [
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->orderBy("time_create desc")
+          ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
+          ->limit( $payload["items_per_page"] )
+          ->all();
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['jira'];
+        $client = $this->SetupGuzzleClient();
+
+        $hasil = [];
+        foreach($list_issue as $issue)
         {
+          $user = User::findOne($issue["id_user_create"]);
+          $jawaban = HdIssueDiscussion::findAll([
+            "id_issue" => $issue["id"],
+            "is_delete" => 0
+          ]);
 
-          //  lakukan query dari tabel hd_issue
-          $test = HdIssue::find()
-            ->where(
-              [
-                "and",
-                "is_delete = 0",
-                "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
-                "id_user_create = :id_user"
+          $res = $client->request(
+            'GET',
+            "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
+            [
+              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+              /* 'debug' => true, */
+              'http_errors' => false,
+              'headers' => [
+                "Content-Type" => "application/json",
+                "accept" => "application/json",
               ],
-              [
-                ":id_user" => $payload["id_user"],
-              ]
-            )
-            ->orderBy("time_create desc")
-            ->all();
-          $total_rows = count($test);
+              'auth' => [
+                $jira_conf["user"],
+                $jira_conf["password"]
+              ],
+              /* 'query' => [ */
+              /*   'spaceKey' => 'PS', */
+              /*   'expand' => 'history,body.view' */
+              /* ], */
+            ]
+          );
 
-          $list_issue = HdIssue::find()
-            ->where(
-              [
-                "and",
-                "is_delete = 0",
-                "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
-                "id_user_create = :id_user"
-              ],
-              [
-                ":id_user" => $payload["id_user"],
-              ]
-            )
-            ->orderBy("time_create desc")
+          //  kembalikan hasilnya
+          switch( $res->getStatusCode() )
+          {
+            case 200:
+              // ambil id dari result
+              $response_payload = $res->getBody();
+              $response_payload = Json::decode($response_payload);
+
+              $temp = [];
+              $temp["hd_issue"] = $issue;
+              $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+              $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+              $temp["user_create"] = $user;
+              $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+              $temp["jawaban"]["count"] = count($jawaban);
+              $temp["servicedesk"]["status"] = "ok";
+              $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+              $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+              $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+              $temp['data_user']['user_create'] = $user->nama;
+
+              $hasil[] = $temp;
+              break;
+
+            default:
+              // kembalikan response
+              $temp = [];
+              $temp["hd_issue"] = $issue;
+              $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+              $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+              // $hasil["user_create"] = $user;
+              $temp["servicedesk"]["status"] = "not ok";
+              $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+              $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+              $temp['data_user']['user_create'] = $user->nama;
+
+              $hasil[] = $temp;
+              break;
+          }
+        }
+
+        return [
+          "status" => "ok",
+          "pesan" => "Query finished",
+          "result" =>
+          [
+            "total_rows" => $total_rows,
+            "page_no" => $payload["page_no"],
+            "items_per_page" => $payload["items_per_page"],
+            "count" => count($list_issue),
+            "records" => $hasil
+          ]
+        ];
+      }
+      else
+      {
+        // list_mode = 's'
+
+
+        //  lakukan query dari tabel hd_issue
+        $q = new Query();
+        $test = $q->select("i.*")
+          ->from("hd_issue i")
+          ->join("JOIN", "hd_issue_solver s", "s.id_issue = i.id")
+          ->where(
+            [
+              "and",
+              "s.id_user = :id_solver",
+              "i.is_delete = 0",
+              "i.status = :status"
+            ],
+            [
+              ":id_solver" => $payload["id_user"],
+              ":status" => $payload["status"]
+            ]
+          )
+          ->all();
+        $total_rows = count($test);
+
+        $list_issue = 
+          $q->orderBy("i.time_create desc")
             ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
             ->limit( $payload["items_per_page"] )
             ->all();
 
-          //  lakukan query dari Confluence
-          $jira_conf = Yii::$app->restconf->confs['jira'];
-          $client = $this->SetupGuzzleClient();
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['jira'];
+        $client = $this->SetupGuzzleClient();
 
-          $hasil = [];
-          foreach($list_issue as $issue)
-          {
-            $user = User::findOne($issue["id_user_create"]);
-            $jawaban = HdIssueDiscussion::findAll([
-              "id_issue" => $issue["id"],
-              "is_delete" => 0
-            ]);
-
-            $res = $client->request(
-              'GET',
-              "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
-              [
-                /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-                /* 'debug' => true, */
-                'http_errors' => false,
-                'headers' => [
-                  "Content-Type" => "application/json",
-                  "accept" => "application/json",
-                ],
-                'auth' => [
-                  $jira_conf["user"],
-                  $jira_conf["password"]
-                ],
-                /* 'query' => [ */
-                /*   'spaceKey' => 'PS', */
-                /*   'expand' => 'history,body.view' */
-                /* ], */
-              ]
-            );
-
-            //  kembalikan hasilnya
-            switch( $res->getStatusCode() )
-            {
-              case 200:
-                // ambil id dari result
-                $response_payload = $res->getBody();
-                $response_payload = Json::decode($response_payload);
-
-                $temp = [];
-                $temp["hd_issue"] = $issue;
-                $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-                $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
-                $temp["user_create"] = $user;
-                $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
-                $temp["jawaban"]["count"] = count($jawaban);
-                $temp["servicedesk"]["status"] = "ok";
-                $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
-                $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-                $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
-                $temp['data_user']['user_create'] = $user->nama;
-
-                $hasil[] = $temp;
-                break;
-
-              default:
-                // kembalikan response
-                $temp = [];
-                $temp["hd_issue"] = $issue;
-                $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-                $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
-                // $hasil["user_create"] = $user;
-                $temp["servicedesk"]["status"] = "not ok";
-                $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-                $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
-                $temp['data_user']['user_create'] = $user->nama;
-
-                $hasil[] = $temp;
-                break;
-            }
-          }
-
-          return [
-            "status" => "ok",
-            "pesan" => "Query finished",
-            "result" =>
-            [
-              "total_rows" => $total_rows,
-              "page_no" => $payload["page_no"],
-              "items_per_page" => $payload["items_per_page"],
-              "count" => count($list_issue),
-              "records" => $hasil
-            ]
-          ];
-        }
-        else
+        $hasil = [];
+        foreach($list_issue as $issue)
         {
-          // list_mode = 's'
+          $user = User::findOne($issue["id_user_create"]);
+          $jawaban = HdIssueDiscussion::findAll([
+            "id_issue" => $issue["id"],
+            "is_delete" => 0
+          ]);
 
-
-          //  lakukan query dari tabel hd_issue
-          $q = new Query();
-          $test = $q->select("i.*")
-            ->from("hd_issue i")
-            ->join("JOIN", "hd_issue_solver s", "s.id_issue = i.id")
-            ->where(
-              [
-                "and",
-                "s.id_user = :id_solver",
-                "i.is_delete = 0",
-                "i.status = :status"
-              ],
-              [
-                ":id_solver" => $payload["id_user"],
-                ":status" => $payload["status"]
-              ]
-            )
-            ->all();
-          $total_rows = count($test);
-
-          $list_issue = 
-            $q->orderBy("i.time_create desc")
-              ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
-              ->limit( $payload["items_per_page"] )
-              ->all();
-
-          //  lakukan query dari Confluence
-          $jira_conf = Yii::$app->restconf->confs['jira'];
-          $client = $this->SetupGuzzleClient();
-
-          $hasil = [];
-          foreach($list_issue as $issue)
-          {
-            $user = User::findOne($issue["id_user_create"]);
-            $jawaban = HdIssueDiscussion::findAll([
-              "id_issue" => $issue["id"],
-              "is_delete" => 0
-            ]);
-
-            $res = $client->request(
-              'GET',
-              "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
-              [
-                /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-                /* 'debug' => true, */
-                'http_errors' => false,
-                'headers' => [
-                  "Content-Type" => "application/json",
-                  "accept" => "application/json",
-                ],
-                'auth' => [
-                  $jira_conf["user"],
-                  $jira_conf["password"]
-                ],
-                /* 'query' => [ */
-                /*   'spaceKey' => 'PS', */
-                /*   'expand' => 'history,body.view' */
-                /* ], */
-              ]
-            );
-
-            //  kembalikan hasilnya
-            switch( $res->getStatusCode() )
-            {
-              case 200:
-                // ambil id dari result
-                $response_payload = $res->getBody();
-                $response_payload = Json::decode($response_payload);
-
-                $temp = [];
-                $temp["hd_issue"] = $issue;
-                $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-                $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
-                $temp["user_create"] = $user;
-                $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
-                $temp["jawaban"]["count"] = count($jawaban);
-                $temp["servicedesk"]["status"] = "ok";
-                $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
-                $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-                $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
-                $temp['data_user']['user_create'] = $user->nama;
-
-                $hasil[] = $temp;
-                break;
-
-              default:
-                // kembalikan response
-                $temp = [];
-                $temp["hd_issue"] = $issue;
-                $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-                $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
-                // $hasil["user_create"] = $user;
-                $temp["servicedesk"]["status"] = "not ok";
-                $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-                $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
-                $temp['data_user']['user_create'] = $user->nama;
-
-                $hasil[] = $temp;
-                break;
-            }
-          }
-
-          return [
-            "status" => "ok",
-            "pesan" => "Query finished",
-            "result" =>
+          $res = $client->request(
+            'GET',
+            "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
             [
-              "total_rows" => $total_rows,
-              "page_no" => $payload["page_no"],
-              "items_per_page" => $payload["items_per_page"],
-              "count" => count($list_issue),
-              "records" => $hasil
+              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+              /* 'debug' => true, */
+              'http_errors' => false,
+              'headers' => [
+                "Content-Type" => "application/json",
+                "accept" => "application/json",
+              ],
+              'auth' => [
+                $jira_conf["user"],
+                $jira_conf["password"]
+              ],
+              /* 'query' => [ */
+              /*   'spaceKey' => 'PS', */
+              /*   'expand' => 'history,body.view' */
+              /* ], */
             ]
-          ];
+          );
+
+          //  kembalikan hasilnya
+          switch( $res->getStatusCode() )
+          {
+            case 200:
+              // ambil id dari result
+              $response_payload = $res->getBody();
+              $response_payload = Json::decode($response_payload);
+
+              $temp = [];
+              $temp["hd_issue"] = $issue;
+              $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+              $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+              $temp["user_create"] = $user;
+              $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+              $temp["jawaban"]["count"] = count($jawaban);
+              $temp["servicedesk"]["status"] = "ok";
+              $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+              $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+              $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+              $temp['data_user']['user_create'] = $user->nama;
+
+              $hasil[] = $temp;
+              break;
+
+            default:
+              // kembalikan response
+              $temp = [];
+              $temp["hd_issue"] = $issue;
+              $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+              $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+              // $hasil["user_create"] = $user;
+              $temp["servicedesk"]["status"] = "not ok";
+              $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+              $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+              $temp['data_user']['user_create'] = $user->nama;
+
+              $hasil[] = $temp;
+              break;
+          }
         }
-      }
-      else
-      {
+
         return [
-          "status" => "not ok",
-          "pesan" => "List mode harus diisi dengan 'r' atau 's'",
-          "payload" => $payload
+          "status" => "ok",
+          "pesan" => "Query finished",
+          "result" =>
+          [
+            "total_rows" => $total_rows,
+            "page_no" => $payload["page_no"],
+            "items_per_page" => $payload["items_per_page"],
+            "count" => count($list_issue),
+            "records" => $hasil
+          ]
         ];
       }
-
     }
     else
     {
