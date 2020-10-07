@@ -11,6 +11,8 @@ use app\models\HdIssue;
 use app\models\HdIssueActivityLog;
 use app\models\HdIssueUserAction;
 use app\models\HdIssueTag;
+use app\models\HdIssueFile;
+use app\models\HdIssueSolver;
 use app\models\HdIssueDiscussion;
 use app\models\HdIssueComment;
 use app\models\HdIssueDiscussionComment;
@@ -807,19 +809,6 @@ class HelpdeskController extends \yii\rest\Controller
       if( $issue["status"] == -1 ) // masih draft
       {
         // update record hd_issue
-        $issue = HdIssue::find($payload["id"])
-          ->where(
-            [
-              "and",
-              "id = :id",
-              "is_delete = 0",
-              "status = 0"
-            ],
-            [
-              ":id" => $payload["id"]
-            ]
-          )
-          ->one();
 
         if( is_null($issue) == false )
         {
@@ -842,7 +831,7 @@ class HelpdeskController extends \yii\rest\Controller
             {
               $new = new HdIssueSolver();
               $new["id_issue"] = $issue["id"];
-              $new["id_solver"] = $solver;
+              $new["id_user"] = $solver;
               $new->save();
             }
             else
@@ -1044,7 +1033,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         $new = new HdIssueSolver();
         $new["id_issue"] = $id_issue;
-        $new["id_solver"] = $solver;
+        $new["id_user"] = $solver;
         $new->save();
       }
       else
@@ -1684,7 +1673,7 @@ class HelpdeskController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
-      if( $payload["list_mode"] = "r" )
+      if( $payload["list_mode"] == "r" )
       {
 
         //  lakukan query dari tabel hd_issue
