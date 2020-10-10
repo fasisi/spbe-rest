@@ -2298,6 +2298,21 @@ class ForumController extends \yii\rest\Controller
 
                 $user = User::findOne($thread["id_user_create"]);
 
+                $short_konten = "";
+                if( strlen($response_payload["body"]["content"]) < 300 )
+                {
+                  $short_konten = strip_tags(
+                    $response_payload["body"]["content"]
+                  );
+                }
+                else
+                {
+                  $short_konten = strip_tags(
+                    $response_payload["body"]["content"]
+                  );
+                  $short_konten = substr($short_konten, 0, 300);
+                }
+
                 $temp = [];
                 $temp["forum_thread"] = $thread;
                 $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
@@ -2306,6 +2321,7 @@ class ForumController extends \yii\rest\Controller
                 $temp["confluence"]["id"] = $response_payload["id"];
                 $temp["confluence"]["judul"] = $response_payload["title"];
                 $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+                $temp["confluence"]["short_konten"] = $short_konten;
 
                 if( $is_id_user_actor_valid == true )
                 {
@@ -4125,6 +4141,7 @@ class ForumController extends \yii\rest\Controller
 
       if( is_null($file) == false )
       {
+        $deskripsi = Yii::$app->request->post("deskripsi");
         $id_user_actor = Yii::$app->request->post("id_user_actor");
         $is_id_user_valid = isset($id_user_actor);
         $is_file_valid = isset($file);
@@ -4164,6 +4181,7 @@ class ForumController extends \yii\rest\Controller
 
             $ff = new ForumFiles();
             $ff["nama"] = $file_name;
+            $ff["deskripsi"] = $deskripsi;
             $ff["thumbnail"] = $file_name_2;
             $ff["id_user_create"] = $id_user_actor;
             $ff["time_create"] = date("Y-m-d H:i:s");
