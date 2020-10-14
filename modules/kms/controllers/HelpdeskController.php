@@ -14,6 +14,7 @@ use app\models\HdIssueTag;
 use app\models\HdIssueFile;
 use app\models\HdIssueSolver;
 use app\models\HdIssueDiscussion;
+use app\models\HdIssueDiscussionFile;
 use app\models\HdIssueComment;
 use app\models\HdIssueDiscussionComment;
 use app\models\KmsTags;
@@ -238,7 +239,22 @@ class HelpdeskController extends \yii\rest\Controller
           $this->UpdateTags($client, $jira_conf, $issue["id"], $issue["linked_id_issue"], $payload);
 
           // pasangkan issue dengan solver
-          $this->UpdateSolvers($issue["id"], $payload["solvers"]);
+            //   $this->UpdateSolver($issue["id"], $payload["solvers"]);
+            foreach($payload["solvers"] as $solver)
+            {
+                $test = User::findOne($solver);
+
+                if( is_null($test) == false )
+                {
+                $new = new HdIssueSolver();
+                $new["id_issue"] = $issue["id"];
+                $new["id_user"] = $solver;
+                $new->save();
+                }
+                else
+                {
+                }
+            }
 
           if( isset($payload["id_files"]) == true )
           {
@@ -268,7 +284,7 @@ class HelpdeskController extends \yii\rest\Controller
             )
             ->all();
 
-          $this->IssueLog($issue["id"], $payload["id_user"], 1, -1);
+        //   $this->IssueLog($issue["id"], $payload["id_user"], 1, -1);
 
           return [
             "status" => "ok",
@@ -277,7 +293,7 @@ class HelpdeskController extends \yii\rest\Controller
             [
               "issue" => $issue,
               "tags" => $tags,
-              "files" => $files,
+              "files" => $files
             ]
           ];
         }
@@ -1201,6 +1217,7 @@ class HelpdeskController extends \yii\rest\Controller
     $records = $q->all();
 
     $hasil = [];
+    $client = $this->SetupGuzzleClient();
     foreach($records as $record)
     {
       if( $payload["object_type"] == 'i' )
@@ -1214,9 +1231,10 @@ class HelpdeskController extends \yii\rest\Controller
 
         $temp = [];
         $temp["hd_issue"] = $issue;
+        $temp["solver"] = HdIssueSolver::GetSolver($issue["id"]);
         $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
         $temp["data_user"]["user_create"] = $user;
-        $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+        $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
         $temp["servicedesk"]["id"] = $response_payload["issueId"];
         $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
         $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
@@ -1564,7 +1582,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           $issue = HdIssue::findOne($record["id"]);
           $category_path = KmsKategori::CategoryPath($record["id_kategori"]);
-          $tags = HdIssueTag::GetThreadTags($issue["id"]);
+          $tags = HdIssueTag::GetTags($issue["id"]);
           $user_create = User::findOne($issue["id_user_create"]);
           $response = $this->Conf_GetQuestion($client, $issue["linked_id_issue"]);
           $response_payload = $response->getBody();
@@ -1774,7 +1792,7 @@ class HelpdeskController extends \yii\rest\Controller
               $temp = [];
               $temp["hd_issue"] = $issue;
               $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-              $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+              $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
               // $hasil["user_create"] = $user;
               $temp["servicedesk"]["status"] = "not ok";
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -1894,7 +1912,7 @@ class HelpdeskController extends \yii\rest\Controller
               $temp = [];
               $temp["hd_issue"] = $issue;
               $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-              $temp["tags"] = HdIssueTag::GetThreadTags($issue["id"]);
+              $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
               // $hasil["user_create"] = $user;
               $temp["servicedesk"]["status"] = "not ok";
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -2047,7 +2065,7 @@ class HelpdeskController extends \yii\rest\Controller
             )
             ->one();
 
-          $user = User::findOne($item_jawaban["id_user_create"]);
+          $user = User::findOne($record_jawaban["id_user_create"]);
 
           $files = HdIssueDiscussionFile::findAll(["id_discussion" => $record_jawaban["id"]]);
 
@@ -2100,6 +2118,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["issue_comments"] = $list_komentar;
           $hasil["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
           $hasil["record"]["user_create"] = $user;
+          $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           /* $hasil["record"]["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]); */
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
           $hasil["record"]["servicedesk"]["status"] = "ok";
@@ -2111,7 +2130,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["files"]["count"] = count($files);
           $hasil["files"]["records"] = $files;
 
-          $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
+        //   $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
           break;
 
         default:
@@ -2120,6 +2139,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["hd_issue"] = $issue;
           $hasil["record"]["issue_comments"] = $list_komentar;
           $hasil["record"]["user_create"] = $user;
+          $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
           $hasil["record"]["confluence"]["status"] = "not ok";
           $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
@@ -2997,7 +3017,7 @@ class HelpdeskController extends \yii\rest\Controller
               break;
 
             case 2: //un-assigned
-              $temp["data"]["unassigned"] = $record["jumlah"];
+              $temp["data"]["assigned"] = $record["jumlah"];
               break;
 
             case 3: //progress
@@ -3144,8 +3164,8 @@ class HelpdeskController extends \yii\rest\Controller
           /* ->andWhere("a.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]]) */
           /* ->andWhere("log.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)]) */
           /* ->andWhere("log.time_status <= :akhir", [":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp)]) */
-          ->orderBy("log.status asc")
-          ->groupBy("a.id")
+          ->orderBy("l.status asc")
+          ->groupBy("i.id")
           ->all();
       $total_issue = count($total_issue);
 
@@ -3153,7 +3173,7 @@ class HelpdeskController extends \yii\rest\Controller
       $issue_status = 
         $q->select("l.status, i.id")
           ->from("hd_issue i")
-          ->join("JOIN", "hd_issue_activity_l l", "l.id_issue = i.id")
+          ->join("JOIN", "hd_issue_activity_log l", "l.id_issue = i.id")
           ->andWhere("i.id_kategori = :id_kategori", [":id_kategori" => $kategori["id"]])
           ->andWhere("l.type_log = 1")
           ->andWhere("l.time_status >= :awal", [":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp)])
@@ -3266,7 +3286,7 @@ class HelpdeskController extends \yii\rest\Controller
 
       $temp["draft"]["issue"] = 0;
       $temp["new"]["issue"] = 0;
-      $temp["unassigned"]["issue"] = 0;
+      $temp["assigned"]["issue"] = 0;
       $temp["progress"]["issue"] = 0;
       $temp["solved"]["issue"] = 0;
       foreach($issue_status as $record)
@@ -3282,7 +3302,7 @@ class HelpdeskController extends \yii\rest\Controller
             break;
 
           case 2: //un-assigned
-            $temp["unassigned"]["issue"]++;
+            $temp["assigned"]["issue"]++;
             break;
 
           case 3: //progress
@@ -3923,7 +3943,7 @@ class HelpdeskController extends \yii\rest\Controller
 
             // simpan attachment
 
-                HdIssueDiscussionFile::deleteAll(["id_issue" => $payload["id_parent"]]);
+                HdIssueDiscussionFile::deleteAll(["id_discussion" => $payload["id_parent"]]);
 
                 foreach($payload["id_files"] as $item_file)
                 {

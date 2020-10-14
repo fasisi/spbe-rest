@@ -15,6 +15,7 @@ use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
 use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
+use app\models\ForumThreadDiscussionFiles;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
 use app\models\KmsArtikel;
@@ -1825,9 +1826,37 @@ class ForumController extends \yii\rest\Controller
             ];
           }
 
+          $files = [];
+          $temp_files = ForumThreadDiscussionFiles::findAll(["id_thread_discussion" => $item_jawaban["id"]]);
+          foreach($temp_files as $a_file)
+          {
+            $file = ForumFiles::findOne($a_file["id_thread_file"]);
+
+            $is_image = true;
+            if( preg_match_all("/(jpg|jpeg)/i", $file["nama"]) == true )
+            {
+            }
+            else
+            {
+              $is_image = false;
+            }
+
+            $temp2 = [
+              "ForumFiles" => $file,
+              "thumbnail" => 
+                $is_image == true ? 
+                  BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
+                  BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+              "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
+            ];  
+
+            $files[] = $temp2;
+          }
+
           $user = User::findOne($item_jawaban["id_user_create"]);
           $jawaban[] = [
             "jawaban" => $item_jawaban,
+            "files" => $files,
             "user_create" => $user,
             "list_komentar" => $temp,
           ];
@@ -3837,11 +3866,13 @@ class ForumController extends \yii\rest\Controller
       // membuat record jawaban
       $is_id_parent_valid = isset($payload["id_parent"]);
       $is_id_user_valid = isset($payload["id_user"]);
+      $is_id_files_valid = isset($payload["id_files"]);
       $is_konten_valid = isset($payload["konten"]);
       
       if(
           $is_id_parent_valid == true &&
           $is_id_user_valid == true &&
+          $is_id_files_valid == true &&
           $is_konten_valid == true
         )
       {
@@ -3962,6 +3993,19 @@ class ForumController extends \yii\rest\Controller
                 $new["judul"] = "---";
                 $new["konten"] = $payload["konten"];
                 $new->save();
+
+                //jika ada array id_files, maka pasangkan file-file dengan jawaban
+                if( is_array($payload["id_files"]) == true )
+                {
+                  foreach($payload["id_files"] as $id_file)
+                  {
+                    $df = new ForumThreadDiscussionFiles();
+                    $df["id_thread_discussion"] = $new->primaryKey;
+                    $df["id_thread_file"] = $id_file;
+
+                    $df->save();
+                  }
+                }
             // simpan di SPBE
 
         //eksekusi
@@ -3970,6 +4014,33 @@ class ForumController extends \yii\rest\Controller
         $user = User::findOne($payload["id_user"]);
         $thread = ForumThread::findOne($payload["id_parent"]);
 
+        $files = [];
+        $temp_files = ForumThreadDiscussionFiles::findAll(["id_thread_discussion" => $new["id"]]);
+        foreach($temp_files as $a_file)
+        {
+          $file = ForumFiles::findOne($a_file["id_thread_file"]);
+
+          $is_image = true;
+          if( preg_match_all("/(jpg|jpeg)/i", $file["nama"]) == true )
+          {
+          }
+          else
+          {
+            $is_image = false;
+          }
+
+          $temp = [
+            "ForumFiles" => $file,
+            "thumbnail" => 
+              $is_image == true ? 
+                BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
+                BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+            "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
+          ];  
+
+          $files[] = $temp;
+        }
+
         return [
           "status" => "ok",
           "pesan" => "Record jawaban berhasil dibikin",
@@ -3977,6 +4048,7 @@ class ForumController extends \yii\rest\Controller
           [
             "ForumThread" => $thread,
             "record" => $new,
+            "files" => $files,
             "user" => $user,
           ]
         ];

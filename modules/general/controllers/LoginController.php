@@ -36,8 +36,8 @@ class LoginController extends \yii\rest\Controller
       // pastikan ada field username,password,id_roles
       if (
         isset($payload["username"]) == true &&
-        isset($payload["password"]) == true &&
-        isset($payload["id_roles"]) == true
+        isset($payload["password"]) == true 
+	// && isset($payload["id_roles"]) == true
       ) {
         // validate username dan password
 
@@ -58,15 +58,16 @@ class LoginController extends \yii\rest\Controller
           if(is_null($test) == false){
             // Mengambil Data User Tersebut
             $query = new Query;
-            $query->select([
-              'user.id AS id_user',
-              'user.nama AS nama_user',
-              'user.time_last_login AS last_login',
-              'roles.id AS id_roles',
-              'roles.name AS nama_roles',
-              'is_deleted AS is_deleted',
-              'is_banned AS is_banned',
-              'is_login AS is_login',
+            $query->select(
+              [
+                'user.id AS id_user',
+                'user.nama AS nama_user',
+                'user.time_last_login AS last_login',
+                'GROUP_CONCAT(roles.id) AS id_roles',
+                'GROUP_CONCAT(roles.name) AS nama_roles',
+                'is_deleted AS is_deleted',
+                'is_banned AS is_banned',
+                'is_login AS is_login',
               ]
               )
               ->from('user')
@@ -82,7 +83,7 @@ class LoginController extends \yii\rest\Controller
               )
               ->where([
                 "id_user" => $test->id,
-                "id_roles" => $payload["id_roles"]
+                // "id_roles" => $payload["id_roles"]
               ])
               ->LIMIT(1);
             $command = $query->createCommand();

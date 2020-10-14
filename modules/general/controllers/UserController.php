@@ -29,7 +29,7 @@ class UserController extends \yii\rest\Controller
         'delete'    => ['DELETE'],
         'getdata'   => ['GET'],
 
-        "hakakses"  => ['POST', 'GET', 'DELETE'],
+        "hakakses"  => ['POST', 'GET', 'DELETE', 'PUT'],
       ]
     ];
     return $behaviors;
@@ -750,6 +750,7 @@ class UserController extends \yii\rest\Controller
           $har["can_retrieve"] = $setup["can_retrieve"];
           $har["can_update"] = $setup["can_update"];
           $har["can_delete"] = $setup["can_delete"];
+	  $har["can_solver"] = $setup["can_solver"];
 
           try
           {
@@ -840,7 +841,7 @@ class UserController extends \yii\rest\Controller
     {
       $is_id_role_valid = isset($payload["id_role"]);
       $is_module_valid = isset($payload["module"]);
-      $is_module_valid = $is_module_valid && is_array($payload["module"]);
+      // $is_module_valid = $is_module_valid && is_array($payload["module"]);
 
       if( $is_id_role_valid == true && $is_module_valid == true )
       {
@@ -854,7 +855,7 @@ class UserController extends \yii\rest\Controller
             ],
             [
               ":id_role" => $payload["id_role"],
-              ":modules" => $payload["modules"],
+              ":modules" => $payload["module"],
             ]
           )
           ->one();
@@ -866,6 +867,76 @@ class UserController extends \yii\rest\Controller
           return [
             "status" => "ok",
             "pesan" => "Hak akses berhasil dihapus",
+            "result" => 
+            [
+              "payload" => $payload,
+              "HakAksesRoles" => $har,
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record hak akses tidak ditemukan",
+            "result" => 
+            [
+              "payload" => $payload,
+            ]
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+          "result" => 
+          [
+            "payload" => $payload,
+          ]
+        ];
+      }
+    }
+    elseif( Yii::$app->request->isPut)
+    {
+      $is_id_role_valid = isset($payload["id_role"]);
+      $is_module_valid = isset($payload["module"]);
+      // $is_module_valid = $is_module_valid && is_array($payload["module"]);
+
+      if( $is_id_role_valid == true && $is_module_valid == true )
+      {
+
+        $har = HakAksesRoles::find()
+          ->where(
+            [
+              "and",
+              "id_roles = :id_role",
+              "modules = :modules"
+            ],
+            [
+              ":id_role" => $payload["id_role"],
+              ":modules" => $payload["module"],
+            ]
+          )
+          ->one();
+
+        if( is_null($har) == false )
+        {
+         
+          $har["id_roles"] = $payload["id_role"];
+          $har["modules"] = $payload["module"];
+          $har["can_create"] = $payload["can_create"];
+          $har["can_retrieve"] = $payload["can_retrieve"];
+          $har["can_update"] = $payload["can_update"];
+          $har["can_delete"] = $payload["can_delete"];
+	  $har["can_solver"] = $payload["can_solver"];
+          $har->save();
+            
+          return [
+            "status" => "ok",
+            "pesan" => "Hak akses berhasil diupdate",
             "result" => 
             [
               "payload" => $payload,
@@ -915,7 +986,47 @@ class UserController extends \yii\rest\Controller
     
     ])
     ->from('hak_akses_roles')
-    ->andWhere(["and", "id_roles = :id_roles"], [":id_roles" => $payload["id_roles"]]);
+    ->where(["in", "id_roles" , $payload["id_roles"]])
+    ->groupBy('modules');
+
+    $command = $query->createCommand();
+    $record = $command->queryAll();
+
+    if( !empty($record) )
+    {
+      return [
+        "status" => "ok",
+        "pesan" => "Record found",
+        "result" => $record,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Record not found",
+        "result" => "empty"
+      ];
+    }
+  }
+  
+  public function actionGethakakses()
+  {
+
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    $query = new Query();
+    
+    
+    $query->select([
+    '*',
+    
+    ])
+    ->from('hak_akses_roles')
+    ->where(["in", "id_roles" , $payload["id_roles"]])
+    ->andWhere(["modules" => $payload["modules"]]);
 
     $command = $query->createCommand();
     $record = $command->queryAll();
