@@ -182,6 +182,37 @@ class ForumThread extends \yii\db\ActiveRecord
 
     }
 
+    /*
+     * Cek hak baca user terhadap suatu thread berdasarkan id_kategori
+      * */
+    public static function CekHakBaca($id_thread, $id_user)
+    {
+      $user = User::findOne($id_user);
+      $thread = ForumThread::findOne($id_thread);
+
+      $test = KategoriUser::find()
+        ->where(
+          [
+            "and",
+            "id_user = :id_user",
+            "id_kategori = :id_kategori"
+          ],
+          [
+            ":id_user" => $iduser,
+            ":id_kategori" => $thread["id_kategori"],
+          ]
+        )
+        ->one();
+
+      if( is_null($test) == false )
+      {
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
 
 
 }

@@ -2323,61 +2323,67 @@ class ForumController extends \yii\rest\Controller
               
               if( is_null($thread) == false)
               {
-                // ambil record SPBE
+                $user_actor = User::findOne($thread["id_user_actor"]);
+                // cek hak baca user terhadap thread. hak baca diperiksa 
+                // berdasarkan kesamaan id_kategori
 
-                $user = User::findOne($thread["id_user_create"]);
-
-                $short_konten = "";
-                if( strlen($response_payload["body"]["content"]) < 300 )
+                if(ForumThread::CekHakBaca($thread["id"], $user_actor["id"]) == true)
                 {
-                  $short_konten = strip_tags(
-                    $response_payload["body"]["content"]
-                  );
-                }
-                else
-                {
-                  $short_konten = strip_tags(
-                    $response_payload["body"]["content"]
-                  );
-                  $short_konten = substr($short_konten, 0, 300);
-                }
+                  // ambil record SPBE
 
-                $temp = [];
-                $temp["forum_thread"] = $thread;
-                $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-                $temp["data_user"]["user_create"] = $user["nama"];
-                $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-                $temp["confluence"]["id"] = $response_payload["id"];
-                $temp["confluence"]["judul"] = $response_payload["title"];
-                $temp["confluence"]["konten"] = $response_payload["body"]["content"];
-                $temp["confluence"]["short_konten"] = $short_konten;
+                  $short_konten = "";
+                  if( strlen($response_payload["body"]["content"]) < 300 )
+                  {
+                    $short_konten = strip_tags(
+                      $response_payload["body"]["content"]
+                    );
+                  }
+                  else
+                  {
+                    $short_konten = strip_tags(
+                      $response_payload["body"]["content"]
+                    );
+                    $short_konten = substr($short_konten, 0, 300);
+                  }
 
-                if( $is_id_user_actor_valid == true )
-                {
-                  // periksa hak akses kategori bagi user ini
-                  $test = KategoriUser::find()
-                    ->where(
-                      [
-                        "and",
-                        "id_user = :id_user",
-                        "id_kategori = :id_kategori"
-                      ],
-                      [
-                        ":id_user" => $payload["id_user_actor"],
-                        ":id_kategori" => $thread["id_kategori"]
-                      ]
-                    )
-                    ->one();
+                  $temp = [];
+                  $temp["forum_thread"] = $thread;
+                  $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+                  $temp["data_user"]["user_create"] = $user["nama"];
+                  $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+                  $temp["confluence"]["id"] = $response_payload["id"];
+                  $temp["confluence"]["judul"] = $response_payload["title"];
+                  $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+                  $temp["confluence"]["short_konten"] = $short_konten;
 
-                  if( is_null($test) == false )
+                  if( $is_id_user_actor_valid == true )
+                  {
+                    // periksa hak akses kategori bagi user ini
+                    $test = KategoriUser::find()
+                      ->where(
+                        [
+                          "and",
+                          "id_user = :id_user",
+                          "id_kategori = :id_kategori"
+                        ],
+                        [
+                          ":id_user" => $payload["id_user_actor"],
+                          ":id_kategori" => $thread["id_kategori"]
+                        ]
+                      )
+                      ->one();
+
+                    if( is_null($test) == false )
+                    {
+                      $hasil[] = $temp;
+                    }
+                  }
+                  else
                   {
                     $hasil[] = $temp;
                   }
                 }
-                else
-                {
-                  $hasil[] = $temp;
-                }
+
               }
               else
               {
