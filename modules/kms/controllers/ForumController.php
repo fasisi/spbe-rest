@@ -2323,7 +2323,7 @@ class ForumController extends \yii\rest\Controller
               
               if( is_null($thread) == false)
               {
-                $user_actor = User::findOne($thread["id_user_actor"]);
+                $user_actor = User::findOne($payload["id_user_actor"]);
                 // cek hak baca user terhadap thread. hak baca diperiksa 
                 // berdasarkan kesamaan id_kategori
 
