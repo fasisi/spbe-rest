@@ -64,6 +64,7 @@ class ForumController extends \yii\rest\Controller
         'itemtag'               => ['POST'],
 
         'mtpilihjawaban'        => ['PUT'],
+        'hakbacauser'           => ['GET'],
       ]
     ];
     return $behaviors;
@@ -189,6 +190,7 @@ class ForumController extends \yii\rest\Controller
   //    "judul": "",
   //    "body": "",
   //    "id_kategori": "",
+  //    "id_users": [],
   //    "tags": [
   //      "tag1", "tag2", ...
   //    ],
@@ -254,6 +256,7 @@ class ForumController extends \yii\rest\Controller
       $thread['time_create'] = date("Y-m-j H:i:s");
       $thread['id_user_create'] = $payload['id_user'];
       $thread['id_kategori'] = $payload['id_kategori'];
+      $thread['tipe_hak_baca'] = count($payload['id_users']) > 0 ? 2 : 1;
       $thread['status'] = $payload["status"];
       $thread->save();
       $id_thread = $thread->primaryKey;
@@ -269,6 +272,8 @@ class ForumController extends \yii\rest\Controller
           $this->UpdateFiles($id_thread, $payload);
         }
       }
+
+      $this->UpdateHakBacaUser($id_thread, $payload);
 
       // ambil ulang tags atas thread ini. untuk menjadi response.
       $tags = ForumThreadTag::find()
@@ -318,6 +323,21 @@ class ForumController extends \yii\rest\Controller
 
   }
 
+  private function UpdateHakBacaUser($id_thread, $payload)
+  {
+    $list_users = $payload["id_users"];
+    $list_users[] = $payload["id_user"]; // menambahkan id_user si pembuat topik
+
+    ForumThreadHakBaca::deleteAll(["id_thread" => $id_thread]);
+
+    foreach($list_users as $id_user)
+    {
+      $new = new ForumThreadHakBaca();
+      $new["id_thread"] = $id_thread;
+      $new["id_user"] = $id_user;
+      $new->save();
+    }
+  }
 
 
   //  Membuat record question
@@ -2323,6 +2343,7 @@ class ForumController extends \yii\rest\Controller
               if( is_null($thread) == false)
               {
                 $user_actor = User::findOne($payload["id_user_actor"]);
+
                 // cek hak baca user terhadap thread. hak baca diperiksa 
                 // berdasarkan kesamaan id_kategori
 
@@ -2428,6 +2449,73 @@ class ForumController extends \yii\rest\Controller
       ];
     }
 
+  }
+
+  /*
+   * Mengambil daftar hak baca user berdasarkan idkategori
+   *
+   * Method GET
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "ok/not ok",
+   *   pesan: "abc",
+   *   result:
+   *   {
+   *     count: 123,
+   *     records:
+   *     [
+   *       {
+   *         object of user record
+   *       }, ...
+   *     ]
+   *   }
+   * }
+    * */
+  public function actionHakBacaUser()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_kategori_valid = isset($payload["id_kategori"]);
+    $is_id_kategori_valid = $is_id_kategori_valid && is_numeric($payload["id_kategori"]);
+    
+    if( $is_id_kategori_valid == true )
+    {
+      $list_user = KategoriUser::findAll(["id_kategori" => $payload["id_kategori"]]);
+
+      $hasil = [];
+      foreach($list_user as $a_user)
+      {
+        $user = User::findOne($a_user["id_user"]);
+
+        $hasil[] = [
+          "User" => $user
+        ];
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Query berhasil dijalankan",
+        "result" => 
+        [
+          "count" => count($hasil),
+          "records" => $hasil
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+        "payload" => $payload
+      ];
+    }
   }
 
   /*

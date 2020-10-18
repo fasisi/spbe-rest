@@ -187,7 +187,6 @@ class ForumThread extends \yii\db\ActiveRecord
       * */
     public static function CekHakBaca($id_thread, $id_user)
     {
-      $user = User::findOne($id_user);
       $thread = ForumThread::findOne($id_thread);
 
       $test = KategoriUser::find()
@@ -198,7 +197,7 @@ class ForumThread extends \yii\db\ActiveRecord
             "id_kategori = :id_kategori"
           ],
           [
-            ":id_user" => $iduser,
+            ":id_user" => $id_user,
             ":id_kategori" => $thread["id_kategori"],
           ]
         )
