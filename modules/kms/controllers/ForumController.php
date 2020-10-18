@@ -1796,7 +1796,6 @@ class ForumController extends \yii\rest\Controller
           [
             "and",
             "id_thread = :id_thread",
-            "is_delete = 0"
           ],
           [":id_thread" => $thread["id"]]
         )
@@ -1809,7 +1808,7 @@ class ForumController extends \yii\rest\Controller
         {
           $list_komentar_jawaban = ForumThreadDiscussionComment::find()
             ->where(
-              "id_discussion = :id and is_delete = 0", 
+              "id_discussion = :id ", 
               [":id" => $item_jawaban["id"]]
             )
             ->orderBy("time_create asc")
@@ -4128,15 +4127,11 @@ class ForumController extends \yii\rest\Controller
     else if( Yii::$app->request->isDelete )
     {
       // delete record jawaban
-      $is_type_valid = isset($payload["type"]);
       $is_id_valid = isset($payload["id"]);
-
-
       $test = ForumThreadDiscussion::findOne($payload["id"]);
 
       if( is_null($test) == false )
       {
-
         $test["is_delete"] = 1;
         $test["id_user_delete"] = $payload["id_user"];
         $test["time_delete"] = date("Y-m-j H:i:s");
