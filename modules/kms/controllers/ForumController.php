@@ -18,6 +18,7 @@ use app\models\ForumThreadDiscussion;
 use app\models\ForumThreadDiscussionFiles;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
+use app\models\ForumThreadHakBaca;
 use app\models\KmsArtikel;
 use app\models\KmsTags;
 use app\models\ForumTags;
@@ -249,6 +250,39 @@ class ForumController extends \yii\rest\Controller
         $tags[] = $temp;
       }
 
+      // =========================================================
+      // validasi list_hak_baca_user
+      // =========================================================
+      $tipe_hak_baca = 2;  // hak baca by user
+      if( isset( $payload["list_hak_baca_user"] ) == true )
+      {
+        if( is_array( $payload["list_hak_baca_user"] ) == true )
+        {
+          foreach($payload["list_hak_baca_user"] as $id_user)
+          {
+            $test = User::findOne($id_user);
+
+            if( is_null($test) == true )
+            {
+              $tipe_hak_baca = 1;  // hak baca by kategori. list_hak_baca_user diabaikan.
+            }
+          }
+        }
+        else
+        {
+          // list_hak_baca_user bukan array, maka hak baca = per kategori
+
+          $tipe_hak_baca = 1; // hak baca by kategori
+        }
+      }
+      else
+      {
+        // list_hak_baca_user tidak terdefinisi, maka hak baca = per kategori
+
+        $tipe_hak_baca = 1; // hak baca by kategori
+      }
+
+
       $thread = new ForumThread();
       $thread["judul"] = $payload["judul"];
       $thread["konten"] = $payload["body"];
@@ -256,7 +290,7 @@ class ForumController extends \yii\rest\Controller
       $thread['time_create'] = date("Y-m-j H:i:s");
       $thread['id_user_create'] = $payload['id_user'];
       $thread['id_kategori'] = $payload['id_kategori'];
-      $thread['tipe_hak_baca'] = count($payload['id_users']) > 0 ? 2 : 1;
+      $thread['tipe_hak_baca'] = $tipe_hak_baca;
       $thread['status'] = $payload["status"];
       $thread->save();
       $id_thread = $thread->primaryKey;
@@ -1793,6 +1827,16 @@ class ForumController extends \yii\rest\Controller
       $thread = ForumThread::findOne($payload["id_thread"]);
 
       $user = User::findOne($thread["id_user_create"]);
+
+      // =============
+      // ambil hak baca yang sudah disimpan
+      // =============
+      $list_hak_baca = ForumThreadHakBaca::findAll(["id_thread" => $thread["id"]]);
+
+
+      // =============
+      // ambil list komentar
+      // =============
       $temp_list_komentar = ForumThreadComment::find()
         ->where("id_thread = :id and is_delete = 0", [":id" => $payload["id_thread"]])
         ->orderBy("time_create asc")
@@ -1811,6 +1855,9 @@ class ForumController extends \yii\rest\Controller
       }
 
 
+      // =============
+      // ambil list jawaban
+      // =============
       $list_jawaban = ForumThreadDiscussion::find()
         ->where(
           [
@@ -1951,6 +1998,7 @@ class ForumController extends \yii\rest\Controller
       $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
       $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
       $hasil["record"]["files"] = $files;
+      $hasil["record"]["list_hak_baca"] = $list_hak_baca;
       $hasil["jawaban"]["count"] = count($jawaban);
       $hasil["jawaban"]["records"] = $jawaban;
 
@@ -2481,17 +2529,39 @@ class ForumController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
+    $is_id_user_valid = isset($payload["id_user"]);
+    $test = User::findOne($payload["id_user"]);
+    $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
     $is_id_kategori_valid = isset($payload["id_kategori"]);
     $is_id_kategori_valid = $is_id_kategori_valid && is_numeric($payload["id_kategori"]);
     
-    if( $is_id_kategori_valid == true )
+    if( $is_id_kategori_valid == true && $is_id_user_valid == true )
     {
-      $list_user = KategoriUser::findAll(["id_kategori" => $payload["id_kategori"]]);
+      $user_actor = User::findOne($payload["id_user"]);
+
+      $q = new Query();
+      $list_user = $q->select("u.*")
+        ->from("user u")
+        ->join("join", "kategori_user ku", "ku.id_user = u.id")
+        ->where(
+          [
+            "and",
+            "ku.id_kategori = :id_kategori",
+            "u.id_departments = :id_department"
+          ],
+          [
+            ":id_kategori" => $payload["id_kategori"],
+            ":id_department" => $user_actor["id_departments"]
+          ]
+        )
+        ->orderBy("u.nama asc")
+        ->all();
 
       $hasil = [];
       foreach($list_user as $a_user)
       {
-        $user = User::findOne($a_user["id_user"]);
+        $user = User::findOne($a_user["id"]);
 
         $hasil[] = [
           "User" => $user
