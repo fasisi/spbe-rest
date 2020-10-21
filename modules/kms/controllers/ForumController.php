@@ -191,7 +191,7 @@ class ForumController extends \yii\rest\Controller
   //    "judul": "",
   //    "body": "",
   //    "id_kategori": "",
-  //    "id_users": [],
+  //    "hak_baca_user": [],
   //    "tags": [
   //      "tag1", "tag2", ...
   //    ],
@@ -254,11 +254,11 @@ class ForumController extends \yii\rest\Controller
       // validasi list_hak_baca_user
       // =========================================================
       $tipe_hak_baca = 2;  // hak baca by user
-      if( isset( $payload["list_hak_baca_user"] ) == true )
+      if( isset( $payload["hak_baca_user"] ) == true )
       {
-        if( is_array( $payload["list_hak_baca_user"] ) == true )
+        if( is_array( $payload["hak_baca_user"] ) == true )
         {
-          foreach($payload["list_hak_baca_user"] as $id_user)
+          foreach($payload["hak_baca_user"] as $id_user)
           {
             $test = User::findOne($id_user);
 
@@ -359,7 +359,7 @@ class ForumController extends \yii\rest\Controller
 
   private function UpdateHakBacaUser($id_thread, $payload)
   {
-    $list_users = $payload["id_users"];
+    $list_users = $payload["hak_baca_user"];
     $list_users[] = $payload["id_user"]; // menambahkan id_user si pembuat topik
 
     ForumThreadHakBaca::deleteAll(["id_thread" => $id_thread]);
@@ -628,6 +628,7 @@ class ForumController extends \yii\rest\Controller
   //    "judul": "",
   //    "body": "",
   //    "id_kategori": "",
+  //    "id_users": [123, 124, ...],
   //    "tags": [
   //      "tag1", "tag2", ...
   //    ],
@@ -651,6 +652,7 @@ class ForumController extends \yii\rest\Controller
     $judul_valid = true;
     $body_valid = true;
     $kategori_valid = true;
+    $hak_baca_user_valid = true;
     $tags_valid = true;
 
     // pastikan request parameter lengkap
@@ -696,6 +698,13 @@ class ForumController extends \yii\rest\Controller
         $thread['time_update'] = date("Y-m-j H:i:s");
         $thread['id_user_update'] = $payload["id_user"];
         $thread->save();
+
+
+        // update daftar hak baca user
+
+          $this->UpdateHakBacaUser($thread["id"], $payload);
+
+        // update daftar hak baca user
 
         // mengupdate informasi tags
 
@@ -757,6 +766,7 @@ class ForumController extends \yii\rest\Controller
       ];
     }
   }
+
 
   /* Menghapus tags dari suatu thread.
    *
