@@ -369,7 +369,14 @@ class ForumController extends \yii\rest\Controller
       $new = new ForumThreadHakBaca();
       $new["id_thread"] = $id_thread;
       $new["id_user"] = $id_user;
-      $new->save();
+
+      try
+      {
+        $new->save();
+      }
+      catch(yii\db\IntegrityException $e)
+      {
+      }
     }
   }
 
@@ -690,7 +697,10 @@ class ForumController extends \yii\rest\Controller
       // update record forum_thread
       $thread = ForumThread::findOne($payload["id"]);
 
-      if( $thread["status"] == -1 ) // hanya draft yang dapat di-edit
+      // hanya draft dan new yang dapat di-edit 
+      // draft di-update oleh role user terdaftar
+      // new di-update oleh role manager konten
+      if( $thread["status"] == -1 ) 
       {
         $thread["judul"] = $payload["judul"];
         $thread["konten"] = $payload["body"];
@@ -739,6 +749,34 @@ class ForumController extends \yii\rest\Controller
             [
               'status' => 'ok',
               'pesan' => 'Record thread telah diupdate',
+              'result' => 
+              [
+                "forum_thread" => $thread,
+                "tags" => $tags
+              ]
+            ];
+        // kembalikan response
+      }
+      elseif($thread["status"] == 0)
+      {
+        $thread["judul"] = $payload["judul"];
+        $thread["konten"] = $payload["body"];
+        $thread["id_kategori"] = $payload["id_kategori"];
+        $thread['time_update'] = date("Y-m-j H:i:s");
+        $thread['id_user_update'] = $payload["id_user"];
+        $thread->save();
+
+        $this->UpdateHakBacaUser($thread["id"], $payload);
+        $this->UpdateTags($client, $jira_conf, $thread["id"], $thread["linked_id_question"], $payload);
+
+        // kembalikan response
+            $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
+
+            return 
+            [
+              'status' => 'ok',
+              'pesan' => 'Record thread telah diupdate',
+              'payload' =>$payload,
               'result' => 
               [
                 "forum_thread" => $thread,
