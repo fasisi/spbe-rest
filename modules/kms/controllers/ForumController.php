@@ -4077,13 +4077,11 @@ class ForumController extends \yii\rest\Controller
       // membuat record jawaban
       $is_id_parent_valid = isset($payload["id_parent"]);
       $is_id_user_valid = isset($payload["id_user"]);
-      $is_id_files_valid = isset($payload["id_files"]);
       $is_konten_valid = isset($payload["konten"]);
       
       if(
           $is_id_parent_valid == true &&
           $is_id_user_valid == true &&
-          $is_id_files_valid == true &&
           $is_konten_valid == true
         )
       {
@@ -4206,22 +4204,27 @@ class ForumController extends \yii\rest\Controller
                 $new->save();
 
                 //jika ada array id_files, maka pasangkan file-file dengan jawaban
-                if( is_array($payload["id_files"]) == true )
+                if( isset($payload["id_files"]) == true )
                 {
-                  foreach($payload["id_files"] as $id_file)
+                  if( is_array($payload["id_files"]) == true )
                   {
-                    $df = new ForumThreadDiscussionFiles();
-                    $df["id_thread_discussion"] = $new->primaryKey;
-                    $df["id_thread_file"] = $id_file;
+                    foreach($payload["id_files"] as $id_file)
+                    {
+                      $df = new ForumThreadDiscussionFiles();
+                      $df["id_thread_discussion"] = $new->primaryKey;
+                      $df["id_thread_file"] = $id_file;
 
-                    $df->save();
+                      $df->save();
+                    }
                   }
                 }
             // simpan di SPBE
 
         //eksekusi
 
-
+        // ====================================================================
+        // menyusun response
+        // ====================================================================
         $user = User::findOne($payload["id_user"]);
         $thread = ForumThread::findOne($payload["id_parent"]);
 
@@ -4251,6 +4254,9 @@ class ForumController extends \yii\rest\Controller
 
           $files[] = $temp;
         }
+        // ====================================================================
+        // menyusun response
+        // ====================================================================
 
         return [
           "status" => "ok",
