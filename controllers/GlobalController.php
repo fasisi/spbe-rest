@@ -137,4 +137,72 @@ class GlobalController extends \yii\rest\Controller
             ];
         }
     }
+
+    public function actionDropdownkategori()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        if (isset($payload["table_name"]) == true) {
+            $query = new Query;
+            $query->select('*')->from($payload["table_name"])->where("is_delete = 0");
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } else {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: id",
+            ];
+        }
+    }
+
+    public function actionDropdownsolver()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        if (isset($payload["id_role"]) == true) {
+            $query = new Query;
+            $query->select('u.id AS id_user,u.nama AS nama_user')
+            ->from("user u")
+            ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+            ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+            ->where("r.id =" .$payload['id_role']);
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } else {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: id",
+            ];
+        }
+    }
 }

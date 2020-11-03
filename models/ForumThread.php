@@ -183,34 +183,57 @@ class ForumThread extends \yii\db\ActiveRecord
     }
 
     /*
-     * Cek hak baca user terhadap suatu thread berdasarkan id_kategori
+     * Cek hak baca user terhadap suatu thread berdasarkan id_user
       * */
     public static function CekHakBaca($id_thread, $id_user)
     {
       $thread = ForumThread::findOne($id_thread);
 
-      $test = KategoriUser::find()
+      // cek apakah ada pembatasan per user atas id_thread ini ??
+      $test1 = ForumThreadHakBaca::find()
         ->where(
           [
             "and",
-            "id_user = :id_user",
-            "id_kategori = :id_kategori"
+            "id_thread = :id_thread"
           ],
           [
-            ":id_user" => $id_user,
-            ":id_kategori" => $thread["id_kategori"],
+            ":id_thread" => $id_thread
           ]
         )
-        ->one();
+        ->all();
 
-      if( is_null($test) == false )
+      if( count( $test1 ) > 0 )
       {
-        return true;
+        $test = ForumThreadHakBaca::find()
+          ->where(
+            [
+              "and",
+              "id_user = :id_user",
+              "id_thread = :id_thread"
+            ],
+            [
+              ":id_user" => $id_user,
+              ":id_thread" => $id_thread,
+            ]
+          )
+          ->one();
+
+        if( is_null($test) == false )
+        {
+          return true;
+        }
+        else
+        {
+          return false;
+        }
       }
       else
       {
-        return false;
+        // tidak ada batasan per user, maka user bisa membaca
+
+        return true;
       }
+
     }
 
 

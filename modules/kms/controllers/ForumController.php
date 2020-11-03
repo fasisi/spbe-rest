@@ -1640,6 +1640,7 @@ class ForumController extends \yii\rest\Controller
    *  Request type: JSON
    *  Request format:
    *  {
+   *    "id_user": 123,
    *    "id_kategori": [1, 2, ...],
    *    "page_no": 123,
    *    "items_per_page": 123
@@ -1721,77 +1722,90 @@ class ForumController extends \yii\rest\Controller
       $hasil = [];
       foreach($list_thread as $thread)
       {
-        $user = User::findOne($thread["id_user_create"]);
-        $jawaban = ForumThreadDiscussion::findAll(
-          ["id_thread" => $thread["id"], "is_delete" => 0]
-        );
+        // ====================================================================
+        // cek hak baca per user
+        // ====================================================================
 
-        $res = $client->request(
-          'GET',
-          "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
-          [
-            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-            /* 'debug' => true, */
-            'http_errors' => false,
-            'headers' => [
-              "Content-Type" => "application/json",
-              "accept" => "application/json",
-            ],
-            'auth' => [
-              $jira_conf["user"],
-              $jira_conf["password"]
-            ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
-          ]
-        );
-
-        //  kembalikan hasilnya
-        switch( $res->getStatusCode() )
+        
+        if(ForumThread::CekHakBaca($thread["id"], $payload["id_user"]) == true)
         {
-          case 200:
-            // ambil id dari result
-            $response_payload = $res->getBody();
-            $response_payload = Json::decode($response_payload);
 
-            $temp = [];
-            $temp["forum_thread"] = $thread;
-            $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-            $temp["user_create"] = $user;
-            $temp['data_user']['user_create'] = $user->nama;
-            $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
-            $temp["jawaban"]["count"] = count($jawaban);
-            $temp["confluence"]["status"] = "ok";
-            $temp["confluence"]["linked_id_question"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+          $user = User::findOne($thread["id_user_create"]);
+          $jawaban = ForumThreadDiscussion::findAll(
+            ["id_thread" => $thread["id"], "is_delete" => 0]
+          );
 
-            $hasil[] = $temp;
+          $res = $client->request(
+            'GET',
+            "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
+            [
+              /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+              /* 'debug' => true, */
+              'http_errors' => false,
+              'headers' => [
+                "Content-Type" => "application/json",
+                "accept" => "application/json",
+              ],
+              'auth' => [
+                $jira_conf["user"],
+                $jira_conf["password"]
+              ],
+              'query' => [
+                'spaceKey' => 'PS',
+                'expand' => 'history,body.view'
+              ],
+            ]
+          );
 
-            $response_payload = [];
-            break;
+          //  kembalikan hasilnya
+          switch( $res->getStatusCode() )
+          {
+            case 200:
+              // ambil id dari result
+              $response_payload = $res->getBody();
+              $response_payload = Json::decode($response_payload);
 
-          default:
-            // kembalikan response
-            $temp = [];
-            $temp["forum_thread"] = $thread;
-            $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-            $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-            // $hasil["user_create"] = $user;
-            $temp["confluence"]["status"] = "not ok";
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["content"];
-            $temp['data_user']['user_create'] = $user->nama;
+              $temp = [];
+              $temp["forum_thread"] = $thread;
+              $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+              $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+              $temp["user_create"] = $user;
+              $temp['data_user']['user_create'] = $user->nama;
+              $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
+              $temp["jawaban"]["count"] = count($jawaban);
+              $temp["confluence"]["status"] = "ok";
+              $temp["confluence"]["linked_id_question"] = $response_payload["id"];
+              $temp["confluence"]["judul"] = $response_payload["title"];
+              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
 
-            $hasil[] = $temp;
+              $hasil[] = $temp;
 
-            $response_payload = [];
-            break;
+              $response_payload = [];
+              break;
+
+            default:
+              // kembalikan response
+              $temp = [];
+              $temp["forum_thread"] = $thread;
+              $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+              $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+              // $hasil["user_create"] = $user;
+              $temp["confluence"]["status"] = "not ok";
+              $temp["confluence"]["judul"] = $response_payload["title"];
+              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+              $temp['data_user']['user_create'] = $user->nama;
+
+              $hasil[] = $temp;
+
+              $response_payload = [];
+              break;
+          }
         }
-      }
+
+        // ====================================================================
+        // cek hak baca per user
+        // ====================================================================
+      } // loop list_thread
 
       return [
         "status" => "ok",

@@ -750,7 +750,7 @@ class UserController extends \yii\rest\Controller
           $har["can_retrieve"] = $setup["can_retrieve"];
           $har["can_update"] = $setup["can_update"];
           $har["can_delete"] = $setup["can_delete"];
-	  $har["can_solver"] = $setup["can_solver"];
+          $har["can_solver"] = $setup["can_solver"];
 
           try
           {
