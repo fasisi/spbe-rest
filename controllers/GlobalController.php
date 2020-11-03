@@ -144,7 +144,8 @@ class GlobalController extends \yii\rest\Controller
         Yii::info("payload = $payload");
         $payload = Json::decode($payload);
 
-        if (isset($payload["table_name"]) == true) {
+        if (isset($payload["table_name"]) == true) 
+        {
             $query = new Query;
             $query->select('*')->from($payload["table_name"])->where("is_delete = 0");
             $command = $query->createCommand();
@@ -162,10 +163,12 @@ class GlobalController extends \yii\rest\Controller
                     "pesan" => "Record not found",
                 ];
             }
-        } else {
+        } 
+        else 
+        {
             return [
                 "status" => "not ok",
-                "pesan" => "Required parameter: id",
+                "pesan" => "Required parameter: table_name",
             ];
         }
     }
