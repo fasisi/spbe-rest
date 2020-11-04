@@ -41,7 +41,7 @@ class KmsArtikel extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_kategori', 'linked_id_content', 'id_user_create', 
+            [['id_kategori', 'linked_id_content', 'linked_id_thread', 'id_user_create', 
               'id_user_delete', 'id_user_publish', 'is_delete', 'is_publish'], 'integer'],
             [['linked_id_content', 'id_user_create', 'time_create'], 'required'],
             [['konten'], 'string'],
