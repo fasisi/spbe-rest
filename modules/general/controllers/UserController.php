@@ -76,7 +76,7 @@ class UserController extends \yii\rest\Controller
     $new["password"]        = $payload["password"];
     $new["jenis_kelamin"]   = $payload["jenis_kelamin"];
     $new["id_departments"]  = $payload["id_departments"];
-    $new["time_create"]     = date("Y-M-j H:i:s");
+    $new["time_create"]     = date("Y-m-j H:i:s");
     $new["id_user_create"]  = $payload["id_user_create"];
     $new["nip"]             = $payload["nip"];
     $new->save();
