@@ -270,13 +270,13 @@ class ArticleController extends \yii\rest\Controller
             $response_payload = Json::decode($response_payload);
 
             $linked_id_artikel = $response_payload['id'];
-            $linked_id_thread = $payload['linked_id_thread'];
+            /* $linked_id_thread = $payload['linked_id_thread']; */
 
 
             // bikin record kms_artikel
             $artikel = new KmsArtikel();
             $artikel['linked_id_content'] = $linked_id_artikel;
-            $artikel['linked_id_thread'] = $linked_id_thread;
+            /* $artikel['linked_id_thread'] = $linked_id_thread; */
             $artikel['time_create'] = date("Y-m-j H:i:s");
             $artikel['id_user_create'] = $payload['id_user'];
             $artikel['id_kategori'] = $payload['id_kategori'];
