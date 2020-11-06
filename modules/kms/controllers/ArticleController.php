@@ -503,6 +503,7 @@ class ArticleController extends \yii\rest\Controller
   //    "id": 123,
   //    "judul": "",
   //    "body": "",
+  //    "status": 123,
   //    "id_kategori": "",
   //    "tags": [
   //      "tag1", "tag2", ...
@@ -526,6 +527,7 @@ class ArticleController extends \yii\rest\Controller
     $id_valid = true;
     $judul_valid = true;
     $body_valid = true;
+    $status_valid = true;
     $kategori_valid = true;
     $tags_valid = true;
 
@@ -541,6 +543,9 @@ class ArticleController extends \yii\rest\Controller
     if( isset($payload["judul"]) == false )
       $judul_valid = false;
 
+    if( isset($payload["status"]) == false )
+      $status_valid = false;
+
     if( isset($payload["body"]) == false )
       $body_valid = false;
 
@@ -552,7 +557,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( 
         $id_valid == true && $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true 
+        $kategori_valid == true && $tags_valid == true && $status_valid == true
       )
     {
       // ambil nomor versi bersadarkan id_linked_content
@@ -649,6 +654,7 @@ class ArticleController extends \yii\rest\Controller
 
             // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
+            $artikel['status'] = $payload["status"];
             $artikel['time_update'] = date("Y-m-j H:i:s");
             $artikel['id_user_update'] = $payload["id_user"];
             $artikel['id_kategori'] = $payload["id_kategori"];
@@ -1541,7 +1547,8 @@ class ArticleController extends \yii\rest\Controller
    *  {
    *    "id_kategori": [1, 2, ...],
    *    "page_no": 123,
-   *    "items_per_page": 123
+   *    "items_per_page": 123,
+   *    "id_user": 123,
    *  }
    *  Response type: JSON
    *  Response format:
@@ -1578,15 +1585,18 @@ class ArticleController extends \yii\rest\Controller
     $is_kategori_valid = isset($payload["id_kategori"]);
     $is_page_no_valid = isset($payload["page_no"]);
     $is_items_per_page_valid = isset($payload["items_per_page"]);
+    $is_id_user_valid = isset($payload["id_user"]);
 
     $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
+    $is_id_user_valid = $is_id_user_valid && is_numeric($payload["id_user"]);
 
     if(
         $is_kategori_valid == true &&
         $is_page_no_valid == true &&
-        $is_items_per_page_valid == true
+        $is_items_per_page_valid == true &&
+        $is_id_user_valid == true
       )
     {
       //  lakukan query dari tabel kms_artikel
@@ -1594,7 +1604,7 @@ class ArticleController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "is_publish = 0",
+          "status = 1",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1605,7 +1615,7 @@ class ArticleController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "is_publish = 0",
+          "status = 1",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1660,7 +1670,6 @@ class ArticleController extends \yii\rest\Controller
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -1676,7 +1685,6 @@ class ArticleController extends \yii\rest\Controller
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-            // $hasil["user_create"] = $user;
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
