@@ -4,9 +4,12 @@ namespace app\modules\general\controllers;
 
 use Yii;
 use yii\helpers\Json;
+use yii\db\Query;
 
 use app\models\KmsTags;
 use app\models\KmsKategori;
+use app\models\KategoriUser;
+use app\models\User;
 
 class GeneralController extends \yii\rest\Controller
 {
@@ -364,6 +367,106 @@ class GeneralController extends \yii\rest\Controller
           "pesan" => "Daftar kategori berhasil diambil",
           "result" => $list,
         ];
+      }
+
+      public function actionCategoriesByUser()
+      {
+        $payload = $this->GetPayload();
+
+        $iduser = ($payload["iduser"]);
+
+        $q = new Query();
+        $q->select("c.*")
+          ->from("kms_kategori c")
+          ->join("JOIN", "kategori_user ku", "ku.id_kategori = c.id")
+          ->where(
+            [
+              "and",
+              "ku.id_user = :iduser"
+            ],
+            [
+              ":iduser" => $iduser,
+            ]
+          )
+          ->orderBy("c.nama asc");
+        $categories = $q->all();
+
+        $hasil = [];
+        foreach( $categories as $category )
+        {
+          $temp = KmsKategori::CategoryPath($category["id"]);
+          $text = "";
+          foreach($temp as $a_temp)
+          {
+            $text = $text . ($text == "" ? $a_temp["nama"] : " > " . $a_temp["nama"]); 
+          }
+
+          $temp = [];
+          $temp["value"] = $category["id"];
+          $temp["text"] = $text;
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "records" => $hasil,
+        ];
+          
+      }
+
+      // Mengembalikan daftar user berdasarkan string pencarian, instansi dan kategori
+      public function actionUsersForHakBaca()
+      {
+        $payload = $this->GetPayload();
+
+        $iduser = ($payload["iduser"]);
+        $nama = ($payload["nama"]);
+
+        $user = User::findOne($iduser);
+
+        $temp_list_kategori = KategoriUser::findAll(["id_user" => $user["id"]]);
+        $list_kategori = [];
+        foreach($temp_list_kategori as $a_kategori)
+        {
+          $list_kategori[] = $a_kategori["id_kategori"];
+        }
+
+        $q = new Query();
+        $q->select("u.*")
+          ->from("user u")
+          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+          ->where(
+            [
+              "and",
+              ["in", "ku.id_kategori", $list_kategori],
+              "u.id_departments = :idinstansi",
+              "u.id <> :iduser",
+              ["like", "u.nama", $nama]
+            ],
+            [
+              ":iduser" => $user["id"],
+              ":idinstansi" => $user["id_departments"],
+            ]
+          )
+          ->orderBy("u.nama asc")
+          ->groupBy("u.id");
+
+        $daftar_user = $q->all();
+
+        $hasil = [];
+        foreach( $daftar_user as $a_user )
+        {
+          $temp = [];
+          $temp["value"] = $a_user["id"];
+          $temp["text"] = $a_user["nama"];
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "records" => $hasil,
+        ];
+
       }
 
       /*
