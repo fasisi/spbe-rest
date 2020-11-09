@@ -430,12 +430,16 @@ class ForumController extends \yii\rest\Controller
       foreach($tag_list as $tag_item)
       {
         $tag = KmsTags::findOne($tag_item["id_tag"]);
+        $text = trim($tag["nama"]);
+        $text = str_replace(" ", "_", $text);
+
         $temp = [];
-        $temp["name"] = $tag["nama"];
+        $temp["name"] = $text;
 
         $tags[] = $temp;
       }
 
+      /* $thread["konten"] = htmlentities($thread["konten"]); */ 
       $request_payload = [
         "title" => $thread["judul"],
         "body" => $thread["konten"],
@@ -524,6 +528,7 @@ class ForumController extends \yii\rest\Controller
             return [
               'status' => 'not ok',
               'pesan' => 'REST API request failed: ' . $res->getBody(),
+              'response_body' => $res,
               'result' => $thread,
               'payload' => $payload,
               'request_payload' => $request_payload,
@@ -582,6 +587,7 @@ class ForumController extends \yii\rest\Controller
       return[
         "status" => "not ok",
         "pesan" => "Record thread tidak ditemukan",
+        "payload" => $payload,
       ];
     }
 
@@ -2476,10 +2482,12 @@ class ForumController extends \yii\rest\Controller
                     $short_konten = substr($short_konten, 0, 300);
                   }
 
+                  $user_create = User::findOne($thread["id_user_create"]);
+
                   $temp = [];
                   $temp["forum_thread"] = $thread;
                   $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-                  $temp["data_user"]["user_create"] = $user["nama"];
+                  $temp["data_user"]["user_create"] = $user_create;
                   $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
                   $temp["confluence"]["id"] = $response_payload["id"];
                   $temp["confluence"]["judul"] = $response_payload["title"];

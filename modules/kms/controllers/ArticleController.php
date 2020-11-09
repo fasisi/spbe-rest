@@ -327,7 +327,7 @@ class ArticleController extends \yii\rest\Controller
 
                 $temp = [];
                 $temp["prefix"] = "global";
-                $temp["name"] = $tag;
+                $temp["name"] = str_replace(" ", "_", $tag);
                 $tags[] = $temp;
               } // loop tags
 
@@ -557,7 +557,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( 
         $id_valid == true && $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $tags_valid == true && $status_valid == true
+        $kategori_valid == true && $status_valid == true
       )
     {
       // ambil nomor versi bersadarkan id_linked_content
@@ -730,6 +730,7 @@ class ArticleController extends \yii\rest\Controller
       return [
         'status' => 'not ok',
         'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tsgs',
+        'payload' => $payload
       ];
     }
       return $this->render('update');
@@ -2609,8 +2610,12 @@ class ArticleController extends \yii\rest\Controller
         $response_payload = $res->getBody();
         $response_payload = Json::decode($response_payload);
 
+
+        $user = User::findOne($artikel["id_user_create"]);
+
         $temp = [];
         $temp["kms_artikel"] = $artikel;
+        $temp["user_create"] = $user;
         $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $temp["tags"] = $tags;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);

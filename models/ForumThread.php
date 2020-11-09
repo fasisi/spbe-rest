@@ -188,6 +188,7 @@ class ForumThread extends \yii\db\ActiveRecord
     public static function CekHakBaca($id_thread, $id_user)
     {
       $thread = ForumThread::findOne($id_thread);
+      $user = User::findOne($id_user);
 
       // cek apakah ada pembatasan per user atas id_thread ini ??
       $test1 = ForumThreadHakBaca::find()
