@@ -571,9 +571,6 @@ class GeneralController extends \yii\rest\Controller
       public function actionGettags()
       {
         $list = KmsTags::find()
-          ->where(
-            "status = 1"
-          )
           ->orderBy("nama asc")
           ->all();
 

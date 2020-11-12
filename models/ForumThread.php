@@ -205,6 +205,13 @@ class ForumThread extends \yii\db\ActiveRecord
 
       if( count( $test1 ) > 0 )
       {
+        //periksa apakah si user adalah si penulis?
+        if( $thread["id_user_create"] == $id_user )
+        {
+          return true;
+        }
+
+        // cek id_user di dalam tabel forum_thread_hak_baca
         $test = ForumThreadHakBaca::find()
           ->where(
             [

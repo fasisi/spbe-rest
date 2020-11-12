@@ -439,7 +439,6 @@ class ForumController extends \yii\rest\Controller
         $tags[] = $temp;
       }
 
-      /* $thread["konten"] = htmlentities($thread["konten"]); */ 
       $request_payload = [
         "title" => $thread["judul"],
         "body" => $thread["konten"],
@@ -528,7 +527,6 @@ class ForumController extends \yii\rest\Controller
             return [
               'status' => 'not ok',
               'pesan' => 'REST API request failed: ' . $res->getBody(),
-              'response_body' => $res,
               'result' => $thread,
               'payload' => $payload,
               'request_payload' => $request_payload,
@@ -587,7 +585,6 @@ class ForumController extends \yii\rest\Controller
       return[
         "status" => "not ok",
         "pesan" => "Record thread tidak ditemukan",
-        "payload" => $payload,
       ];
     }
 
@@ -1913,11 +1910,11 @@ class ForumController extends \yii\rest\Controller
       $list_komentar = [];
       foreach($temp_list_komentar as $komentar_item)
       {
-        $user = User::findOne($komentar_item["id_user_create"]);
+        $temp_user = User::findOne($komentar_item["id_user_create"]);
 
         $temp = [];
         $temp["record"] = $komentar_item;
-        $temp["user_create"] = $user;
+        $temp["user_create"] = $temp_user;
 
         $list_komentar[] = $temp;
       }
@@ -1952,11 +1949,11 @@ class ForumController extends \yii\rest\Controller
           $temp = [];
           foreach($list_komentar_jawaban as $item_komentar)
           {
-            $user = User::findOne($item_komentar["id_user_create"]);
+            $temp_user = User::findOne($item_komentar["id_user_create"]);
 
             $temp[] = [
               "komentar" => $item_komentar,
-              "user_create" => $user,
+              "user_create" => $temp_user,
             ];
           }
 
@@ -1987,11 +1984,11 @@ class ForumController extends \yii\rest\Controller
             $files[] = $temp2;
           }
 
-          $user = User::findOne($item_jawaban["id_user_create"]);
+          $temp_user = User::findOne($item_jawaban["id_user_create"]);
           $jawaban[] = [
             "jawaban" => $item_jawaban,
             "files" => $files,
-            "user_create" => $user,
+            "user_create" => $temp_user,
             "list_komentar" => $temp,
           ];
         }
