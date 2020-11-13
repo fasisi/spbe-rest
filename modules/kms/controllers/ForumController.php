@@ -3276,6 +3276,7 @@ class ForumController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
+    $id_user = $payload["id_user"];
     $is_tanggal_awal_valid = isset($payload["tanggal_awal"]);
     $is_tanggal_akhir_valid = isset($payload["tanggal_akhir"]);
     $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["tanggal_awal"]);
@@ -3283,7 +3284,7 @@ class ForumController extends \yii\rest\Controller
 
     // ambil data kejadian dari tiap kategori
     $daftar_kategori = KmsKategori::GetList();
-
+    $daftar_kategori = KategoriUser::ListByUser($id_user);
 
     foreach($daftar_kategori as $kategori)
     {
@@ -3431,10 +3432,10 @@ class ForumController extends \yii\rest\Controller
 
       $temp = [];
       $indent = "";
-      for($i = 1; $i < $kategori["level"]; $i++)
-      {
-        $indent .= "&nbsp;&nbsp;";
-      }
+      /* for($i = 1; $i < $kategori["level"]; $i++) */
+      /* { */
+      /*   $indent .= "&nbsp;&nbsp;"; */
+      /* } */
       $index_name = $indent . $kategori["nama"];
       $category_path = KmsKategori::CategoryPath($kategori["id"]);
 

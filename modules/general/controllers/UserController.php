@@ -249,20 +249,22 @@ class UserController extends \yii\rest\Controller
 
 
           // update kategori
-          KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]);
-          foreach($payload["id_kategori"] as $id_kategori)
-          {
-            //periksa validitas id_role
-            $test = KmsKategori::findOne($id_kategori);
+          KategoriUser::Reset($payload["id"], $payload["id_kategori"]);
 
-            if( is_null($test) == false )
-            {
-              $new = new KategoriUser();
-              $new["id_user"] = $payload["id"];
-              $new["id_kategori"] = $id_kategori;
-              $new->save();
-            }
-          }
+          /* KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]); */
+          /* foreach($payload["id_kategori"] as $id_kategori) */
+          /* { */
+          /*   //periksa validitas id_role */
+          /*   $test = KmsKategori::findOne($id_kategori); */
+
+          /*   if( is_null($test) == false ) */
+          /*   { */
+          /*     $new = new KategoriUser(); */
+          /*     $new["id_user"] = $payload["id"]; */
+          /*     $new["id_kategori"] = $id_kategori; */
+          /*     $new->save(); */
+          /*   } */
+          /* } */
 
           $categories = $user->getCategories()->all();
           // update kategori

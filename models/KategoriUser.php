@@ -53,20 +53,54 @@ class KategoriUser extends \yii\db\ActiveRecord
 
       foreach($daftar_kategori as $id_kategori)
       {
-        //pastikan validitas id_kategori
-        $test = KmsKategori::find()
-          ->andWhere(["id = :id"])
-          ->andWhere(["is_delete = 0"])
-          ->params([":id" => $id_kategori])
-          ->one();
+        $temp = [];
+        $temp["id"] = $id_kategori;
 
-        if( is_null($test) == false )
+        // ambil daftar children dari id_kategori ini
+        $children = [];
+        $children = KmsKategori::GetList($id_kategori);
+        $all_nodes = array_merge($temp, $children);
+
+        foreach($all_nodes as $a_node)
         {
-          $new = new KategoriUser();
-          $new["id_user"] = $id_user;
-          $new["id_kategori"] = $id_kategori;
-          $new->save();
+          //pastikan validitas id_kategori
+          $test = KmsKategori::find()
+            ->where(
+              [
+                "and",
+                "id = :id",
+                "is_delete = 0" 
+              ],
+              [
+                ":id" => $a_node["id"] 
+              ]
+            )
+            ->one();
+
+          if( is_null($test) == false )
+          {
+            $new = new KategoriUser();
+            $new["id_user"] = $id_user;
+            $new["id_kategori"] = $a_node["id"];
+            $new->save();
+          }
         }
       }
+    }
+
+    // Mengembalikan daftar kategori berdasarkan id_user
+    public static function ListByUser($id_user)
+    {
+      $temps = KategoriUser::findAll(["id_user" => $id_user]);
+
+      $hasil = [];
+      foreach($temps as $temp)
+      {
+        $kategori = KmsKategori::findOne($temp["id_kategori"]);
+
+        $hasil[] = $kategori;
+      }
+
+      return $hasil;
     }
 }

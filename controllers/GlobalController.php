@@ -4,9 +4,9 @@ namespace app\controllers;
 
 use Yii;
 use yii\helpers\Json;
-
-
 use yii\db\Query;
+
+use app\models\KmsKategori;
 
 /**
  * Default controller for the `general` module
@@ -149,7 +149,28 @@ class GlobalController extends \yii\rest\Controller
             $query = new Query;
             $query->select('*')->from($payload["table_name"])->where("is_delete = 0");
             $command = $query->createCommand();
-            $data = $command->queryAll();
+            $temp_data = $command->queryAll();
+
+            $data = [];
+            foreach($temp_data as $a_data)
+            {
+              $path_items = KmsKategori::CategoryPath($a_data["id"]);
+              $path_name = "";
+              foreach($path_items as $item)
+              {
+                $path_name = $path_name .  ($path_name == "" ? $item["nama"] : " > ") . $item["nama"];
+              }
+
+              $temp = KmsKategori::findOne($a_data["id"]);
+
+              if( isset($payload["short_names"]) == false )
+              {
+                $temp["nama"] = $path_name;
+              }
+
+              $data[] = $temp;
+
+            }
 
             if (!empty($data)) {
                 return [
