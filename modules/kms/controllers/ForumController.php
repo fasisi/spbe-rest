@@ -1773,7 +1773,7 @@ class ForumController extends \yii\rest\Controller
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
               $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
               $temp["user_create"] = $user;
-              $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_create'] = $user;
               $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
               $temp["jawaban"]["count"] = count($jawaban);
               $temp["confluence"]["status"] = "ok";
@@ -1792,11 +1792,11 @@ class ForumController extends \yii\rest\Controller
               $temp["forum_thread"] = $thread;
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
               $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-              // $hasil["user_create"] = $user;
+              $temp["user_create"] = $user;
+              $temp['data_user']['user_create'] = $user;
               $temp["confluence"]["status"] = "not ok";
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = $response_payload["body"]["content"];
-              $temp['data_user']['user_create'] = $user->nama;
 
               $hasil[] = $temp;
 
