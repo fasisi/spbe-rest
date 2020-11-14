@@ -1699,7 +1699,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status IN (1,4)",
+          "status IN (-3,-2,1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")
@@ -1710,7 +1710,7 @@ class ForumController extends \yii\rest\Controller
         ->where([
           "and",
           "is_delete = 0",
-          "status IN (1,4)",
+          "status IN (-3,-2,1,4)",
           ["in", "id_kategori", $payload["id_kategori"]]
         ])
         ->orderBy("time_create desc")

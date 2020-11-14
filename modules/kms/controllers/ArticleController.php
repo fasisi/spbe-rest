@@ -1596,8 +1596,8 @@ class ArticleController extends \yii\rest\Controller
     if(
         $is_kategori_valid == true &&
         $is_page_no_valid == true &&
-        $is_items_per_page_valid == true &&
-        $is_id_user_valid == true
+        $is_items_per_page_valid == true &
+        /* $is_id_user_valid == true */
       )
     {
       //  lakukan query dari tabel kms_artikel
@@ -1949,11 +1949,13 @@ class ArticleController extends \yii\rest\Controller
 
         // tulis log
         $this->ArtikelLog($payload["id_artikel"], $payload["id_user"], 2, $payload["status"]);
+        $artikel = KmsArtikel::findOne($payload["id_artikel"]);
 
         // kembalikan response
         return [
           "status" => "ok",
           "pesan" => "Status saved. Log saved.",
+          "artikel" => $artikel,
           "result" => $test
         ];
       }
