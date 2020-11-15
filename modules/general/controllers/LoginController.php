@@ -36,8 +36,8 @@ class LoginController extends \yii\rest\Controller
       // pastikan ada field username,password,id_roles
       if (
         isset($payload["username"]) == true &&
-        isset($payload["password"]) == true 
-	// && isset($payload["id_roles"]) == true
+        isset($payload["password"]) == true
+        // && isset($payload["id_roles"]) == true
       ) {
         // validate username dan password
 
@@ -55,7 +55,7 @@ class LoginController extends \yii\rest\Controller
             ])
             ->one();
 
-          if(is_null($test) == false){
+          if (is_null($test) == false) {
             // Mengambil Data User Tersebut
             $query = new Query;
             $query->select(
@@ -69,7 +69,7 @@ class LoginController extends \yii\rest\Controller
                 'is_banned AS is_banned',
                 'is_login AS is_login',
               ]
-              )
+            )
               ->from('user')
               ->join(
                 'INNER JOIN',
@@ -88,10 +88,10 @@ class LoginController extends \yii\rest\Controller
               ->LIMIT(1);
             $command = $query->createCommand();
             $data = $command->queryAll();
-            
-            if(!empty($data)) { // Jika data array ada
-            // Looping untuk mengambil nilai dari is_deleted dan is_banned
-              foreach($data as $val) {
+
+            if (!empty($data)) { // Jika data array ada
+              // Looping untuk mengambil nilai dari is_deleted dan is_banned
+              foreach ($data as $val) {
                 $is_deleted = $val['is_deleted'];
                 $is_banned = $val['is_banned'];
               }
@@ -159,50 +159,39 @@ class LoginController extends \yii\rest\Controller
     Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
-    if( isset($payload["id"]) == true )
-    {
+    if (isset($payload["id"]) == true) {
       $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
+      if (is_null($user) == false) {
         $user["time_last_login"]    = date("Y-m-d H:i:s", time());
         $user["is_login"]           = 1;
         $user->save();
 
-        if( $user->hasErrors() == false )
-        {
+        if ($user->hasErrors() == false) {
           return [
             "status" => "ok",
             "pesan" => "Record updated",
             "result" => $user,
           ];
-        }
-        else
-        {
+        } else {
           return [
             "status" => "not ok",
             "pesan" => "Fail on update record",
             "result" => $user->getErrors(),
           ];
         }
-
-      }
-      else
-      {
+      } else {
         return [
           "status" => "not ok",
           "pesan" => "Record not found",
         ];
       }
-    }
-    else
-    {
+    } else {
       return [
         "status" => "not ok",
         "pesan" => "Required parameter not found: id",
       ];
     }
-
   }
 
   public function actionLogout()
@@ -211,49 +200,75 @@ class LoginController extends \yii\rest\Controller
     Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
-    if( isset($payload["id"]) == true )
-    {
+    if (isset($payload["id"]) == true) {
       $user = User::findOne($payload["id"]);
 
-      if( is_null($user) == false )
-      {
+      if (is_null($user) == false) {
 
         $user["is_login"]           = 0;
         $user->save();
 
-        if( $user->hasErrors() == false )
-        {
+        if ($user->hasErrors() == false) {
           return [
             "status" => "ok",
             "pesan" => "Record updated",
             "result" => $user,
           ];
-        }
-        else
-        {
+        } else {
           return [
             "status" => "not ok",
             "pesan" => "Fail on update record",
             "result" => $user->getErrors(),
           ];
         }
-
-      }
-      else
-      {
+      } else {
         return [
           "status" => "not ok",
           "pesan" => "Record not found",
         ];
       }
-    }
-    else
-    {
+    } else {
       return [
         "status" => "not ok",
         "pesan" => "Required parameter not found: id",
       ];
     }
+  }
 
+  public function actionGetrole()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if (isset($payload["id_role"]) == true) {
+      $query = new Query;
+      $query->select('r.name')
+        ->from("user u")
+        ->join('LEFT JOIN', 'user_roles ur', 'u.id = ur.id_user')
+        ->join('LEFT JOIN', 'roles r', 'r.id = ur.id_roles')
+        ->where("r.id =" . $payload['id_role'])
+        ->limit(1);
+      $command = $query->createCommand();
+      $data = $command->queryAll();
+
+      if (!empty($data)) {
+        return [
+          "status" => "ok",
+          "pesan" => "Record found",
+          "result" => $data
+        ];
+      } else {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    } else {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter: id",
+      ];
+    }
   }
 }
