@@ -36,8 +36,8 @@ class LoginController extends \yii\rest\Controller
       // pastikan ada field username,password,id_roles
       if (
         isset($payload["username"]) == true &&
-        isset($payload["password"]) == true 
-	// && isset($payload["id_roles"]) == true
+        isset($payload["password"]) == true
+        // && isset($payload["id_roles"]) == true
       ) {
         // validate username dan password
 
@@ -254,6 +254,42 @@ class LoginController extends \yii\rest\Controller
         "pesan" => "Required parameter not found: id",
       ];
     }
+  }
 
+  public function actionGetrole()
+  {
+    $payload = Yii::$app->request->rawBody;
+    Yii::info("payload = $payload");
+    $payload = Json::decode($payload);
+
+    if (isset($payload["id_role"]) == true) {
+      $query = new Query;
+      $query->select('r.name')
+        ->from("user u")
+        ->join('LEFT JOIN', 'user_roles ur', 'u.id = ur.id_user')
+        ->join('LEFT JOIN', 'roles r', 'r.id = ur.id_roles')
+        ->where("r.id =" . $payload['id_role'])
+        ->limit(1);
+      $command = $query->createCommand();
+      $data = $command->queryAll();
+
+      if (!empty($data)) {
+        return [
+          "status" => "ok",
+          "pesan" => "Record found",
+          "result" => $data
+        ];
+      } else {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record not found",
+        ];
+      }
+    } else {
+      return [
+        "status" => "not ok",
+        "pesan" => "Required parameter: id",
+      ];
+    }
   }
 }

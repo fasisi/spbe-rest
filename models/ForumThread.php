@@ -154,6 +154,50 @@ class ForumThread extends \yii\db\ActiveRecord
     }
 
     /*
+     * Mengembalikan informasi penulis pertanyaan dan penulis jawaban yang
+     * dipilih. JIKA thread ber-status = -3 (telah dirangkum)
+      * */
+    public static function GetKontributor($id_thread)
+    {
+      $test = ForumThread::findOne($id_thread);
+
+      $hasil = [];
+      if( $test["status"] == -3 )
+      {
+        $user = User::findOne( $test["id_user_create"] );
+        $hasil["penulis"] = $user;
+
+        // ambil daftar user dari jawaban yang dipilih
+        $q = new Query();
+        $q->select("u.nama")
+          ->from("forum_thread_discussion j")
+          ->join("join", "user u", "u.id = j.id_user_create")
+          ->where(
+            [
+              "and",
+              "id_thread = :id_thread",
+              "is_answer = 1"
+            ],
+            [
+              ":id_thread" => $id_thread
+            ]
+          )
+          ->groupBy("u.nama")
+          ->orderBy("u.nama asc");
+        $list = $q->all();
+
+        foreach($list as $item)
+        {
+          $hasil["penjawab"][] = $item["nama"];
+        }
+      }
+
+      return $hasil;
+    }
+
+
+
+    /*
      *  Menghitung jumlah kejadian suatu status atas suatu thread, dalam rentang waktu tertentu
       * */
     public static function StatusInRange($id_thread, $type_status, $tanggal_awal, $tanggal_akhir)

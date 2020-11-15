@@ -15,6 +15,7 @@ use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
 use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
+use app\models\ForumThreadDiscussionSelected;
 use app\models\ForumThreadDiscussionFiles;
 use app\models\ForumThreadComment;
 use app\models\ForumThreadDiscussionComment;
@@ -5003,6 +5004,7 @@ class ForumController extends \yii\rest\Controller
        * {
        *   "id_thread": 123,
        *   "id_jawaban": 123
+       *   "select_type": 1/0 (1=select; 0=unselect)
        * }
        * Response type: JSON
        * Response format:
@@ -5022,10 +5024,12 @@ class ForumController extends \yii\rest\Controller
 
         $is_id_thread_valid = isset($payload["id_thread"]);
         $is_id_jawaban_valid = isset($payload["id_jawaban"]);
+        $is_select_type_valid = isset($payload["select_type"]);
 
         if(
             $is_id_thread_valid == true &&
-            $is_id_jawaban_valid == true
+            $is_id_jawaban_valid == true &&
+            $is_select_type_valid == true 
           )
         {
           $thread = ForumThread::findOne($payload["id_thread"]);
@@ -5048,6 +5052,7 @@ class ForumController extends \yii\rest\Controller
                   "id" => $payload["id_jawaban"]
                 ]
               );
+
               if( is_null($jawaban) == true )
               {
                 return [
@@ -5059,8 +5064,55 @@ class ForumController extends \yii\rest\Controller
             }
           }
 
-          $thread["id_discussion"] = $payload["id_jawaban"];
-          $thread->save();
+          switch( intval($payload["select_type"]) )
+          {
+            case 0: //unselect
+              /* $test = ForumThreadDiscussionSelected::findOne( */
+              /*   [ */
+              /*     "id_thread" => $payload["id_thread"], */
+              /*     "id_discussion" => $payload["id_jawaban"], */
+              /*   ] */
+              /* ); */
+
+              /* if( is_null($test) == false ) */
+              /* { */
+              /*   $test->delete(); */
+              /* } */
+
+              $jawaban = ForumThreadDiscussion::findOne($payload["id_jawaban"]);
+              $jawaban["is_answer"] = 0;
+              $jawaban->save();
+              break;
+
+            case 1: //select
+              /* $test = ForumThreadDiscussionSelected::findOne( */
+              /*   [ */
+              /*     "id_thread" => $payload["id_thread"], */
+              /*     "id_discussion" => $payload["id_jawaban"], */
+              /*   ] */
+              /* ); */
+
+              /* if( is_null($test) == true ) */
+              /* { */
+              /*   $test = new ForumThreadDiscussionSelected(); */
+              /*   $test["id_thread"] = $payload["id_thread"]; */
+              /*   $test["id_discussion"] = $payload["id_jawaban"]; */
+              /*   $test->save(); */
+              /* } */
+
+              $jawaban = ForumThreadDiscussion::findOne($payload["id_jawaban"]);
+              $jawaban["is_answer"] = 1;
+              $jawaban->save();
+              break;
+
+            default:
+              return [
+                "status" => "not ok",
+                "pesan" => "select_type value is invalid. Should 0 or 1.",
+                "payload" => $payload
+              ];
+              break;
+          }
 
           // menyiapkan response
           $list_jawaban = [];
