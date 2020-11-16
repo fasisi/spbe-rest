@@ -2027,6 +2027,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
         $hasil["user_create"] = $user;
+        $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
+        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
         $hasil["confluence"]["status"] = "not ok";

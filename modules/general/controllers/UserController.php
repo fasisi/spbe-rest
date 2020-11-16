@@ -70,49 +70,83 @@ class UserController extends \yii\rest\Controller
     $payload = Yii::$app->request->rawBody;
     $payload = Json::decode($payload);
 
-    $new = new User();
-    $new["nama"]            = $payload["nama"];
-    $new["username"]        = $payload["username"];
-    $new["password"]        = $payload["password"];
-    $new["jenis_kelamin"]   = $payload["jenis_kelamin"];
-    $new["id_departments"]  = $payload["id_departments"];
-    $new["time_create"]     = date("Y-m-j H:i:s");
-    $new["id_user_create"]  = $payload["id_user_create"];
-    $new["nip"]             = $payload["nip"];
-    $new->save();
+    // cek bahwa email harus unik diantara record user yang is_delete = 0
+    $test = User::find()
+      ->where(
+        [
+          "and",
+          "is_deleted = 0",
+          [
+            "or",
+            "email = :email",
+            "hp = :hp",
+          ],
+        ],
+        [
+          ":email" => trim($payload["email"]),
+          ":hp" => trim($payload["hp"])
+        ]
+      )
+      ->all();
 
-    // Mencari record terakhir
-    /* $last_record = User::find()->where(['id' => User::find()->max('id')])->one(); */
-    $id_user = $new->primaryKey;
-
-    // Insert record ke table user_roles
-    foreach($payload["roles"] as $id_role)
+    if( count($test) == 0 )
     {
-      $user_roles = new UserRoles();
-      $user_roles['id_user'] = $id_user;
-      $user_roles['id_roles'] = $id_role;
-      $user_roles->save();
-    }
 
-    //insert record kategori ke tabel kategori_user
-    KategoriUser::Reset($id_user, $payload["id_kategori"]);
+      $new = new User();
+      $new["nama"]            = $payload["nama"];
+      $new["username"]        = $payload["username"];
+      $new["password"]        = $payload["password"];
+      $new["jenis_kelamin"]   = $payload["jenis_kelamin"];
+      $new["id_departments"]  = $payload["id_departments"];
+      $new["time_create"]     = date("Y-m-j H:i:s");
+      $new["id_user_create"]  = $payload["id_user_create"];
+      $new["nip"]             = $payload["nip"];
+      $new["hp"]             = $payload["hp"];
+      $new["email"]             = $payload["email"];
+      $new->save();
 
-    if( $new->hasErrors() == false )
-    {
-      return array(
-        "status" => "ok",
-        "pesan" => "New record inserted",
-        "result" => $new
-      );
+      // Mencari record terakhir
+      /* $last_record = User::find()->where(['id' => User::find()->max('id')])->one(); */
+      $id_user = $new->primaryKey;
+
+      // Insert record ke table user_roles
+      foreach($payload["roles"] as $id_role)
+      {
+        $user_roles = new UserRoles();
+        $user_roles['id_user'] = $id_user;
+        $user_roles['id_roles'] = $id_role;
+        $user_roles->save();
+      }
+
+      //insert record kategori ke tabel kategori_user
+      KategoriUser::Reset($id_user, $payload["id_kategori"]);
+
+      if( $new->hasErrors() == false )
+      {
+        return array(
+          "status" => "ok",
+          "pesan" => "New record inserted",
+          "result" => $new
+        );
+      }
+      else
+      {
+        return array(
+          "status" => "not ok",
+          "pesan" => "Fail on insert record",
+          "result" => $new->getErrors()
+        );
+      }
     }
     else
     {
       return array(
         "status" => "not ok",
-        "pesan" => "Fail on insert record",
+        "pesan" => "Email atau hp telah dipakai",
         "result" => $new->getErrors()
       );
     }
+
   }
 
   //  Mengambil record user

@@ -165,7 +165,7 @@ class ForumThread extends \yii\db\ActiveRecord
       if( $test["status"] == -3 )
       {
         $user = User::findOne( $test["id_user_create"] );
-        $hasil["penulis"] = $user;
+        $hasil["penulis"] = $user["nama"];
 
         // ambil daftar user dari jawaban yang dipilih
         $q = new Query();

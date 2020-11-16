@@ -158,7 +158,7 @@ class GlobalController extends \yii\rest\Controller
               $path_name = "";
               foreach($path_items as $item)
               {
-                $path_name = $path_name .  ($path_name == "" ? $item["nama"] : " > ") . $item["nama"];
+                $path_name = $path_name .  ($path_name == "" ? "" : " > ") . $item["nama"];
               }
 
               $temp = KmsKategori::findOne($a_data["id"]);
