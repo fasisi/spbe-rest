@@ -15,10 +15,13 @@ use app\models\ForumThreadUserAction;
 use app\models\ForumThreadTag;
 use app\models\ForumThreadFile;
 use app\models\ForumThreadDiscussion;
+use app\models\ForumThreadDiscussionUserAction;
 use app\models\ForumThreadDiscussionSelected;
 use app\models\ForumThreadDiscussionFiles;
 use app\models\ForumThreadComment;
+use app\models\ForumThreadCommentUserAction;
 use app\models\ForumThreadDiscussionComment;
+use app\models\ForumThreadDiscussionCommentUserAction;
 use app\models\ForumThreadHakBaca;
 use app\models\KmsArtikel;
 use app\models\KmsTags;
@@ -4809,6 +4812,404 @@ class ForumController extends \yii\rest\Controller
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+        "payload" => $payload
+      ];
+    }
+  }
+
+
+  public function actionLikeThread()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_thread_valid = isset($payload["id_thread"]);
+    $is_value_valid = isset($payload["value"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+
+    $is_value_valid = $is_value_valid && ( $payload["value"] == 1 || $payload["value"] == 2);
+
+    $test = User::findOne( $pauload["id_user"] );
+    $is_id_user_valid = $is_id_user_valid && is_null( $test );
+
+    $test = ForumThread::findOne( $pauload["id_thread"] );
+    $is_id_thread_valid = $is_id_thread_valid && is_null( $test );
+
+    if( $is_id_user_valid && $is_id_thread_valid && $is_value_valid )
+    {
+      // cek apakah sudah ada record forum_thread_user_action
+      $test = ForumThreadUserAction::find()
+        ->where(
+          [
+            "and",
+            "id_user = :id_user",
+            "id_thread = :id_thread"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+            ":id_thread" => $payload["id_thread"],
+          ]
+        )
+        ->one();
+
+      if( is_null($test) == true )
+      {
+        $new = new ForumThreadUserAction();
+        $new["id_thread"] = $payload["id_thread"];
+        $new["id_user"] = $payload["id_user"];
+        $new["action"] = $payload["value"];
+        $new->save();
+      }
+      else
+      {
+        $test["action"] = $payload["value"];
+        $test->save();
+      }
+
+      //Rangkum forum_thread_user_action menjadi total like dan dislike
+      $q = new Query();
+      $hasil = $q->select(" count(a.id_user) as jumlah ")
+        ->from("forum_thread_user_action a")
+        ->where(
+          "id_thread = :id_thread AND
+           action = 1
+          ",
+          [":id_thread" => $payload["id_thread"]]
+        )
+        ->one();
+      $like = $hasil["jumlah"];
+
+      $q = new Query();
+      $hasil = $q->select(" count(a.id_user) as jumlah ")
+        ->from("forum_thread_user_action a")
+        ->where(
+          "id_thread = :id_thread AND
+           action = 2
+          ",
+          [":id_thread" => $payload["id_thread"]]
+        )
+        ->one();
+      $dislike = $hasil["jumlah"];
+
+      // update record forum_thread
+      $thread = ForumThread::findOne($payload["id_thread"]);
+      $thread["like"] = $like;
+      $thread["dislike"] = $dislike;
+      $thread->save();
+
+      return [
+        "status" => "ok",
+        "pesan" => "Informasi like/dislike berhasil disimpan",
+        "result" => $thread
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Informasi like/dislike berhasil disimpan",
+        "payload" => $payload
+      ];
+    }
+
+  }
+
+  public function actionLikeJawaban()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_jawaban_valid = isset($payload["id_jawaban"]);
+    $is_value_valid = isset($payload["value"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+
+    $is_value_valid = $is_value_valid && ( $payload["value"] == 1 || $payload["value"] == 2);
+
+    $test = User::findOne( $pauload["id_user"] );
+    $is_id_user_valid = $is_id_user_valid && is_null( $test );
+
+    $test = ForumThreadDiscussion::findOne( $pauload["id_jawaban"] );
+    $is_id_jawaban_valid = $is_id_jawaban_valid && is_null( $test );
+
+    if( $is_id_user_valid && $is_id_thread_valid && $is_value_valid )
+    {
+      // cek apakah sudah ada record forum_thread_user_action
+      $test = ForumThreadDiscussionUserAction::find()
+        ->where(
+          [
+            "and",
+            "id_user = :id_user",
+            "id_discussion = :id_discussion"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+            ":id_discussion" => $payload["id_jawaban"],
+          ]
+        )
+        ->one();
+
+      if( is_null($test) == true )
+      {
+        $new = new ForumThreadDiscussionUserAction();
+        $new["id_discussion"] = $payload["id_jawaban"];
+        $new["id_user"] = $payload["id_user"];
+        $new["action"] = $payload["value"];
+        $new->save();
+      }
+      else
+      {
+        $test["action"] = $payload["value"];
+        $test->save();
+      }
+
+      //Rangkum forum_thread_user_action menjadi total like dan dislike
+      $q = new Query();
+      $hasil = $q->select(" count(a.id_user) as jumlah ")
+        ->from("forum_thread_discussion_user_action a")
+        ->where(
+          "id_thread = :id_thread AND
+           action = 1
+          ",
+          [":id_thread" => $payload["id_thread"]]
+        )
+        ->one();
+      $like = $hasil["jumlah"];
+
+      $q = new Query();
+      $hasil = $q->select(" count(a.id_user) as jumlah ")
+        ->from("forum_thread_discussion_user_action a")
+        ->where(
+          "id_thread = :id_thread AND
+           action = 2
+          ",
+          [":id_thread" => $payload["id_thread"]]
+        )
+        ->one();
+      $dislike = $hasil["jumlah"];
+
+      // update record forum_thread
+      $thread = ForumThreadDiscussion::findOne($payload["id_jawaban"]);
+      $thread["like"] = $like;
+      $thread["dislike"] = $dislike;
+      $thread->save();
+
+      return [
+        "status" => "ok",
+        "pesan" => "Informasi like/dislike berhasil disimpan",
+        "result" => $thread
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Informasi like/dislike berhasil disimpan",
+        "payload" => $payload
+      ];
+    }
+  }
+
+  public function actionLikeComment()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_comment_valid = isset($payload["id_comment"]);
+    $is_value_valid = isset($payload["value"]);
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_type_valid = isset($payload["type"]);
+
+    $is_value_valid = $is_value_valid && ( $payload["value"] == 1 || $payload["value"] == 2);
+    $is_type_valid = $is_type_valid && ( $payload["type"] == 1 || $payload["type"] == 2);
+
+    $test = User::findOne( $pauload["id_user"] );
+    $is_id_user_valid = $is_id_user_valid && is_null( $test );
+
+    $test = ForumThreadDiscussion::findOne( $pauload["id_jawaban"] );
+    $is_id_jawaban_valid = $is_id_jawaban_valid && is_null( $test );
+
+    if( $is_value_valid && $is_type_valid )
+    {
+      if( $type == 1 )  // comment of pertanyaan
+      {
+        $comment = ForumThreadComment::findOne($payload["id_comment"]);
+
+        if( is_null($comment) == true )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_comment tidak dikenal",
+            "payload" => $payload
+          ];
+        }
+        else
+        {
+          // cek record forum_thread_comment_user_action
+          $test = ForumThreadCommentUserAction::find()
+            ->where(
+              "id_comment = :id_comment AND
+               id_user = :id_user",
+              [
+                ":id_comment" => $payload["id_comment"],
+                ":id_user" => $payload["id_user"],
+              ]
+            )
+            ->one();
+
+          if( is_null($test) == true )
+          {
+            $new = new ForumThreadCommentUserAction();
+            $new["id_comment"] = $payload["id_comment"];
+            $new["id_user"] = $payload["id_user"];
+            $new["action"] = $payload["value"];
+            $new->save();
+          }
+          else
+          {
+            $test["action"] = $payload["value"];
+            $test->save();
+          }
+        }
+
+        // rangkum
+        $q = new Query();
+        $hasil = $q->select(" count(a.id_user) as jumlah ")
+          ->from("forum_thread_comment_user_action a")
+          ->where(
+            "
+              id_comment = :id_comment AND
+              id_user = :id_user AND
+              action = 1
+            ",
+            [
+              ":id_comment" => $payload["id_comment"],
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->one();
+        $like = $hasil["jumlah"];
+
+        $q = new Query();
+        $hasil = $q->select(" count(a.id_user) as jumlah ")
+          ->from("forum_thread_comment_user_action a")
+          ->where(
+            "
+              id_comment = :id_comment AND
+              id_user = :id_user AND
+              action = 2
+            ",
+            [
+              ":id_comment" => $payload["id_comment"],
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->one();
+        $dislike = $hasil["jumlah"];
+
+        // update
+        $comment = ForumThreadComment::findOne($payload["id_comment"]);
+        $comment["like"] = $like;
+        $comment["dislike"] = $dislike;
+        $comment->save();
+
+
+        return [
+          "status" => "ok",
+          "pesan" => "Like / dislike telah disimpan",
+          "result" => $comment
+        ];
+      }
+      else
+      {
+        $comment = ForumThreadDiscussionComment::findOne($payload["id_comment"]);
+
+        if( is_null($comment) == true )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_comment tidak dikenal",
+            "payload" => $payload
+          ];
+        }
+        else
+        {
+          // cek record forum_thread_comment_user_action
+          $test = ForumThreadDiscussionCommentUserAction::find()
+            ->where(
+              "id_comment = :id_comment AND
+               id_user = :id_user",
+              [
+                ":id_comment" => $payload["id_comment"],
+                ":id_user" => $payload["id_user"],
+              ]
+            )
+            ->one();
+
+          if( is_null($test) == true )
+          {
+            $new = new ForumThreadDiscussionCommentUserAction();
+            $new["id_comment"] = $payload["id_comment"];
+            $new["id_user"] = $payload["id_user"];
+            $new["action"] = $payload["action"];
+            $new->save();
+          }
+          else
+          {
+            $test["action"] = $payload["action"];
+            $test->save();
+          }
+        }
+
+        // rangkum
+        $q = new Query();
+        $hasil = $q->select(" count(a.id_user) as jumlah ")
+          ->from("forum_thread_discussion_comment_user_action a")
+          ->where(
+            "
+              id_comment = :id_comment AND
+              id_user = :id_user AND
+              action = 1
+            ",
+            [
+              ":id_comment" => $payload["id_comment"],
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->one();
+        $like = $hasil["jumlah"];
+
+        $q = new Query();
+        $hasil = $q->select(" count(a.id_user) as jumlah ")
+          ->from("forum_thread_discussion_comment_user_action a")
+          ->where(
+            "
+              id_comment = :id_comment AND
+              id_user = :id_user AND
+              action = 2
+            ",
+            [
+              ":id_comment" => $payload["id_comment"],
+              ":id_user" => $payload["id_user"],
+            ]
+          )
+          ->one();
+        $dislike = $hasil["jumlah"];
+
+        // update
+        $comment = ForumThreadDiscussionComment::findOne($payload["id_comment"]);
+        $comment["like"] = $like;
+        $comment["dislike"] = $dislike;
+        $comment->save();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Like / dislike telah disimpan",
+          "result" => $comment
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Value dan type tidak valid",
         "payload" => $payload
       ];
     }
