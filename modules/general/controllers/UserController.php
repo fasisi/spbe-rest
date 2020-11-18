@@ -412,6 +412,7 @@ class UserController extends \yii\rest\Controller
       $query->select([
         'user.id AS id_user',
         'user.nama AS nama_user',
+	'user.username AS username',
         'user.jenis_kelamin AS jk',
         'user.is_deleted AS is_deleted',
         'user.is_banned AS is_banned',

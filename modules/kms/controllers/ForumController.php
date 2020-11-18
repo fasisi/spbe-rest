@@ -443,6 +443,7 @@ class ForumController extends \yii\rest\Controller
         $tags[] = $temp;
       }
 
+      /* $thread["konten"] = htmlentities($thread["konten"]); */ 
       $request_payload = [
         "title" => $thread["judul"],
         "body" => $thread["konten"],
@@ -531,6 +532,7 @@ class ForumController extends \yii\rest\Controller
             return [
               'status' => 'not ok',
               'pesan' => 'REST API request failed: ' . $res->getBody(),
+              'response_body' => $res,
               'result' => $thread,
               'payload' => $payload,
               'request_payload' => $request_payload,
@@ -589,6 +591,7 @@ class ForumController extends \yii\rest\Controller
       return[
         "status" => "not ok",
         "pesan" => "Record thread tidak ditemukan",
+        "payload" => $payload,
       ];
     }
 

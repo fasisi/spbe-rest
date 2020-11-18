@@ -127,7 +127,7 @@ class KmsArtikel extends \yii\db\ActiveRecord
       $q->join("JOIN", "user u", "u.id = l.id_user");
       $q->where([
           "and",
-          "l.id_user = :id_user",
+          "u.id = :id_user",
           "l.type_log = 2",
           "l.action = :type_action",
           "l.time_action >= :awal",
