@@ -884,4 +884,98 @@ class GeneralController extends \yii\rest\Controller
   // ==========================================================================
   // Tag management
   // ==========================================================================
+
+
+
+
+
+
+
+  // ==========================================================================
+  // reset password
+  // ==========================================================================
+
+
+
+      /*
+       * Membuat link reset password berdasarkan username dan email. Jika
+       * username dan email ditemukan, maka logic akan membuat suatu token
+       * dan membuat link reset response. Kemudian link akan dikirim kepada
+       * user melalui email.
+       *
+       * Method : GET
+       * Request:
+       * {
+       *   username: "",
+       *   email: ""
+       * }
+       *
+       * Response:
+       * {
+       *   status: "",
+       *   pesan: ""
+       * }
+        * */
+      public function actionResetRequest()
+      {
+        $payload = $this->GetPayload();
+
+        $username = $payload["username"];
+        $email = $payload["email"];
+
+        $test = User::find()
+          ->where(
+            "
+              username = :username AND
+              email = :email
+            ",
+            [
+              ":username" => $payload["username"],
+              ":email" => $payload["email"],
+            ]
+          )
+          ->one();
+
+        if( is_null($test) == false )
+        {
+          // bikin random token
+          $token = $generator->generateString(32, 'abcdefghijklmnopqrstuvwxyz0123456789');
+
+          $user = User::findOne($test["id"]);
+          $user["reset_token"] = $token;
+          $user["reset_time"] = date("Y-m-j H:i:s");
+          $user->save();
+
+          $link = BaseUrl::base(true) . "/index.php?r=general/general/reset-response&token=" . $token; 
+
+          // kirim email
+          // kembalikan response
+
+        }
+        else
+        {
+          // kembalikan response
+        }
+      }
+
+      public function actionResetResponse()
+      {
+        // ambil token
+        // cek token validity
+        // kembalikan response
+      }
+
+      public function actionResetSubmit()
+      {
+        // cek token
+        // cek password validity
+        // reset password
+        // kembalikan response
+      }
+
+
+
+  // ==========================================================================
+  // reset password
+  // ==========================================================================
 }

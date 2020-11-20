@@ -235,19 +235,7 @@ class ForumThread extends \yii\db\ActiveRecord
       $user = User::findOne($id_user);
 
       // cek apakah ada pembatasan per user atas id_thread ini ??
-      $test1 = ForumThreadHakBaca::find()
-        ->where(
-          [
-            "and",
-            "id_thread = :id_thread"
-          ],
-          [
-            ":id_thread" => $id_thread
-          ]
-        )
-        ->all();
-
-      if( count( $test1 ) > 0 )
+      if( $thread["tipe_hak_baca"] == 2 ) // hak baca per user
       {
         //periksa apakah si user adalah si penulis?
         if( $thread["id_user_create"] == $id_user )
