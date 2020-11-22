@@ -289,7 +289,7 @@ class ForumController extends \yii\rest\Controller
 
       $thread = new ForumThread();
       $thread["judul"] = $payload["judul"];
-      $thread["konten"] = $payload["body"];
+      $thread["konten"] = htmlentities($payload["body"], ENT_QUOTES);
       $thread["linked_id_question"] = -1;
       $thread['time_create'] = date("Y-m-j H:i:s");
       $thread['id_user_create'] = $payload['id_user'];
@@ -713,7 +713,7 @@ class ForumController extends \yii\rest\Controller
       if( $thread["status"] == -1 ) 
       {
         $thread["judul"] = $payload["judul"];
-        $thread["konten"] = $payload["body"];
+        $thread["konten"] = htmlentities($payload["body"], ENT_QUOTES);
         $thread["id_kategori"] = $payload["id_kategori"];
         $thread['time_update'] = date("Y-m-j H:i:s");
         $thread['id_user_update'] = $payload["id_user"];
@@ -770,7 +770,7 @@ class ForumController extends \yii\rest\Controller
       elseif($thread["status"] == 0)
       {
         $thread["judul"] = $payload["judul"];
-        $thread["konten"] = $payload["body"];
+        $thread["konten"] = htmlentities($payload["body"], ENT_QUOTES);
         $thread["id_kategori"] = $payload["id_kategori"];
         $thread['time_update'] = date("Y-m-j H:i:s");
         $thread['id_user_update'] = $payload["id_user"];
@@ -1137,7 +1137,7 @@ class ForumController extends \yii\rest\Controller
 
           $temp["confluence"]["id"] = $response_payload["id"];
           $temp["confluence"]["judul"] = $response_payload["title"];
-          $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
         }
         catch(yii\base\InvalidArgumentException $e)
         {
@@ -1612,7 +1612,7 @@ class ForumController extends \yii\rest\Controller
           $temp["confluence"]["status"] = "ok";
           $temp["confluence"]["linked_id_question"] = $response_payload["id"];
           $temp["confluence"]["judul"] = $response_payload["title"];
-          $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
           $hasil[] = $temp;
         }
         else
@@ -1786,7 +1786,7 @@ class ForumController extends \yii\rest\Controller
               $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
               $temp["confluence"]["judul"] = $response_payload["title"];
-              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+              $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
 
               $hasil[] = $temp;
 
@@ -1803,7 +1803,7 @@ class ForumController extends \yii\rest\Controller
               $temp['data_user']['user_create'] = $user;
               $temp["confluence"]["status"] = "not ok";
               $temp["confluence"]["judul"] = $response_payload["title"];
-              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+              $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
 
               $hasil[] = $temp;
 
@@ -2086,7 +2086,7 @@ class ForumController extends \yii\rest\Controller
           $hasil["record"]["confluence"]["status"] = "ok";
           $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
           $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+          $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
 
           $this->ThreadLog($thread["id"], $payload["id_user_actor"], 2, -1);
           break;
@@ -2095,7 +2095,7 @@ class ForumController extends \yii\rest\Controller
           // kembalikan response
           $hasil["record"]["confluence"]["status"] = "not ok";
           $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-          $hasil["record"]["confluence"]["konten"] = $response_payload["body"]["content"];
+          $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
           break;
       }
 
@@ -2497,7 +2497,7 @@ class ForumController extends \yii\rest\Controller
                   $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
                   $temp["confluence"]["id"] = $response_payload["id"];
                   $temp["confluence"]["judul"] = $response_payload["title"];
-                  $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+                  $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
                   $temp["confluence"]["short_konten"] = $short_konten;
 
                   if( $is_id_user_actor_valid == true )
@@ -2931,7 +2931,7 @@ class ForumController extends \yii\rest\Controller
           $temp["user_create"] = $user;
           $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
           $temp["confluence"]["judul"] = $response_payload["title"];
-          $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
         }
         catch(yii\base\InvalidArgumentException $e)
         {
@@ -5305,7 +5305,7 @@ class ForumController extends \yii\rest\Controller
               $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
               $temp["confluence"]["judul"] = $response_payload["title"];
-              $temp["confluence"]["konten"] = $response_payload["body"]["content"];
+              $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
             }
             catch(yii\base\InvalidParamException $e)
             {
