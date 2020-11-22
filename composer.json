@@ -22,7 +22,9 @@
         "nesbot/carbon": "^2.38",
         "smottt/wideimage": "^1.1",
         "paragonie/random_compat": "2",
-        "paragonie/random-lib": "^2.0"
+        "paragonie/random-lib": "^2.0",
+        "phpmailer/phpmailer": "^6.1",
+        "league/oauth2-google": "^3.0"
     },
     "require-dev": {
         "yiisoft/yii2-debug": "~2.1.0",

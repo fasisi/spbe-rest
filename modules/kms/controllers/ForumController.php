@@ -1945,6 +1945,8 @@ class ForumController extends \yii\rest\Controller
         $jawaban = [];
         foreach($list_jawaban as $item_jawaban)
         {
+          $item_jawaban["konten"] = html_entity_decode($item_jawaban["konten"], ENT_QUOTES);
+
           $list_komentar_jawaban = ForumThreadDiscussionComment::find()
             ->where(
               "id_discussion = :id ", 
@@ -4147,6 +4149,10 @@ class ForumController extends \yii\rest\Controller
         //eksekusi
 
             // bikin answer draft
+
+
+                $konten = htmlentities($payload["konten"], ENT_QUOTES);
+
                 $client = $this->SetupGuzzleClient();
                 $jira_conf = Yii::$app->restconf->confs['confluence'];
 
@@ -4154,7 +4160,7 @@ class ForumController extends \yii\rest\Controller
                   "questionId" => $thread["linked_id_question"],
                   "body" => 
                   [
-                    "content" => $payload["konten"],
+                    "content" => $konten,
                     "bodyFormat" => "VIEW",
                   ]
                 ];
@@ -4189,7 +4195,7 @@ class ForumController extends \yii\rest\Controller
 
             // kirim ke CQ
                 $request_payload = [
-                  "body" => $payload["konten"],
+                  "body" => $konten,
                   "draftId" => $id_answer_draft,
                   "dateAnswered" => date("Y-m-d"),
                 ];
@@ -4227,7 +4233,7 @@ class ForumController extends \yii\rest\Controller
                 $new["id_thread"] = $payload["id_parent"];
                 $new["linked_id_answer"] = $response_payload["id"];
                 $new["judul"] = "---";
-                $new["konten"] = $payload["konten"];
+                $new["konten"] = $konten;
                 $new->save();
 
                 //jika ada array id_files, maka pasangkan file-file dengan jawaban
@@ -4314,6 +4320,7 @@ class ForumController extends \yii\rest\Controller
       $is_id_valid = isset($payload["id"]);
 
       $test = ForumThreadDiscussion::findOne($payload["id"]);
+      $test["konten"] = html_entity_decode($test["konten"], ENT_QUOTES);
 
       if( is_null($test) == false )
       {
@@ -4344,7 +4351,7 @@ class ForumController extends \yii\rest\Controller
       if( is_null($test) == false )
       {
 
-        $test["konten"] = $payload["konten"];
+        $test["konten"] = htmlentities($payload["konten"], ENT_QUOTES);
         $test["id_user_update"] = $payload["id_user"];
         $test["time_update"] = date("Y-m-j H:i:s");
         $test->save();

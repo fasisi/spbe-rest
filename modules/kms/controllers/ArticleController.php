@@ -14,6 +14,7 @@ use app\models\KmsArtikelUserStatus;
 use app\models\KmsArtikelTag;
 use app\models\KmsArtikelFile;
 use app\models\KmsTags;
+use app\models\KategoriUser;
 use app\models\User;
 use app\models\KmsKategori;
 use app\models\KmsFiles;
@@ -230,7 +231,7 @@ class ArticleController extends \yii\rest\Controller
         ],
         'body' => [
           'storage' => [
-            'value' => $payload['body'],
+            'value' => htmlentities($payload['body'], ENT_QUOTES),
             'representation' => 'storage',
           ],
         ],
@@ -666,7 +667,7 @@ class ArticleController extends \yii\rest\Controller
         ],
         'body' => [
           'storage' => [
-            'value' => $payload['body'],
+            'value' => htmlentities($payload['body'], ENT_QUOTES),
             'representation' => 'storage',
           ],
         ],
@@ -1083,7 +1084,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
 
         // filter by action
         // ================
@@ -1577,7 +1578,7 @@ class ArticleController extends \yii\rest\Controller
           $temp["confluence"]["status"] = "ok";
           $temp["confluence"]["linked_id_content"] = $response_payload["id"];
           $temp["confluence"]["judul"] = $response_payload["title"];
-          $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
           $hasil[] = $temp;
         }
         else
@@ -1743,7 +1744,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -1757,7 +1758,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -1875,7 +1876,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -1888,7 +1889,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
 
             $hasil[] = $temp;
@@ -2017,7 +2018,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["status"] = "ok";
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
 
         $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
         break;
@@ -2033,7 +2034,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
         break;
       }
 
@@ -2338,12 +2339,21 @@ class ArticleController extends \yii\rest\Controller
       $keywords = "($keywords)";
 
       //ambil daftar linked_id_content berdasarkan array id_kategori
+
+      $kategori_user = KategoriUser::ListByUser($payload["id_user"]);
+      $daftar_kategori = [];
+      foreach($kategori_user as $item)
+      {
+        $daftar_kategori[] = $item["id"];
+      }
+
       $daftar_artikel = KmsArtikel::find()
         ->where(
           [
-            "id_kategori" => $payload["id_kategori"],
-            "is_delete" => 0,
-            "is_publish" => 0,
+            "and",
+            ["in", "id_kategori", $daftar_kategori],
+            "is_delete = 0",
+            "is_publish = 0",
             ["in", "status", [1]]
           ]
         )
@@ -2391,20 +2401,20 @@ class ArticleController extends \yii\rest\Controller
         ]
       );
 
+      $hasil = array();
       switch( $res->getStatusCode() )
       {
       case 200:
         $response_payload = $res->getBody();
         $response_payload = Json::decode($response_payload);
 
-        $hasil = array();
         foreach($response_payload["results"] as $item)
         {
           $temp = array();
           $temp["confluence"]["status"] = "ok";
           $temp["confluence"]["linked_id_content"] = $item["id"];
           $temp["confluence"]["judul"] = $item["title"];
-          $temp["confluence"]["konten"] = $item["body"]["view"]["value"];
+          $temp["confluence"]["konten"] = html_entity_decode($item["body"]["view"]["value"], ENT_QUOTES);
 
           $artikel = KmsArtikel::find()
             ->where(
@@ -2415,6 +2425,7 @@ class ArticleController extends \yii\rest\Controller
             ->one();
           $user = User::findOne($artikel["id_user_create"]);
           $temp["kms_artikel"] = $artikel;
+          $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
           $temp["data_user"]["user_create"] = $user->nama;
           $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
 
@@ -2695,7 +2706,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["user_create"] = $user;
         $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
         $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
 
         $hasil[] = $temp;
       }
@@ -2825,7 +2836,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+        $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
 
         $records[] = $temp;
       } // loop artikel yang dibikin si user

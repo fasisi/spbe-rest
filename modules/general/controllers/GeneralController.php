@@ -11,6 +11,13 @@ use app\models\KmsKategori;
 use app\models\KategoriUser;
 use app\models\User;
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+use RandomLib\Factory;
+use RandomLib\Generator;
+
 class GeneralController extends \yii\rest\Controller
 {
   public function behaviors()
@@ -29,7 +36,10 @@ class GeneralController extends \yii\rest\Controller
         'tagcreate'          => ['POST'],
         'tagget'             => ['GET'],
         'tagupdate'          => ['PUT'],
-        'tagdelete'          => ['DELETE']
+        'tagdelete'          => ['DELETE'],
+
+        'reset-request'       => ['GET'],
+
       ]
     ];
     return $behaviors;
@@ -936,40 +946,184 @@ class GeneralController extends \yii\rest\Controller
           )
           ->one();
 
-        if( is_null($test) == false )
+        if( is_null($test) || true )
         {
           // bikin random token
+          $factory = new Factory();
+          $generator = $factory->getHighStrengthGenerator();
           $token = $generator->generateString(32, 'abcdefghijklmnopqrstuvwxyz0123456789');
 
-          $user = User::findOne($test["id"]);
-          $user["reset_token"] = $token;
-          $user["reset_time"] = date("Y-m-j H:i:s");
-          $user->save();
+          /* $user = User::findOne($test["id"]); */
+          /* $user["reset_token"] = $token; */
+          /* $user["reset_time"] = date("Y-m-j H:i:s"); */
+          /* $user->save(); */
 
-          $link = BaseUrl::base(true) . "/index.php?r=general/general/reset-response&token=" . $token; 
+          /* $link = $payload["link"] . $token; */ 
 
           // kirim email
+          // ....
+          $mail = new PHPMailer(true);
+
+          try 
+          {
+              //Server settings
+              $mail->SMTPDebug = SMTP::DEBUG_OFF;
+              $mail->isSMTP();                                            // Send using SMTP
+              $mail->Host       = 'smtp.gmail.com';                    // Set the SMTP server to send through
+              $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
+              $mail->Username   = 'frans.indroyono@gmail.com';                     // SMTP username
+              $mail->Password   = 'ujwxdobmlzzubyyy';                               // SMTP password
+              $mail->SMTPSecure = 'ssl';  //'tls/ssl';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
+              $mail->Port       = 465;  //587 / 465;                                    // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
+
+              //Recipients
+              $mail->setFrom('frans.indroyono@gmail.com', 'Frans Indroyono');
+              $mail->addAddress('kotak.backup.satu@gmail.com', 'Backup Satu');     // Add a recipient
+              $mail->addAddress('rezachrismardianto20@gmail.com', 'Reza Indonesia 02');     // Add a recipient
+              /* $mail->addAddress('ellen@example.com');               // Name is optional */
+              /* $mail->addReplyTo('info@example.com', 'Information'); */
+              /* $mail->addCC('cc@example.com'); */
+              /* $mail->addBCC('bcc@example.com'); */
+
+              // Attachments
+              /* $mail->addAttachment('/var/tmp/file.tar.gz');         // Add attachments */
+              /* $mail->addAttachment('/tmp/image.jpg', 'new.jpg');    // Optional name */
+
+              // Content
+              $mail->isHTML(true);                                  // Set email format to HTML
+              $mail->Subject = 'Here is the subject';
+              $mail->Body    = 'Token is : ' . $token;
+              $mail->AltBody = 'Token is : ' . $token;
+
+              $mail->send();
+              return [ 
+                'pesan' => 'Message has been sent'
+              ];
+          } 
+          catch (Exception $e) 
+          {
+            return [
+              'pesan' =>  "Message could not be sent. Mailer Error: {$mail->ErrorInfo}"
+            ];
+          }
+
           // kembalikan response
+          return [
+            "status" => "ok",
+            "pesan" => "Token reset password telah dibikin dan link telah dikirim ke email",
+          ];
 
         }
         else
         {
           // kembalikan response
+          return [
+            "status" => "not ok",
+            "pesan" => "Username dan email tidak terdaftar di dalam sistem.",
+            "payload" => $payload
+          ];
         }
       }
 
       public function actionResetResponse()
       {
         // ambil token
+        $token = Yii::$app->request->get("token");
+
         // cek token validity
+        $test = User::find()
+          ->where(
+            "
+              reset_token = :token
+            ",
+            [
+              ":token" => $token
+            ]
+          )
+          ->one();
+
+        // cek apakah token ada di dalam sistem
+        if( is_null( $test ) == false )
+        {
+          // cek apakah masa token telah habis (24 jam)
+          $b = date();
+          $a = $test["reset_time"];
+
+          $selisih = $b - $a;
+
+          if( $selisih < (24 * 60 * 60) ) 
+          {
+            return [
+              "status" => "ok",
+              "pesan" => "Token dikenal",
+              "token" => $token
+            ];
+          }
+          else
+          {
+            $test["reset_token"] = "";
+            $test["reset_time"] = null;
+            $test->save();
+
+            return [
+              "status" => "not ok",
+              "pesan" => "Masa token telah habis. Silakan request token kembali.",
+              "token" => $token
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Token tidak dikenal.",
+            "token" => $token
+          ];
+        }
+
         // kembalikan response
       }
 
       public function actionResetSubmit()
       {
+        $token = Yii::$app->request->post("token");
+        $password = Yii::$app->request->post("password");
+
         // cek token
+        $test = User::find()
+          ->where(
+            "
+              reset_token = :token
+            ",
+            [
+              ":token" => $token
+            ]
+          )
+          ->one();
+
         // cek password validity
-        // reset password
+        if( is_null($test) == false )
+        {
+          // reset password
+
+          $test["password"] = $password;
+          $test["reset_token"] = "";
+          $test["reset_time"] = null;
+          $test->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Password berhasil di-rest.",
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Token tidak dikenal",
+          ];
+        }
+
         // kembalikan response
       }
 
