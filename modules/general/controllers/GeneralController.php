@@ -1006,7 +1006,8 @@ class GeneralController extends \yii\rest\Controller
 
               $mail->send();
               return [ 
-                'pesan' => 'Message has been sent'
+                'pesan' => 'Message has been sent',
+                "link" => $link
               ];
           } 
           catch (Exception $e) 
@@ -1020,6 +1021,7 @@ class GeneralController extends \yii\rest\Controller
           return [
             "status" => "ok",
             "pesan" => "Token reset password telah dibikin dan link telah dikirim ke email",
+            "link" => $link
           ];
 
         }
@@ -1036,8 +1038,10 @@ class GeneralController extends \yii\rest\Controller
 
       public function actionResetResponse()
       {
+        $payload = $this->GetPayload();
+
         // ambil token
-        $token = Yii::$app->request->get("token");
+        $token = $payload["token"];
 
         // cek token validity
         $test = User::find()
@@ -1055,8 +1059,8 @@ class GeneralController extends \yii\rest\Controller
         if( is_null( $test ) == false )
         {
           // cek apakah masa token telah habis (24 jam)
-          $b = date();
-          $a = $test["reset_time"];
+          $b = mktime();
+          $a = strtotime($test["reset_time"]);
 
           $selisih = $b - $a;
 
@@ -1095,8 +1099,10 @@ class GeneralController extends \yii\rest\Controller
 
       public function actionResetSubmit()
       {
-        $token = Yii::$app->request->post("token");
-        $password = Yii::$app->request->post("password");
+        $payload = $this->GetPayload();
+
+        $token = $payload["token"];
+        $password = $payload["password"];
 
         // cek token
         $test = User::find()
