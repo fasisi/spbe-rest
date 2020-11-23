@@ -946,19 +946,19 @@ class GeneralController extends \yii\rest\Controller
           )
           ->one();
 
-        if( is_null($test) || true )
+        if( is_null($test) == false )
         {
           // bikin random token
           $factory = new Factory();
           $generator = $factory->getHighStrengthGenerator();
           $token = $generator->generateString(32, 'abcdefghijklmnopqrstuvwxyz0123456789');
 
-          /* $user = User::findOne($test["id"]); */
-          /* $user["reset_token"] = $token; */
-          /* $user["reset_time"] = date("Y-m-j H:i:s"); */
-          /* $user->save(); */
+          $user = User::findOne($test["id"]);
+          $user["reset_token"] = $token;
+          $user["reset_time"] = date("Y-m-j H:i:s");
+          $user->save();
 
-          /* $link = $payload["link"] . $token; */ 
+          $link = $payload["link"] . $token; 
 
           // kirim email
           // ....
@@ -980,6 +980,8 @@ class GeneralController extends \yii\rest\Controller
               $mail->setFrom('frans.indroyono@gmail.com', 'Frans Indroyono');
               $mail->addAddress('kotak.backup.satu@gmail.com', 'Backup Satu');     // Add a recipient
               $mail->addAddress('rezachrismardianto20@gmail.com', 'Reza Indonesia 02');     // Add a recipient
+              /* $mail->addAddress('awen1965@gmail.com', 'Pak Wenwen');     // Add a recipient */
+              /* $mail->addAddress('wenwen.ruswendi@bppt.go.id', 'Pak Wenwen');     // Add a recipient */
               /* $mail->addAddress('ellen@example.com');               // Name is optional */
               /* $mail->addReplyTo('info@example.com', 'Information'); */
               /* $mail->addCC('cc@example.com'); */
@@ -990,10 +992,17 @@ class GeneralController extends \yii\rest\Controller
               /* $mail->addAttachment('/tmp/image.jpg', 'new.jpg');    // Optional name */
 
               // Content
+              $html = $this->renderPartial(
+                "emails/model01/model01",
+                [
+                  "token" => $token,
+                  "link" => $link,
+                ]
+              );
               $mail->isHTML(true);                                  // Set email format to HTML
               $mail->Subject = 'Here is the subject';
-              $mail->Body    = 'Token is : ' . $token;
-              $mail->AltBody = 'Token is : ' . $token;
+              $mail->Body    = $html;
+              $mail->AltBody = $html;
 
               $mail->send();
               return [ 
@@ -1051,7 +1060,7 @@ class GeneralController extends \yii\rest\Controller
 
           $selisih = $b - $a;
 
-          if( $selisih < (24 * 60 * 60) ) 
+          if( $selisih < (15 * 60) ) 
           {
             return [
               "status" => "ok",
