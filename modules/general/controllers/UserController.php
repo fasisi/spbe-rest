@@ -254,6 +254,9 @@ class UserController extends \yii\rest\Controller
       {
         $user["nama"]           = $payload["nama"];
         $user["username"]       = $payload["username"];
+        $user["email"]          = $payload["email"];
+        $user["hp"]             = $payload["hp"];
+        $user["nip"]            = $payload["nip"];
         $user["id_departments"] = $payload["id_departments"];
         $user["jenis_kelamin"]  = $payload["jenis_kelamin"];
         $user->save();
@@ -412,7 +415,7 @@ class UserController extends \yii\rest\Controller
       $query->select([
         'user.id AS id_user',
         'user.nama AS nama_user',
-	'user.username AS username',
+        'user.username AS username',
         'user.jenis_kelamin AS jk',
         'user.is_deleted AS is_deleted',
         'user.is_banned AS is_banned',

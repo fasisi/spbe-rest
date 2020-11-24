@@ -1006,7 +1006,7 @@ class GeneralController extends \yii\rest\Controller
 
               $mail->send();
               return [ 
-                'pesan' => 'Message has been sent',
+                'pesan' => 'Link reset password telah dikirim, silahkan cek email kamu !',
                 "link" => $link
               ];
           } 
