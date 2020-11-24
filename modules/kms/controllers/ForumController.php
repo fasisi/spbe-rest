@@ -755,6 +755,8 @@ class ForumController extends \yii\rest\Controller
         // kembalikan response
             $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
 
+            $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
             return 
             [
               'status' => 'ok',
@@ -781,6 +783,8 @@ class ForumController extends \yii\rest\Controller
 
         // kembalikan response
             $tags = ForumThreadTag::findAll(["id_thread" => $thread["id"]]);
+
+            $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
 
             return 
             [
@@ -1121,6 +1125,7 @@ class ForumController extends \yii\rest\Controller
       if( $payload["object_type"] == 't' )
       {
         $thread = ForumThread::findOne($record["id"]);
+        $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
         $user = User::findOne($thread["id_user_create"]);
 
         $response = $this->Conf_GetQuestion($client, $thread["linked_id_question"]);
@@ -1604,6 +1609,8 @@ class ForumController extends \yii\rest\Controller
           $response_payload = $response->getBody();
           $response_payload = Json::decode($response_payload);
 
+          $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
           $temp = [];
           $temp["record"]["forum_thread"] = $thread;
           $temp["record"]["user_create"] = $user_create;
@@ -1775,6 +1782,8 @@ class ForumController extends \yii\rest\Controller
               $response_payload = $res->getBody();
               $response_payload = Json::decode($response_payload);
 
+              $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
               $temp = [];
               $temp["forum_thread"] = $thread;
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
@@ -1795,6 +1804,10 @@ class ForumController extends \yii\rest\Controller
 
             default:
               // kembalikan response
+
+
+              $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
               $temp = [];
               $temp["forum_thread"] = $thread;
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
@@ -2063,6 +2076,7 @@ class ForumController extends \yii\rest\Controller
 
       //  kembalikan hasilnya
 
+      $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
 
       $hasil = [];
       $hasil["record"]["forum_thread"] = $thread;
@@ -2218,6 +2232,8 @@ class ForumController extends \yii\rest\Controller
           "id_thread = :id and is_delete = 0", 
           [":id" => $payload["id_thread"]]
         );
+
+        $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
 
         // kembalikan response
         return [
@@ -2489,6 +2505,8 @@ class ForumController extends \yii\rest\Controller
                   }
 
                   $user_create = User::findOne($thread["id_user_create"]);
+
+                  $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
 
                   $temp = [];
                   $temp["forum_thread"] = $thread;
@@ -2922,6 +2940,9 @@ class ForumController extends \yii\rest\Controller
         $response_payload = $res->getBody();
 
         $temp = [];
+
+        $record["konten"] = html_entity_decode($record["konten"], ENT_QUOTES);
+
 
         try
         {
@@ -5284,6 +5305,8 @@ class ForumController extends \yii\rest\Controller
           $client = $this->SetupGuzzleClient();
           foreach($list_thread as $thread)
           {
+            $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
             $user = User::findOne($thread["id_user_create"]);
 
             $temp = [];
@@ -5555,6 +5578,8 @@ class ForumController extends \yii\rest\Controller
             $list_jawaban[] = $temp;
 
           }
+
+          $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
 
           return [
             "status" => "ok",
