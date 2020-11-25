@@ -133,7 +133,7 @@ class UserController extends \yii\rest\Controller
       {
         return array(
           "status" => "not ok",
-          "pesan" => "Fail on insert record",
+          "pesan" => "Email dan HP telah terdaftar",
           "result" => $new->getErrors()
         );
       }
@@ -143,7 +143,6 @@ class UserController extends \yii\rest\Controller
       return array(
         "status" => "not ok",
         "pesan" => "Email atau hp telah dipakai",
-        "result" => $new->getErrors()
       );
     }
 
