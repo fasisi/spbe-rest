@@ -31,6 +31,8 @@ use app\models\User;
 use app\models\KmsKategori;
 use app\models\KategoriUser;
 
+use app\helpers\Notifikasi;
+
 use Carbon\Carbon;
 use WideImage\WideImage;
 
@@ -5245,6 +5247,120 @@ class ForumController extends \yii\rest\Controller
       ];
     }
   }
+
+
+  /*
+   * Menyatakan bahwa si penerbit topik telah puas dengan jawaban yang didapat.
+   *
+   * Method : POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_thread: 123,
+   *   id_user : 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *   }
+   * }
+    * */
+  public function actionPuas()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_thread_valid = isset( $payload["id_thread"] );
+    $is_id_user_valid = isset( $payload["id_user"] );
+
+    $test_thread = ForumThread::findOne($payload["id_thread"]);
+    $is_id_thread_valid = $is_id_thread_valid && (is_null( $test_thread ) == false);
+
+    $test_user = User::findOne($payload["id_user"]);
+    $is_id_user_valid = $is_id_user_valid && (is_null( $test_user ) == false);
+
+    if( $is_id_thread_valid && $is_id_user_valid == true )
+    {
+      // pastikan si user adalah penerbit topik
+      if( $test_htread["id_user_create"] == $test_user["id"] )
+      {
+        // kirim notifikasi kepada para manajer konten
+        // dilakukan berdasarkan id_kategori dan id_instansi
+        $id_kategori = $test_thread["id_kategori"];
+        $id_department = $test_user["id_departments"];
+
+        $q = new Query();
+        $daftar_manager = 
+          $q->select("u.*")
+            ->from("user u")
+            ->join("join", "kategori_user ku", "ku.id_user = u.id")
+            ->join("join", "user_roles ur", "ur.id_user = u.id_user")
+            ->where(
+              [
+                "and",
+                "u.id_department = :id_instansi",
+                "ku.id_kategori = :id_kategori",
+                "ur.id_role = :id_role"
+              ],
+              [
+                ":id_instansi" => $test_user["id_departments"],
+                ":id_kategori" => $test_thread["id_kategori"],
+                ":id_role" => Roles::IdByCodeName("manager_konten")
+              ]
+            )
+            ->all();
+
+        // kirim notifikasi
+        $daftar_email = [];
+        foreach($daftar_manager as $manager)
+        {
+          $temp = [];
+          $temp["email"] = $manager["email"];
+          $temp["nama"] = $manager["nama"];
+
+          $daftar_email[] = $temp;
+        }
+
+        $test = Notifikasi::Kirim(
+          [
+            "type" => "topik_puas",
+            "thread" => $test_thread,
+            "daftar_email" => $daftar_email
+          ]
+        );
+
+        if($test == true)
+        {
+          // set flag is_puas
+          $test_thread["is_puas"] = 1;
+          $test_thread["time_puas"] = date("Y-m-j H:i:s");
+          $test_htread->save();
+        }
+
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "User bukan penulis thread",
+          "payload" => $payload,
+        ];
+      }
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "id_thread atau id_user tidak dikenal",
+        "payload" => $payload,
+      ];
+    }
+  }
+
 
 
   // ==========================================================================

@@ -46,4 +46,21 @@ class Roles extends \yii\db\ActiveRecord
             'linked_id_user' => 'Linked Id User',
         ];
     }
+
+
+    public static function IdByCodeName($code_name)
+    {
+      $roles = Roles::find()
+        ->where(
+          [
+            "code_name = :code_name"
+          ],
+          [
+            ":code_name" => $code_name
+          ]
+        )
+        ->one();
+
+      return $roles["id"];
+    }
 }
