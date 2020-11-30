@@ -53,6 +53,7 @@ class Roles extends \yii\db\ActiveRecord
       $roles = Roles::find()
         ->where(
           [
+            "and",
             "code_name = :code_name"
           ],
           [

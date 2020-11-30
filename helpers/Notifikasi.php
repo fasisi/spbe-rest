@@ -1,8 +1,8 @@
-
 <?php
 
   namespace app\helpers;
 
+  use Yii;
   use yii\base\BaseObject;
 
   use PHPMailer\PHPMailer\PHPMailer;
@@ -58,8 +58,8 @@
             }
 
             // Content
-            $html = $this->renderPartial(
-              "emails/notifikasi/topik_puas",
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_puas",
               [
                 "thread" => $params["thread"],
               ]
@@ -78,6 +78,8 @@
       }
       catch(Exception $e)
       {
+        $temp = json_encode($params);
+        Yii::info("Params = " . $temp);
         Yii::info("Gagal mengirim notifikasi. Pesan error: " . $mail->ErrorInfo);
 
         return false;

@@ -32,6 +32,7 @@ class HelpdeskController extends \yii\rest\Controller
     $behaviors['verbs'] = [
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
+        'draft'                 => ['POST'],
         'create'                => ['POST'],
         'retrieve'              => ['GET'],
         'update'                => ['PUT'],
@@ -2501,57 +2502,57 @@ class HelpdeskController extends \yii\rest\Controller
 
       switch( $res->getStatusCode() )
       {
-      case 200:
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $hasil = array();
-        foreach($response_payload["values"] as $item)
-        {
-          $temp = array();
-          $temp["servicedesk"]["status"] = "ok";
-          $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
-          $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-          $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+          $hasil = array();
+          foreach($response_payload["values"] as $item)
+          {
+            $temp = array();
+            $temp["servicedesk"]["status"] = "ok";
+            $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
 
-          $issue = HdIssue::find()
-            ->where(
-              [
-                "linked_id_issue" => $item["id"]
-              ]
-            )
-            ->one();
-          $user = User::findOne($issue["id_user_create"]);
-          $temp["hd_issue"] = $issue;
-          $temp["user_create"] = $user->nama;
-          $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $issue = HdIssue::find()
+              ->where(
+                [
+                  "linked_id_issue" => $item["id"]
+                ]
+              )
+              ->one();
+            $user = User::findOne($issue["id_user_create"]);
+            $temp["hd_issue"] = $issue;
+            $temp["user_create"] = $user->nama;
+            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
 
-          $hasil[] = $temp;
-        }
+            $hasil[] = $temp;
+          }
 
-        return [
-          "status" => "ok",
-          "pesan" => "Search berhasil",
-          "result" => 
-          [
-            "total_rows" => $response_payload["values"],
-            "page_no" => $payload["page_no"],
-            "Items_per_page" => $payload["items_per_page"],
-            "records" => $hasil
-          ]
-        ];
-        break;
+          return [
+            "status" => "ok",
+            "pesan" => "Search berhasil",
+            "result" => 
+            [
+              "total_rows" => $response_payload["values"],
+              "page_no" => $payload["page_no"],
+              "Items_per_page" => $payload["items_per_page"],
+              "records" => $hasil
+            ]
+          ];
+          break;
 
-      default:
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          'pesan' => 'REST API request failed: ' . $res->getBody(),
-          'payload' => $payload,
-          'result' => $issue,
-          'category_path' => KmsKategori::CategoryPath($issue["id_kategori"])
-        ];
-        break;
+        default:
+          // kembalikan response
+          return [
+            'status' => 'not ok',
+            'pesan' => 'REST API request failed: ' . $res->getBody(),
+            'payload' => $payload,
+            'result' => $issue,
+            'category_path' => KmsKategori::CategoryPath($issue["id_kategori"])
+          ];
+          break;
       }
 
     }
@@ -2570,10 +2571,11 @@ class HelpdeskController extends \yii\rest\Controller
    *  Mengubah status suatu issue.
    *  Status artikel:
    *  -1 = draft
-   *  1 = new
-   *  2 = un-assign
-   *  3 = progress
-   *  4 = solved
+   *  1 = open
+   *  2 = in progress
+   *  3 = waiting for customer
+   *  4 = close
+   *  5 = complete
    *
    *  Method: PUT
    *  Request type: JSON
@@ -4102,6 +4104,566 @@ class HelpdeskController extends \yii\rest\Controller
       }
     }
   }
+
+
+
+  /*
+   * Menetapkan user dengan role SME menjadi PIC atas suatu kategori
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123,
+   *   id_user: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result: 
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   *
+   * Method: PUT
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123,
+   *   id_user: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result: 
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   *
+   * Method: GET
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+    * */
+  public function actonPic()
+  {
+    switch( true )
+    {
+      case Yii::$app->request->isPost() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+
+        if( $is_id_kategori == true && $is_id_user_valid == true )
+        {
+          // bikin record
+          $new = new HdKategoriPic();
+          $new["id_kategori"] = $payload["id_kategori"];
+          $new["id_user"] = $payload["id_user"];
+          $new->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record PIC telah disimpan",
+            "result" => [
+              "record" => $new
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record gagal dibikin",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+
+        break;
+
+      case Yii::$app->request->isPut() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+
+        if( $is_id_kategori == true && $is_id_user_valid == true )
+        {
+          $test = HdKategoriPic::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+                "id_user = :id_user",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+                ":id_user" => $payload["id_user"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            // bikin record
+            $test["id_kategori"] = $payload["id_kategori"];
+            $test["id_user"] = $payload["id_user"];
+            $test->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record PIC telah diupdate",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record PIC tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record gagal dibikin",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+        break;
+
+      case Yii::$app->request->isGet() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+
+        if( $is_id_kategori == true && $is_id_user_valid == true )
+        {
+
+          $test = HdKategoriPic::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+                "id_user = :id_user",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+                ":id_user" => $payload["id_user"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            return [
+              "status" => "ok",
+              "pesan" => "Record PIC ditemukan",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record PIC tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+
+        break;
+
+    }
+  }
+
+  /*
+   * Menetapkan sla  atas suatu kategori
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123,
+   *   id_user: 123,
+   *   sla_open: 123,
+   *   sla_in_progress: 123,
+   *   sla_waiting_for_customer: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result: 
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   *
+   * Method: PUT
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123,
+   *   id_user: 123,
+   *   sla_open: 123,
+   *   sla_in_progress: 123,
+   *   sla_waiting_for_customer: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result: 
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   *
+   * Method: GET
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_kategori: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+    * */
+  public function actonSla()
+  {
+    switch( true )
+    {
+      case Yii::$app->request->isPost() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+        $is_sla_open_valid = isset( $payload["sla_open"] );
+        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+
+        if( $is_id_kategori == true && $is_id_user_valid == true &&
+            $is_sla_open_valid == true &&
+            $is_sla_in_progress_valid == true &&
+            $is_sla_wating_for_customer_valid == true
+          )
+        {
+          // bikin record
+          $new = new HdKategoriSla();
+          $new["id_kategori"] = $payload["id_kategori"];
+          $new["sla_open"] = $payload["sla_open"];
+          $new["sla_in_progress"] = $payload["sla_in_progress"];
+          $new["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
+          $new->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record SLA telah disimpan",
+            "result" => [
+              "record" => $new
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record gagal dibikin",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+
+        break;
+
+      case Yii::$app->request->isPut() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+        $is_sla_open_valid = isset( $payload["sla_open"] );
+        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+
+        if( $is_id_kategori == true && $is_id_user_valid == true &&
+            $is_sla_open_valid == true &&
+            $is_sla_in_progress_valid == true &&
+            $is_sla_wating_for_customer_valid == true
+          )
+        {
+          $test = HdKategoriSla::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            // bikin record
+            $test["id_kategori"] = $payload["id_kategori"];
+            $test["sla_open"] = $payload["sla_open"];
+            $test["sla_in_progress"] = $payload["sla_in_progress"];
+            $test["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
+            $test->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record SLA telah diupdate",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record SLA tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record gagal dibikin",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+        break;
+
+      case Yii::$app->request->isGet() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        if( $is_id_kategori == true)
+        {
+
+          $test = HdKategoriSla::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            return [
+              "status" => "ok",
+              "pesan" => "Record SLA ditemukan",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record SLA tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+
+        break;
+
+
+      case Yii::$app->request->isDelete() == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_sla_open_valid = isset( $payload["sla_open"] );
+        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        if( $is_id_kategori == true && 
+            $is_sla_open_valid == true &&
+            $is_sla_in_progress_valid == true &&
+            $is_sla_wating_for_customer_valid == true
+          )
+        {
+          $test = HdKategoriSla::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            // delete record
+            $test["id_kategori"] = $payload["id_kategori"];
+            $test["sla_open"] = -1;
+            $test["sla_in_progress"] = -1;
+            $test["sla_waiting_for_customer"] = -1;
+            $test->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record SLA telah diupdate",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record SLA tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record gagal dibikin",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+        break;
+
+    }
+  }
+
   ///
 
   // ==========================================================================

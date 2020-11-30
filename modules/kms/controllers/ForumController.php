@@ -28,6 +28,7 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\ForumFiles;
 use app\models\User;
+use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\KategoriUser;
 
@@ -5285,7 +5286,7 @@ class ForumController extends \yii\rest\Controller
     if( $is_id_thread_valid && $is_id_user_valid == true )
     {
       // pastikan si user adalah penerbit topik
-      if( $test_htread["id_user_create"] == $test_user["id"] )
+      if( $test_thread["id_user_create"] == $test_user["id"] )
       {
         // kirim notifikasi kepada para manajer konten
         // dilakukan berdasarkan id_kategori dan id_instansi
@@ -5297,13 +5298,13 @@ class ForumController extends \yii\rest\Controller
           $q->select("u.*")
             ->from("user u")
             ->join("join", "kategori_user ku", "ku.id_user = u.id")
-            ->join("join", "user_roles ur", "ur.id_user = u.id_user")
+            ->join("join", "user_roles ur", "ur.id_user = u.id")
             ->where(
               [
                 "and",
-                "u.id_department = :id_instansi",
+                "u.id_departments = :id_instansi",
                 "ku.id_kategori = :id_kategori",
-                "ur.id_role = :id_role"
+                "ur.id_roles = :id_role"
               ],
               [
                 ":id_instansi" => $test_user["id_departments"],
@@ -5317,11 +5318,14 @@ class ForumController extends \yii\rest\Controller
         $daftar_email = [];
         foreach($daftar_manager as $manager)
         {
-          $temp = [];
-          $temp["email"] = $manager["email"];
-          $temp["nama"] = $manager["nama"];
+          if( $manager["email"] != "" )
+          {
+            $temp = [];
+            $temp["email"] = $manager["email"];
+            $temp["nama"] = $manager["nama"];
 
-          $daftar_email[] = $temp;
+            $daftar_email[] = $temp;
+          }
         }
 
         $test = Notifikasi::Kirim(
@@ -5337,7 +5341,25 @@ class ForumController extends \yii\rest\Controller
           // set flag is_puas
           $test_thread["is_puas"] = 1;
           $test_thread["time_puas"] = date("Y-m-j H:i:s");
-          $test_htread->save();
+          $test_thread->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Puas berhasil disimpan. hahahahahahah",
+            "result" => [
+              "thread" => $test_thread,
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Gagal saat kirim email. Cek log.",
+            "result" => [
+              "thread" => $test_thread,
+            ]
+          ];
         }
 
 
