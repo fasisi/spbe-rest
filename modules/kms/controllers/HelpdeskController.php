@@ -17,6 +17,8 @@ use app\models\HdIssueDiscussion;
 use app\models\HdIssueDiscussionFile;
 use app\models\HdIssueComment;
 use app\models\HdIssueDiscussionComment;
+use app\models\HdKategoriPic;
+use app\models\HdKategoriSla;
 use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
@@ -1057,6 +1059,132 @@ class HelpdeskController extends \yii\rest\Controller
       {
       }
     }
+  }
+
+  /*
+   * Memasangkan tiket dengan solvernya. Atau membatalkan pasangan tiket dengan
+   * solvernya.
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_issue: 123,
+   *   id_user: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   *
+   * Method: DELETE
+   * Request type: JSON
+   * Request format: 
+   * {
+   *   id_issue: 123,
+   *   id_user: 123
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: { object_of_record }
+   *   }
+   * }
+   * */
+  public function actionSolver()
+  {
+    switch(true)
+    {
+      case Yii::$app->request->isPost == true:
+
+        $payload = $this->GetPayload();
+
+        $is_id_issue_valid = isset( $payload["id_issue"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        if( $is_id_issue_valid == true && $is_id_user_valid )
+        {
+          if( UserRoles($payload["id_user"], "sme") == true )
+          {
+            // pasangkan user sebagai solver issue ini
+            $this->UpdateSolver($payload["id_issue"], [$payload["id_user"]]);
+
+            return [
+              "status" => "ok",
+              "pesan" => "SME telah dipasangkan dengan tiket",
+            ;
+          }
+          else
+          {
+            // gagal memasangkan
+
+            return [
+              "status" => "not ok",
+              "pesan" => "User yang diberikan bukan SME",
+              "payload" => $payload
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang diberikan tidak valid",
+            "payload" => $payload
+          ];
+        }
+
+        break;
+
+      case Yii::$app->request->isPost == true:
+        $payload = $this->GetPayload();
+
+        $is_id_issue_valid = isset( $payload["id_issue"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        if( $is_id_issue_valid == true && $is_id_user_valid )
+        {
+          $test = HdIssueSolver::find()
+            ->where(
+              ["id_issue = :id_issue", "id_user = :id_user"],
+              [":id_issue" => $payload["id_issue"], ":id_user" => $payload["id_user"]]
+            )
+            ->one();
+
+          if( is_null($test) == false )
+          {
+            $this->UpdateSolver($payload["id_issue"], []);
+
+            return [
+              "status" => "ok",
+              "pesan" => "Pemasangan SME dan tiket telah dibatalkan",
+            ];
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "User yang diberikan bukan SME atas tiket tersebut",
+              "payload" => $payload
+            ];
+          }
+        }
+
+        break;
+
+    }
+
   }
 
   private function UpdateFiles($id_thread, $payload)
@@ -2437,7 +2565,7 @@ class HelpdeskController extends \yii\rest\Controller
    * */
 
   // WARNING!!
-  // Confluence-Question support fitur pencarian hanya pada summary
+  // Confluence-Question support fitur pencarian hanya pada summary (= judul)
 
   public function actionSearch()
   {
@@ -4662,6 +4790,357 @@ class HelpdeskController extends \yii\rest\Controller
         break;
 
     }
+  }
+
+  /*
+   * Melakukan disposisi atas suatu tiket.
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_issue: 123,
+   *   id_sme: 123
+   *   pesan: ""
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: {}
+   *   }
+   * }
+   *
+   * Method: DELETE
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_issue: 123
+   *   id_user: 123,
+   * }
+   * Response type: JSON
+   * Response format:
+   * {
+   *   status: "",
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: {}
+   *   }
+   * }
+   * 
+    * */
+  public function actionDisposisi()
+  {
+    switch(true)
+    {
+      case Yii::$app->request->isPost == true :
+        $payload = $this->GetPayload();
+
+        $is_id_issue_valid = isset( $payload["id_issue"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test_issue = HdIssue::findOne($payload["id_issue"]);
+        $is_id_issue_valid = $is_id_issue_valid && is_null( $test_issue ) == false;
+        break;
+
+        $test_user = User::findOne($payload["id_user"]);
+        $is_id_user_valid = $is_id_user_valid && is_null( $test_user ) == false;
+
+        $id_role = Roles::IdByCodeName("sme");
+        $test_role = UserRoles::find()
+          ->where(
+            [
+              "and",
+              "id_user = :id_user",
+              "id_roles = :id_role"
+            ],
+            [
+              ":id_user" => $test_user,
+              ":id_role" => $id_role,
+            ]
+          )
+          ->one();
+
+        $is_id_user_valid = $is_id_user_valid && is_null( $test_role ) == false;
+
+        if( $is_id_issue_valid == true && $is_id_user_valid == true )
+        {
+          // rekam disposisi
+          $new = new HdIssueDisposisi();
+          $new["id_issue"] = $payload["id_issue"];
+          $new["id_user"] = $payload["id_user"];
+          $new["pesan"] = $payload["pesan"];
+          $new["time_create"] = date("Y-m-j H:i:s");
+          $new->save();
+
+          // tandai record issuse bahwa sedang dalam keadaan disposisi
+          $test_issue["is_disposisi"] = 1;
+          $test_issue["time_disposisi"] = date("Y-m-j H:i:s");
+          $test_issue["id_user_disposisi"] = $payload["id_iser"];
+          $test_issue->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Disposisi telah dibikin",
+            "result" => [
+              "record" => $new
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Disposisi gagal dibikin",
+            "payload" => $payload
+          ];
+        }
+
+      case Yii::$app->request->isDelete == true :
+        $payload = $this->GetPayload();
+
+        $is_id_issue_valid = isset( $payload["id_issue"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test_issue = HdIssue::findOne( $payload["id_issue"] );
+        $is_id_issue_valid = $is_id_issue_valid && is_null($test_issue) == false;
+
+        $test_user = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test_user) == false;
+
+        if( $is_id_issue_valid == true && $is_id_user_valid == true )
+        {
+          if( $test_issue["id_user_disposisi"] == $test_user["id"] )
+          {
+            $test_issue["is_disposisi"] = 0;
+            $test_issue["id_user_disposisi"] = -1;
+            $test_issue["time_disposisi"] = null;
+            $test_issue->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Pembatalan disposis berhasil",
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Gagal membatalkan disposisi ",
+              "payload" => $payload
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang diberikan tidak valid",
+            "payload" => $payload
+          ];
+        }
+        break;
+
+    }
+  }
+
+  /*
+   * Mengambil daftar tiket yang di-disposisikan kepada si user
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_user": 123,
+   *    "page_no": 123,
+   *    "items_per_page": 123
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "status": "ok/nor ok",
+   *    "pesan": "",
+   *    "result":
+   *    {
+   *      "page_no": 123,
+   *      "items_per_page": 123,
+   *      "count": 123,
+   *      "records":
+   *      [
+   *        {
+   *          "hd_issue":
+   *          {
+   *            <object dari record issue>
+   *          },
+   *          "confluence":
+   *          {
+   *            <object dari record Confluence>
+   *          }
+   *        },
+   *        ...
+   *      ]
+   *    }
+   *  }
+   *
+    * */
+  public function actionDisposisiList()
+  {
+    $payload = $this->GetPayload();
+
+    //  cek parameter
+    // $is_kategori_valid = isset($payload["id_kategori"]);
+    
+    $is_id_user_valid = isset($payload["id_user"]);
+    $is_page_no_valid = isset($payload["page_no"]);
+    $is_items_per_page_valid = isset($payload["items_per_page"]);
+
+    $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
+    $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
+
+    if(
+        $is_id_user_valid == true &&
+        $is_page_no_valid == true &&
+        $is_items_per_page_valid == true
+      )
+    {
+      //  lakukan query dari tabel hd_issue
+      $test = HdIssue::find()
+        ->where(
+          [
+            "and",
+            "is_delete = 0",
+            "is_disposisi = 1",
+            "id_user_disposisi = :id_user"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+          ]
+        )
+        ->all();
+      $total_rows = count($test);
+
+      $list_issue = HdIssue::find()
+        ->where(
+          [
+            "and",
+            "is_delete = 0",
+            "is_disposisi = 1",
+            "id_user_disposisi = :id_user"
+          ],
+          [
+            ":id_user" => $payload["id_user"],
+          ]
+        )
+        ->orderBy("time_create desc")
+        ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
+        ->limit( $payload["items_per_page"] )
+        ->all();
+
+      //  lakukan query dari Confluence
+      $jira_conf = Yii::$app->restconf->confs['jira'];
+      $client = $this->SetupGuzzleClient();
+
+      $hasil = [];
+      foreach($list_issue as $issue)
+      {
+        $user = User::findOne($issue["id_user_create"]);
+        $user_disposisi = User::findOne($issue["id_user_disposisi"]);
+        $jawaban = HdIssueDiscussion::findAll([
+          "id_issue" => $issue["id"],
+          "is_delete" => 0
+        ]);
+
+        $res = $client->request(
+          'GET',
+          "/rest/servicedeskapi/request/{$issue["linked_id_issue"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            /* 'query' => [ */
+            /*   'spaceKey' => 'PS', */
+            /*   'expand' => 'history,body.view' */
+            /* ], */
+          ]
+        );
+
+        //  kembalikan hasilnya
+        switch( $res->getStatusCode() )
+        {
+          case 200:
+            // ambil id dari result
+            $response_payload = $res->getBody();
+            $response_payload = Json::decode($response_payload);
+
+            $temp = [];
+            $temp["hd_issue"] = $issue;
+            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+            $temp["user_create"] = $user;
+            $temp["user_disposisi"] = $user_disposisi;
+            $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+            $temp["jawaban"]["count"] = count($jawaban);
+            $temp["jawaban"]["records"] = $jawaban;
+            $temp["servicedesk"]["status"] = "ok";
+            $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
+
+            $hasil[] = $temp;
+            break;
+
+          default:
+            // kembalikan response
+            $temp = [];
+            $temp["hd_issue"] = $issue;
+            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+            $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+            // $hasil["user_create"] = $user;
+            $temp["servicedesk"]["status"] = "not ok";
+            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
+            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+            $temp['data_user']['user_create'] = $user->nama;
+
+            $hasil[] = $temp;
+            break;
+        }
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Query finished",
+        "result" =>
+        [
+          "total_rows" => $total_rows,
+          "page_no" => $payload["page_no"],
+          "items_per_page" => $payload["items_per_page"],
+          "count" => count($list_issue),
+          "records" => $hasil
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Parameter yang diperlukan tidak valid.",
+        "payload" => $payload
+      ];
+    }
+
   }
 
   ///

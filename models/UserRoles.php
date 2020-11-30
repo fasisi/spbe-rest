@@ -45,4 +45,18 @@ class UserRoles extends \yii\db\ActiveRecord
             'id_system' => 'ID System',
         ];
     }
+
+    public static function CekRole($id_user, $role_code_name)
+    {
+      $id_role = Roles::IdByCodeName($role_code_name);
+
+      $test = UserRoles::find()
+        ->where(
+          ["id_user = :id_user", "id_roles = :id_roles"],
+          [":id_user" => $id_user, ":id_roles" => $id_role]
+        )
+        ->one();
+
+      return is_null($test) == false;
+    }
 }
