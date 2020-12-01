@@ -47,7 +47,7 @@
         {
           case $params["type"] == "topik_puas" :
 
-            $mail->Subject = 'Notifikasi : ';
+            $mail->Subject = 'Notifikasi topik puas : ';
 
             foreach($params["daftar_email"] as $send_item)
             {
@@ -62,6 +62,28 @@
               "@app/modules/general/views/general/emails/notifikasi/topik_puas",
               [
                 "thread" => $params["thread"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "pic_tiket_baru" :
+
+            $mail->Subject = 'Notifikasi tiket baru : ';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/pic_topik_baru",
+              [
+                "tiket" => $params["tiket"],
               ]
             );
 

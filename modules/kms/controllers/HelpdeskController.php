@@ -23,6 +23,9 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
+use app\models\Roles;
+
+use app\helpers\Notifikasi;
 
 use Carbon\Carbon;
 
@@ -417,6 +420,10 @@ class HelpdeskController extends \yii\rest\Controller
 
         // update record issue
 
+        // kirim notifikasi kepada PIC kategori
+        $this->NotifikasiPIC($issue["id"], $payload["id_user"]);
+
+
         return [
           "status" => "ok",
           "pesan" => "Record berhasil dikirim ke JIRA",
@@ -443,6 +450,95 @@ class HelpdeskController extends \yii\rest\Controller
     }
   }
 
+  /*
+   * Membuat notifikasi kepada PIC mengenai tiket baru.
+   * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
+   *
+   * Pencarian PIC mengikuti konsep inheritance.
+    * */
+  private function NotifikasiPIC($id_issue, $id_user)
+  {
+    $user = User::findOne($id_user);
+    $id_instansi = $user["id_departments"];
+
+    $tiket = HdIssue::findOne($id_issue);
+    $id_kategori = $tiket["id_kategori"];
+
+    $id_role = Roles::IdByCodeName("sme");
+
+    $q = new Query();
+
+    do
+    {
+      // cari id PIC
+
+      $test = 
+        $q->select("u.*")
+          ->from("user u")
+          ->join("join", "user_roles ur", "ur.id_user = u.id")
+          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+          ->where(
+            [
+              "and",
+              "ku.id_kategori = :id_kategori",
+              "ur.id_roles = :id_role",
+              "u.id_departments = :id_instansi"
+            ],
+            [
+              ":id_kategori" => $id_kategori,
+              ":id_role" => $id_role,
+              ":id_instansi" => $id_instansi,
+            ]
+          )
+          ->all();
+
+      if( is_null($test) == false )
+      {
+        $daftar_email = [];
+        foreach($test as $item)
+        {
+          $temp = [];
+          $temp["nama"] = $item["nama"];
+          $temp["email"] = $item["email"];
+
+          $daftar_email[] = $temp;
+        }
+
+        //kirim notifikasi kepada PIC
+        Notifikasi::Kirim(
+          [
+            "type" => "pic_tiket_baru", 
+            "tiket" => $tiket,
+            "daftar_email" => $daftar_email
+          ]
+        );
+
+        $terus = false;
+      }
+      else
+      {
+        // ambil kategori parent
+        $kategori = KmsKategori::findOne($id_kategori);
+
+        // cek apakah ada parent
+        if( $kategori["id_parent"] != -1 )
+        {
+          $id_kategori = $kategori["id_parent"];
+
+          $terus = true;
+        }
+        else
+        {
+          // tidak ada parent dan tidak menemukan PIC
+          //
+          // GAGAL
+
+          $terus = false;
+        }
+      }
+
+    } while( $terus == true );
+  }
 
 
   //  OBSOLETE
