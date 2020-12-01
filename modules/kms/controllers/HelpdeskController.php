@@ -6,6 +6,7 @@ use Yii;
 use yii\base;
 use yii\helpers\Json;
 use yii\db\Query;
+use yii\db\IntegrityException;
 
 use app\models\HdIssue;
 use app\models\HdIssueActivityLog;
@@ -4649,8 +4650,8 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
         $is_id_user_valid = isset( $payload["id_user"] );
         $is_sla_open_valid = isset( $payload["sla_open"] );
-        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
-        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+        $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
 
         $test = KmsKategori::findOne( $payload["id_kategori"] );
         $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
@@ -4659,10 +4660,11 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
 
 
-        if( $is_id_kategori == true && $is_id_user_valid == true &&
+        if( $is_id_kategori_valid == true && 
+            $is_id_user_valid == true &&
             $is_sla_open_valid == true &&
             $is_sla_in_progress_valid == true &&
-            $is_sla_wating_for_customer_valid == true
+            $is_sla_waiting_for_customer_valid == true
           )
         {
           // bikin record
@@ -4671,15 +4673,30 @@ class HelpdeskController extends \yii\rest\Controller
           $new["sla_open"] = $payload["sla_open"];
           $new["sla_in_progress"] = $payload["sla_in_progress"];
           $new["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
-          $new->save();
 
-          return [
-            "status" => "ok",
-            "pesan" => "Record SLA telah disimpan",
-            "result" => [
-              "record" => $new
-            ]
-          ];
+          try
+          {
+            $new->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record SLA telah disimpan",
+              "result" => [
+                "record" => $new
+              ]
+            ];
+          }
+          catch(yii\db\IntegrityException $e)
+          {
+            return [
+              "status" => "ok",
+              "pesan" => "Record SLA telah disimpan",
+              "result" => [
+                "record" => $new
+              ]
+            ];
+          }
+
         }
         else
         {
@@ -4700,8 +4717,8 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
         $is_id_user_valid = isset( $payload["id_user"] );
         $is_sla_open_valid = isset( $payload["sla_open"] );
-        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
-        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+        $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
 
         $test = KmsKategori::findOne( $payload["id_kategori"] );
         $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
@@ -4710,10 +4727,11 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
 
 
-        if( $is_id_kategori == true && $is_id_user_valid == true &&
+        if( $is_id_kategori_valid == true && 
+            $is_id_user_valid == true &&
             $is_sla_open_valid == true &&
             $is_sla_in_progress_valid == true &&
-            $is_sla_wating_for_customer_valid == true
+            $is_sla_waiting_for_customer_valid == true
           )
         {
           $test = HdKategoriSla::find()
@@ -4760,7 +4778,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           return [
             "status" => "not ok",
-            "pesan" => "Record gagal dibikin",
+            "pesan" => "Record gagal diupdate",
             "result" => [
               "payload" => $payload
             ]
@@ -4773,23 +4791,10 @@ class HelpdeskController extends \yii\rest\Controller
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
 
-        $test = KmsKategori::findOne( $payload["id_kategori"] );
-        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
-
-        if( $is_id_kategori == true)
+        if( $is_id_kategori_valid == true)
         {
 
-          $test = HdKategoriSla::find()
-            ->where(
-              [
-                "and",
-                "id_kategori = :id_kategori",
-              ],
-              [
-                ":id_kategori" => $payload["id_kategori"],
-              ]
-            )
-            ->one();
+          $test = HdKategoriSla::findOne( ["id_kategori" =>  $payload["id_kategori"] ] );
 
           if( is_null( $test ) == false )
           {
@@ -4831,29 +4836,16 @@ class HelpdeskController extends \yii\rest\Controller
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
         $is_sla_open_valid = isset( $payload["sla_open"] );
-        $is_in_progress_valid = isset( $payload["sla_in_progress"] );
-        $is_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
+        $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] );
+        $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
 
-        $test = KmsKategori::findOne( $payload["id_kategori"] );
-        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
-
-        if( $is_id_kategori == true && 
+        if( $is_id_kategori_valid == true && 
             $is_sla_open_valid == true &&
             $is_sla_in_progress_valid == true &&
-            $is_sla_wating_for_customer_valid == true
+            $is_sla_waiting_for_customer_valid == true
           )
         {
-          $test = HdKategoriSla::find()
-            ->where(
-              [
-                "and",
-                "id_kategori = :id_kategori",
-              ],
-              [
-                ":id_kategori" => $payload["id_kategori"],
-              ]
-            )
-            ->one();
+          $test = HdKategoriSla::findOne(["id_kategori" => $payload["id_kategori"] ] );
 
           if( is_null( $test ) == false )
           {
@@ -4887,7 +4879,7 @@ class HelpdeskController extends \yii\rest\Controller
         {
           return [
             "status" => "not ok",
-            "pesan" => "Record gagal dibikin",
+            "pesan" => "Record gagal dihapus",
             "result" => [
               "payload" => $payload
             ]

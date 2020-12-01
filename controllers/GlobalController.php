@@ -194,6 +194,84 @@ class GlobalController extends \yii\rest\Controller
         }
     }
 
+    public function actionDropdownkategoriwithpic()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        if (isset($payload["table_name"]) == true) 
+        {
+            $query = new Query;
+            $query->select('*')->from($payload["table_name"])->where("is_delete = 0")->order("nama asc");
+            $command = $query->createCommand();
+            $temp_data = $command->queryAll();
+
+            $data = [];
+            foreach($temp_data as $a_data)
+            {
+              $path_items = KmsKategori::CategoryPath($a_data["id"]);
+              $path_name = "";
+              foreach($path_items as $item)
+              {
+                $path_name = $path_name .  ($path_name == "" ? "" : " > ") . $item["nama"];
+              }
+
+              $temp = KmsKategori::findOne($a_data["id"]);
+
+              if( isset($payload["short_names"]) == false )
+              {
+                $temp["nama"] = $path_name;
+              }
+
+              // cek PIC
+              $q = new Query();
+              $pic = 
+                $q->select("pic.*")
+                  ->from("hd_kategori_pic pic")
+                  ->where(
+                    ["id_kategori = :id_kategori"],
+                    [":id_kategori" => $a_data["id"]]
+                  )
+                  ->one();
+
+              if( is_null($pic) == false )
+              {
+                $user_pic = User::findOne($pic["id_user"]);
+                $temp["pic"] = $user_pic;
+              }
+              else
+              {
+                $temp["pic"] = "Belum ada PIC";
+              }
+
+
+              $data[] = $temp;
+
+            }
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } 
+        else 
+        {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: table_name",
+            ];
+        }
+    }
+
     public function actionDropdownsolver()
     {
         $payload = Yii::$app->request->rawBody;
