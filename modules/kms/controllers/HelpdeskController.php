@@ -4648,7 +4648,6 @@ class HelpdeskController extends \yii\rest\Controller
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
-        $is_id_user_valid = isset( $payload["id_user"] );
         $is_sla_open_valid = isset( $payload["sla_open"] );
         $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] );
         $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
@@ -4661,7 +4660,6 @@ class HelpdeskController extends \yii\rest\Controller
 
 
         if( $is_id_kategori_valid == true && 
-            $is_id_user_valid == true &&
             $is_sla_open_valid == true &&
             $is_sla_in_progress_valid == true &&
             $is_sla_waiting_for_customer_valid == true
