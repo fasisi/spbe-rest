@@ -108,7 +108,7 @@ class HelpdeskController extends \yii\rest\Controller
       /*
        * type_log : 1 = status log; 2 = action log
         * */
-      private function ThreadLog($id_issue, $id_user, $type_log, $log_value)
+      private function IssueLog($id_issue, $id_user, $type_log, $log_value)
       {
         $new = new HdIssueActivityLog();
         $new["id_issue"] = $id_issue;
@@ -416,7 +416,7 @@ class HelpdeskController extends \yii\rest\Controller
            $issue->save();
 
            // put to log
-           $this->ThreadLog($issue["id"], $payload["id_user"], 1, 1);
+           $this->IssueLog($issue["id"], $payload["id_user"], 1, 1);
 
         // update record issue
 
@@ -730,7 +730,7 @@ class HelpdeskController extends \yii\rest\Controller
               ->all();
 
             //$this->ActivityLog($id_artikel, 123, 1);
-            $this->ThreadLog($payload["id_issue"], $payload["id_user"], 1, $payload["status"]);
+            $this->IssueLog($payload["id_issue"], $payload["id_user"], 1, $payload["status"]);
 
             // kembalikan response
             return 
@@ -1218,7 +1218,7 @@ class HelpdeskController extends \yii\rest\Controller
             return [
               "status" => "ok",
               "pesan" => "SME telah dipasangkan dengan tiket",
-            ;
+            ];
           }
           else
           {
@@ -1384,27 +1384,33 @@ class HelpdeskController extends \yii\rest\Controller
     Yii::info("filter = " . print_r($payload["filter"], true));
 
     $where[] = "and";
+
+    // tanggal awal dan tanggal akhir
+        $value_awal = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
+        $value_akhir = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
+        $where[] = [
+          "or", 
+          ["and", "l.time_action >= '$value_awal'", "l.time_action <= '$value_akhir'"],
+          ["and", "l.time_status >= '$value_awal'", "l.time_status <= '$value_akhir'"],
+        ];
+    // tanggal awal dan tanggal akhir
+
+
     foreach( $payload["filter"] as $key => $value )
     {
       switch(true)
       {
-        case $key == "waktu_awal":
-          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
-          $where[] = "l.time_status >= '$value'";
-        break;
-
-        case $key == "waktu_akhir":
-          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
-          $where[] = "l.time_status <= '$value'";
-        break;
-
         case $key == "status":
           $temp = [];
           foreach( $value as $type_status )
           {
             $temp[] = $type_status;
           }
-          $where[] = ["in", "l.status", $temp];
+
+          if( count($temp) > 0 )
+          {
+            $where[] = ["in", "l.status", $temp];
+          }
         break;
 
         case $key == "id_kategori":
@@ -1416,7 +1422,11 @@ class HelpdeskController extends \yii\rest\Controller
           {
             $temp[] = $id_kategori;
           }
-          $where[] = ["in", "i2.id_kategori", $temp];
+
+          if( count($temp) > 0 )
+          {
+            $where[] = ["in", "i2.id_kategori", $temp];
+          }
         break;
 
         case $key == "id_issue":
@@ -2501,7 +2511,7 @@ class HelpdeskController extends \yii\rest\Controller
         $test->save();
 
         // tulis log
-        $this->ThreadLog($payload["id_issue"], $payload["id_user"], 2, $payload["action"]);
+        $this->IssueLog($payload["id_issue"], $payload["id_user"], 2, $payload["action"]);
 
         // kembalikan response
         return [
@@ -2860,7 +2870,7 @@ class HelpdeskController extends \yii\rest\Controller
                 $daftar_sukses[] = $issue;
 
                 // tulis log
-                $this->ThreadLog($id_issue, $payload["id_user"], 1, $payload["status"]);
+                $this->IssueLog($id_issue, $payload["id_user"], 1, $payload["status"]);
               }
               else
               {
@@ -4387,24 +4397,24 @@ class HelpdeskController extends \yii\rest\Controller
    *   }
    * }
     * */
-  public function actonPic()
+  public function actionPic()
   {
     switch( true )
     {
-      case Yii::$app->request->isPost() == true:
+      case Yii::$app->request->isPost == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
         $is_id_user_valid = isset( $payload["id_user"] );
 
         $test = KmsKategori::findOne( $payload["id_kategori"] );
-        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+        $is_id_kategori_valid = $is_id_kategori_valid && (is_null($test) == false);
 
         $test = User::findOne( $payload["id_user"] );
-        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+        $is_id_user_valid = $is_id_user_valid && (is_null($test) == false);
 
 
-        if( $is_id_kategori == true && $is_id_user_valid == true )
+        if( $is_id_kategori_valid == true && $is_id_user_valid == true )
         {
           // bikin record
           $new = new HdKategoriPic();
@@ -4433,7 +4443,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         break;
 
-      case Yii::$app->request->isPut() == true:
+      case Yii::$app->request->isPut == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4446,7 +4456,7 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
 
 
-        if( $is_id_kategori == true && $is_id_user_valid == true )
+        if( $is_id_kategori_valid == true && $is_id_user_valid == true )
         {
           $test = HdKategoriPic::find()
             ->where(
@@ -4500,7 +4510,7 @@ class HelpdeskController extends \yii\rest\Controller
         }
         break;
 
-      case Yii::$app->request->isGet() == true:
+      case Yii::$app->request->isGet == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4513,7 +4523,7 @@ class HelpdeskController extends \yii\rest\Controller
         $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
 
 
-        if( $is_id_kategori == true && $is_id_user_valid == true )
+        if( $is_id_kategori_valid == true && $is_id_user_valid == true )
         {
 
           $test = HdKategoriPic::find()
@@ -4629,11 +4639,11 @@ class HelpdeskController extends \yii\rest\Controller
    *   }
    * }
     * */
-  public function actonSla()
+  public function actionSla()
   {
     switch( true )
     {
-      case Yii::$app->request->isPost() == true:
+      case Yii::$app->request->isPost == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4684,7 +4694,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         break;
 
-      case Yii::$app->request->isPut() == true:
+      case Yii::$app->request->isPut == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4758,7 +4768,7 @@ class HelpdeskController extends \yii\rest\Controller
         }
         break;
 
-      case Yii::$app->request->isGet() == true:
+      case Yii::$app->request->isGet == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4816,7 +4826,7 @@ class HelpdeskController extends \yii\rest\Controller
         break;
 
 
-      case Yii::$app->request->isDelete() == true:
+      case Yii::$app->request->isDelete == true:
         $payload = $this->GetPayload();
 
         $is_id_kategori_valid = isset( $payload["id_kategori"] );
@@ -4886,6 +4896,110 @@ class HelpdeskController extends \yii\rest\Controller
         break;
 
     }
+  }
+
+  /*
+   * Memeriksa SLA pada tiket tiket yang belum close/complete. Jika SLA sudah melewati
+   * batasnya, status tiket akan diganti menjadi COMPLETE
+    * */
+  public function actionCekSla()
+  {
+    // ambil daftar tiket yang statusnya IN PROGRESS atau WAITING FOR CUSTOMER
+    // memperhatikan id_kategori dan id_instansi
+
+    $q = new Query();
+    $daftar_tiket =
+      $q->select("t.*")
+        ->from("hd_issue t")
+        ->where(
+          [
+            "and",
+            ["in", "t.status", [2, 3]],
+            "is_delete = 0",
+            "is_disposisi = 0"
+          ]
+        )
+        ->all();
+
+    foreach($daftar_tiket as $tiket)
+    {
+      //cek SLA setiap tiket
+
+      $id_kategori = $tiket["id_kategori"];
+
+      // ambil konfigurasi SLA atas kategori ini
+      // jika tidak menemukan, ambil SLA dari parent. mengikuti prinsip 
+      // inheritance
+
+      $terus = false;
+      $sla = null;
+      do
+      {
+        $sla = HdKategoriSla::find()
+          ->where(
+            [
+              "and",
+              "id_kategori = :id_kategori"
+            ],
+            [
+              ":id_kategori" => $id_kategori
+            ]
+          )
+          ->one();
+
+        if( is_null($sla) == false )
+        {
+          $terus = false;
+        }
+        else
+        {
+          // cek apakah masih ada parent
+
+          $kategori = KmsKategori::findOne($id_kategori);
+          if( $kategori["parent"] != -1 )
+          {
+            $id_kategori = $kategori["id_parent"];
+          }
+          else
+          {
+            $terus = false;
+            $sla = null;
+          }
+        }
+
+      } while($terus == true);
+
+      if( is_null($sla) == false )
+      {
+        // ambil status terakhir sebuah tiket dan hitung umurnya
+
+        switch( $tiket["status"] )
+        {
+          case 2: // in progress
+            $threshold = $sla["sla_in_progress"];
+            break;
+
+          case 3: // waiting for customer
+            $threshold = $sla["sla_in_progress"];
+            break;
+
+        }
+
+        $time_a = strtotime($tiket["time_status"]);
+        $time_b = time();
+
+        $duration = $time_b - $time_a / 60 / 60 / 24;  //satuan hari
+
+        if( $duration > $threshold )
+        {
+          // terbitkan notifikasi
+
+          // ganti status menjadi COMPLETE. lakukan via API call
+          /* $client */
+        }
+      }
+
+    } // loop daftar tiket
   }
 
   /*
