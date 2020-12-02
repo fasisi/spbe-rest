@@ -4665,16 +4665,49 @@ class HelpdeskController extends \yii\rest\Controller
             $is_sla_waiting_for_customer_valid == true
           )
         {
-          // bikin record
-          $new = new HdKategoriSla();
-          $new["id_kategori"] = $payload["id_kategori"];
-          $new["sla_open"] = $payload["sla_open"];
-          $new["sla_in_progress"] = $payload["sla_in_progress"];
-          $new["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
+          // bikin / update record
 
-          try
+          $test = HdKategoriSla(["id_kategori" => $payload["id_kategori"]]);
+
+          if( is_null($test) == true )
           {
-            $new->save();
+            $new = new HdKategoriSla();
+            $new["id_kategori"] = $payload["id_kategori"];
+            $new["sla_open"] = $payload["sla_open"];
+            $new["sla_in_progress"] = $payload["sla_in_progress"];
+            $new["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
+
+            try
+            {
+              $new->save();
+
+              return [
+                "status" => "ok",
+                "pesan" => "Record SLA telah disimpan",
+                "result" => [
+                  "record" => $new
+                ]
+              ];
+            }
+            catch(yii\db\IntegrityException $e)
+            {
+              return [
+                "status" => "ok",
+                "pesan" => "Record SLA telah disimpan",
+                "result" => [
+                  "record" => $new
+                ]
+              ];
+            }
+          }
+          else
+          {
+            // update
+
+            $test["sla_open"]
+            $test["sla_in_progress"] = $payload["sla_in_progress"];
+            $test["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
+            $test->save();
 
             return [
               "status" => "ok",
@@ -4684,17 +4717,6 @@ class HelpdeskController extends \yii\rest\Controller
               ]
             ];
           }
-          catch(yii\db\IntegrityException $e)
-          {
-            return [
-              "status" => "ok",
-              "pesan" => "Record SLA telah disimpan",
-              "result" => [
-                "record" => $new
-              ]
-            ];
-          }
-
         }
         else
         {
@@ -4707,81 +4729,6 @@ class HelpdeskController extends \yii\rest\Controller
           ];
         }
 
-        break;
-
-      case Yii::$app->request->isPut == true:
-        $payload = $this->GetPayload();
-
-        $is_id_kategori_valid = isset( $payload["id_kategori"] );
-        $is_id_user_valid = isset( $payload["id_user"] );
-        $is_sla_open_valid = isset( $payload["sla_open"] );
-        $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] );
-        $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] );
-
-        $test = KmsKategori::findOne( $payload["id_kategori"] );
-        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
-
-        $test = User::findOne( $payload["id_user"] );
-        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
-
-
-        if( $is_id_kategori_valid == true && 
-            $is_id_user_valid == true &&
-            $is_sla_open_valid == true &&
-            $is_sla_in_progress_valid == true &&
-            $is_sla_waiting_for_customer_valid == true
-          )
-        {
-          $test = HdKategoriSla::find()
-            ->where(
-              [
-                "and",
-                "id_kategori = :id_kategori",
-              ],
-              [
-                ":id_kategori" => $payload["id_kategori"],
-              ]
-            )
-            ->one();
-
-          if( is_null( $test ) == false )
-          {
-            // bikin record
-            $test["id_kategori"] = $payload["id_kategori"];
-            $test["sla_open"] = $payload["sla_open"];
-            $test["sla_in_progress"] = $payload["sla_in_progress"];
-            $test["sla_waiting_for_customer"] = $payload["sla_waiting_for_customer"];
-            $test->save();
-
-            return [
-              "status" => "ok",
-              "pesan" => "Record SLA telah diupdate",
-              "result" => [
-                "record" => $test
-              ]
-            ];
-          }
-          else
-          {
-            return [
-              "status" => "not ok",
-              "pesan" => "Record SLA tidak ditemukan",
-              "result" => [
-                "payload" => $payload
-              ]
-            ];
-          }
-        }
-        else
-        {
-          return [
-            "status" => "not ok",
-            "pesan" => "Record gagal diupdate",
-            "result" => [
-              "payload" => $payload
-            ]
-          ];
-        }
         break;
 
       case Yii::$app->request->isGet == true:
