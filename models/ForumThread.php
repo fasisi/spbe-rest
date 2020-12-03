@@ -2,6 +2,8 @@
 
 namespace app\models;
 
+use Carbon\Carbon;
+
 use Yii;
 
 use yii\db\Query;
@@ -276,5 +278,39 @@ class ForumThread extends \yii\db\ActiveRecord
 
     }
 
+    /*
+     * Menghitung jumlah artikel dalam 30 hari terakhir berdasarkan id_kategori
+      * */
+    public static function RecentCountByCategory($id_kategori)
+    {
+      //
+      $tanggal_b = Carbon::createFromFormat("Y-m-d", date("Y-m-j"));
+      $tanggal_a = Carbon::createFromTimeStamp($tanggal_b->timestamp);
+      $tanggal_a->addDay(-30);
+
+      $q = new Query();
+      $hasil = 
+        $q->select("count(f.id) as jumlah")
+          ->from("forum_thread f")
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "status = 2",    // publish
+              "id_kategori = :id_kategori",
+              "time_create >= :awal",
+              "time_create <= :akhir"
+            ],
+            [
+              ":id_kategori" => $id_kategori,
+              ":awal" => date("", $tanggal_a->timestamp),
+              ":akhir" => date("", $tanggal_b->timestamp)
+            ]
+          )
+          ->one();
+      $jumlah = $hasil["jumlah"];
+
+      return $jumlah;
+    }
 
 }

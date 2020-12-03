@@ -64,4 +64,15 @@ class Roles extends \yii\db\ActiveRecord
 
       return $roles["id"];
     }
+
+
+    /*
+     * Memeriksa apakah id_role dan code_name adalah hal yang sama
+      * */
+    public static function CheckRoleByCodeName($id_role, $code_name)
+    {
+      $roles = Roles::findOne(["id" => $id_role]);
+
+      return $roles["code_name"] == $code_name;
+    }
 }

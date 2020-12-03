@@ -172,4 +172,39 @@ class KmsArtikel extends \yii\db\ActiveRecord
       return $hasil["jumlah"];
 
     }
+
+    /*
+     * Menghitung jumlah artikel dalam 30 hari terakhir berdasarkan id_kategori
+      * */
+    public static function RecentCountByCategory($id_kategori)
+    {
+      //
+      $tanggal_b = Carbon::createFromFormat("Y-m-d", date("Y-m-j"));
+      $tanggal_a = Carbon::createFromTimeStamp($tanggal_b->timestamp);
+      $tanggal_a->addDay(-30);
+
+      $q = new Query();
+      $hasil = 
+        $q->select("count(a.id) as jumlah")
+          ->from("kms_artikel a")
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "status = 2",    // publish
+              "id_kategori = :id_kategori",
+              "time_create >= :awal",
+              "time_create <= :akhir"
+            ],
+            [
+              ":id_kategori" => $id_kategori,
+              ":awal" => date("Y-m-j 00:00:00", $tanggal_a->timestamp),
+              ":akhir" => date("Y-m-j 23:59:59", $tanggal_b->timestamp)
+            ]
+          )
+          ->one();
+      $jumlah = $hasil["jumlah"];
+
+      return $jumlah;
+    }
 }

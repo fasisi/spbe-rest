@@ -4794,7 +4794,7 @@ class HelpdeskController extends \yii\rest\Controller
         /* $is_sla_in_progress_valid = isset( $payload["sla_in_progress"] ); */
         /* $is_sla_waiting_for_customer_valid = isset( $payload["sla_waiting_for_customer"] ); */
 
-        if( $is_id_kategori_valid == true && 
+        if( $is_id_kategori_valid == true  
             /* $is_sla_open_valid == true && */
             /* $is_sla_in_progress_valid == true && */
             /* $is_sla_waiting_for_customer_valid == true */
