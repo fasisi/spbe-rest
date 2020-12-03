@@ -5,6 +5,7 @@ namespace app\modules\kms\controllers;
 use Yii;
 use yii\base;
 use yii\helpers\Json;
+use yii\helpers\BaseUrl;
 use yii\db\Query;
 use yii\db\IntegrityException;
 
@@ -81,6 +82,19 @@ class HelpdeskController extends \yii\rest\Controller
         Yii::info("base_url = $base_url");
         $client = new \GuzzleHttp\Client([
           'base_uri' => $base_url
+        ]);
+
+        return $client;
+      }
+
+      private function SetupGuzzleClientSPBE()
+      {
+        $base_url = BaseUrl::base(true);
+        
+
+        Yii::info("base_url = $base_url");
+        $client = new \GuzzleHttp\Client([
+          'base_uri' => $base_url . "/index.php?r="
         ]);
 
         return $client;
@@ -4896,22 +4910,27 @@ class HelpdeskController extends \yii\rest\Controller
 
         if( is_null($sla) == false )
         {
-          $terus = false;
-        }
-        else
-        {
-          // cek apakah masih ada parent
+          //cek nilai sla_open dll
 
-          $kategori = KmsKategori::findOne($id_kategori);
-          if( $kategori["parent"] != -1 )
+          if( $sla["sla_open"] == -1 )
           {
-            $id_kategori = $kategori["id_parent"];
+            // lanjutkan pencarian SLA
+            $terus = true;
+
+            // cek SLA parent. jika tidak ada parent, hentikan pencarian SLA
+            $this->GekParent($id_kategori, $terus, $sla);
           }
           else
           {
+            // SLA telah ditemukan.
             $terus = false;
-            $sla = null;
           }
+        }
+        else
+        {
+          // tidak menemukan record SLA.
+          // cek SLA pada parent
+          $this->GekParent($id_kategori, $terus, $sla);
         }
 
       } while($terus == true);
@@ -4935,18 +4954,51 @@ class HelpdeskController extends \yii\rest\Controller
         $time_a = strtotime($tiket["time_status"]);
         $time_b = time();
 
-        $duration = $time_b - $time_a / 60 / 60 / 24;  //satuan hari
+        $duration = $time_b - ($time_a / 60 / 60 / 24);  //satuan hari
 
         if( $duration > $threshold )
         {
           // terbitkan notifikasi
 
           // ganti status menjadi COMPLETE. lakukan via API call
-          /* $client */
+          $client = $this->SetupGuzzleClientSPBE();
+
+          $res = $client->request(
+            "POST",
+            "kms/helpdesk/status",
+            [
+              "json" => [
+                "id_issue" => $tiket["id"],
+                "id_user" => $tiket["id_user_create"],
+                "status" => 5,  // complete
+              ]
+            ]
+          );
         }
+      }
+      else
+      {
       }
 
     } // loop daftar tiket
+  }
+
+  private function GetParent(&$id_kategori, &$terus, &$sla)
+  {
+    $kategori = KmsKategori::findOne($id_kategori);
+    if( $kategori["parent"] != -1 )
+    {
+      $terus = true;
+
+      $id_kategori = $kategori["id_parent"];
+    }
+    else
+    {
+      $terus = false;
+      $sla = null;
+
+      $id_kategori = null;
+    }
   }
 
   /*
@@ -5002,7 +5054,6 @@ class HelpdeskController extends \yii\rest\Controller
 
         $test_issue = HdIssue::findOne($payload["id_issue"]);
         $is_id_issue_valid = $is_id_issue_valid && is_null( $test_issue ) == false;
-        break;
 
         $test_user = User::findOne($payload["id_user"]);
         $is_id_user_valid = $is_id_user_valid && is_null( $test_user ) == false;
@@ -5056,6 +5107,7 @@ class HelpdeskController extends \yii\rest\Controller
             "payload" => $payload
           ];
         }
+        break;
 
       case Yii::$app->request->isDelete == true :
         $payload = $this->GetPayload();
@@ -5077,6 +5129,8 @@ class HelpdeskController extends \yii\rest\Controller
             $test_issue["id_user_disposisi"] = -1;
             $test_issue["time_disposisi"] = null;
             $test_issue->save();
+
+            $this->UpdateSolver($payload["id_issue"], [ $payload["id_user"] ]);
 
             return [
               "status" => "ok",

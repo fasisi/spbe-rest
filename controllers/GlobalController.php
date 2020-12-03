@@ -69,24 +69,25 @@ class GlobalController extends \yii\rest\Controller
 
             if (!empty($data)) 
             {
-                foreach($data as $a_data)
+                foreach($data as $key => $a_data)
                 {
+                  $jumlah = 0;
                   switch( intval($payload["type"]) )
                   {
                     case 1: // artikel
                       $jumlah = KmsArtikel::RecentCountByCategory($a_data["id"]);
-
-                      $a_data["nama"] = $a_data["nama"] . " -- test";
                       break;
 
                     case 2: // topik
                       $jumlah = ForumThread::RecentCountByCategory($a_data["id"]);
-
-                      $a_data["nama"] = $a_data["nama"] . " ($jumlah)";
                       break;
 
                   }
+
+                  $data[$key]["nama"] = $a_data["nama"] . " ($jumlah)";
                 }
+                
+                Yii::info("data = " . Json::encode($data));
 
                 return [
                     "status" => "ok",

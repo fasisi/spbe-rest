@@ -296,15 +296,15 @@ class ForumThread extends \yii\db\ActiveRecord
             [
               "and",
               "is_delete = 0",
-              "status = 2",    // publish
+              "status = 1",    // publish
               "id_kategori = :id_kategori",
               "time_create >= :awal",
               "time_create <= :akhir"
             ],
             [
               ":id_kategori" => $id_kategori,
-              ":awal" => date("", $tanggal_a->timestamp),
-              ":akhir" => date("", $tanggal_b->timestamp)
+              ":awal" => date("Y-m-j 00:00:00", $tanggal_a->timestamp),
+              ":akhir" => date("Y-m-j 23:59:59", $tanggal_b->timestamp)
             ]
           )
           ->one();
