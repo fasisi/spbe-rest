@@ -26,6 +26,8 @@ use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
 use app\models\Roles;
+use app\models\UserRoles;
+use app\models\HdIssueDisposisi;
 
 use app\helpers\Notifikasi;
 
@@ -4978,6 +4980,7 @@ class HelpdeskController extends \yii\rest\Controller
       }
       else
       {
+        // tidak ada SLA
       }
 
     } // loop daftar tiket
@@ -5067,7 +5070,7 @@ class HelpdeskController extends \yii\rest\Controller
               "id_roles = :id_role"
             ],
             [
-              ":id_user" => $test_user,
+              ":id_user" => $payload["id_user"],
               ":id_role" => $id_role,
             ]
           )
@@ -5080,7 +5083,7 @@ class HelpdeskController extends \yii\rest\Controller
           // rekam disposisi
           $new = new HdIssueDisposisi();
           $new["id_issue"] = $payload["id_issue"];
-          $new["id_user"] = $payload["id_user"];
+          $new["id_sme"] = $payload["id_user"];
           $new["pesan"] = $payload["pesan"];
           $new["time_create"] = date("Y-m-j H:i:s");
           $new->save();
@@ -5088,7 +5091,7 @@ class HelpdeskController extends \yii\rest\Controller
           // tandai record issuse bahwa sedang dalam keadaan disposisi
           $test_issue["is_disposisi"] = 1;
           $test_issue["time_disposisi"] = date("Y-m-j H:i:s");
-          $test_issue["id_user_disposisi"] = $payload["id_iser"];
+          $test_issue["id_user_disposisi"] = $payload["id_user"];
           $test_issue->save();
 
           return [
