@@ -187,7 +187,7 @@ class KmsArtikel extends \yii\db\ActiveRecord
       $hasil = 
         $q->select("count(a.id) as jumlah")
           ->from("kms_artikel a")
-          ->join("join", "kms_artikel_activity_log l", "l.id_artikel")
+          ->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id")
           ->where(
             [
               "and",
