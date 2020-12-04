@@ -187,14 +187,16 @@ class KmsArtikel extends \yii\db\ActiveRecord
       $hasil = 
         $q->select("count(a.id) as jumlah")
           ->from("kms_artikel a")
+          ->join("join", "kms_artikel_activity_log l", "l.id_artikel")
           ->where(
             [
               "and",
-              "is_delete = 0",
-              "status = 2",    // publish
-              "id_kategori = :id_kategori",
-              "time_create >= :awal",
-              "time_create <= :akhir"
+              "a.is_delete = 0",
+              ["in", "a.status", [1]],    // publish
+              "a.id_kategori = :id_kategori",
+              "l.time_status >= :awal",
+              "l.time_status <= :akhir",
+              ["in", "l.status", [1]]
             ],
             [
               ":id_kategori" => $id_kategori,

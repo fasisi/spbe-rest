@@ -292,14 +292,16 @@ class ForumThread extends \yii\db\ActiveRecord
       $hasil = 
         $q->select("count(f.id) as jumlah")
           ->from("forum_thread f")
+          ->join("join", "forum_thread_activity_log l", "l.id_thread = f.id")
           ->where(
             [
               "and",
-              "is_delete = 0",
-              "status = 1",    // publish
-              "id_kategori = :id_kategori",
-              "time_create >= :awal",
-              "time_create <= :akhir"
+              "f.is_delete = 0",
+              ["in", "f.status", [1, 4, 5, -2, -3]],    // publish, freeze, knowledge, sedang dirangkum, telah selesai dirangkum
+              "f.id_kategori = :id_kategori",
+              "l.time_status >= :awal",
+              "l.time_status <= :akhir",
+              ["in", "l.status", [1]]
             ],
             [
               ":id_kategori" => $id_kategori,
