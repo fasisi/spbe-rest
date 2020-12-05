@@ -26,6 +26,7 @@ use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
 use app\models\ForumFiles;
+use app\models\ForumThread;
 use app\models\Roles;
 use app\models\UserRoles;
 use app\models\HdIssueDisposisi;
@@ -249,9 +250,9 @@ class HelpdeskController extends \yii\rest\Controller
           $issue = new HdIssue();
           $issue["judul"] = $payload["judul"];
           $issue["konten"] = $payload["body"];
-          $issue["id_thread"] = $payload["id_thread"];
           $issue["id_kategori"] = $payload["id_kategori"];
           $issue["linked_id_issue"] = 0;
+          $issue["linked_id_thread"] = $payload["id_thread"];
           $issue["id_user_create"] = $payload["id_user"];
           $issue["time_create"] = date("Y-m-d H:i:s");
           $issue["status"] = $payload["status"];
@@ -264,21 +265,6 @@ class HelpdeskController extends \yii\rest\Controller
 
           // pasangkan issue dengan solver
             //   $this->UpdateSolver($issue["id"], $payload["solvers"]);
-            foreach($payload["solvers"] as $solver)
-            {
-                $test = User::findOne($solver);
-
-                if( is_null($test) == false )
-                {
-                $new = new HdIssueSolver();
-                $new["id_issue"] = $issue["id"];
-                $new["id_user"] = $solver;
-                $new->save();
-                }
-                else
-                {
-                }
-            }
 
           if( isset($payload["id_files"]) == true )
           {
@@ -286,6 +272,14 @@ class HelpdeskController extends \yii\rest\Controller
             {
               $this->UpdateFiles($id_issue, $payload);
             }
+          }
+
+          // pasangkan dengan record thread, jika id_thread != -1
+          if($payload["id_thread"] != -1)
+          {
+            $thread = ForumThread::findOne($payload["id_thread"]);
+            $thread["linked_id_tiket"] = $id_issue;
+            $thread->save();
           }
 
           // ambil ulang tags atas thread ini. untuk menjadi response.
@@ -956,21 +950,21 @@ class HelpdeskController extends \yii\rest\Controller
           // pasangkan issue dengan solver
           $this->UpdateSolver($payload["id"], $payload["solvers"]);
 
-          foreach($payload["solvers"] as $solver)
-          {
-            $test = User::findOne($solver);
+          /* foreach($payload["solvers"] as $solver) */
+          /* { */
+          /*   $test = User::findOne($solver); */
 
-            if( is_null($test) == false )
-            {
-              $new = new HdIssueSolver();
-              $new["id_issue"] = $issue["id"];
-              $new["id_user"] = $solver;
-              $new->save();
-            }
-            else
-            {
-            }
-          }
+          /*   if( is_null($test) == false ) */
+          /*   { */
+          /*     $new = new HdIssueSolver(); */
+          /*     $new["id_issue"] = $issue["id"]; */
+          /*     $new["id_user"] = $solver; */
+          /*     $new->save(); */
+          /*   } */
+          /*   else */
+          /*   { */
+          /*   } */
+          /* } */
           
           // mengupdate informasi tags
 
@@ -1046,6 +1040,7 @@ class HelpdeskController extends \yii\rest\Controller
       return [
         'status' => 'not ok',
         'pesan' => 'Parameter yang dibutuhkan tidak ada: judul, konten, id_kategori, tsgs',
+        "payload" => $payload
       ];
     }
       return $this->render('update');
