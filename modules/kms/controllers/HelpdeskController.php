@@ -25,7 +25,10 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
+use app\models\ForumFiles;
 use app\models\Roles;
+use app\models\UserRoles;
+use app\models\HdIssueDisposisi;
 
 use app\helpers\Notifikasi;
 
@@ -223,15 +226,13 @@ class HelpdeskController extends \yii\rest\Controller
     $is_id_user_valid = isset($payload["id_user"]);
     $is_id_kategori_valid = isset($payload["id_kategori"]);
     $is_tags_valid = isset($payload["tags"]);
-    $is_solvers_valid = isset($payload["solvers"]);
 
     if(
         $is_judul_valid == true &&
         $is_body_valid == true &&
         $is_id_user_valid == true &&
         $is_id_kategori_valid == true &&
-        $is_tags_valid == true &&
-        $is_solvers_valid == true
+        $is_tags_valid == true
       )
     {
       // periksa id_user
@@ -248,12 +249,14 @@ class HelpdeskController extends \yii\rest\Controller
           $issue = new HdIssue();
           $issue["judul"] = $payload["judul"];
           $issue["konten"] = $payload["body"];
+          $issue["id_thread"] = $payload["id_thread"];
           $issue["id_kategori"] = $payload["id_kategori"];
           $issue["linked_id_issue"] = 0;
           $issue["id_user_create"] = $payload["id_user"];
           $issue["time_create"] = date("Y-m-d H:i:s");
           $issue["status"] = $payload["status"];
           $issue->save();
+          $id_issue = $issue->primaryKey;
 
           $client = $this->SetupGuzzleClient();
           $jira_conf = Yii::$app->restconf->confs['jira'];
@@ -281,7 +284,7 @@ class HelpdeskController extends \yii\rest\Controller
           {
             if( is_array( $payload["id_files"] ) == true )
             {
-              $this->UpdateFiles($issue["id"], $payload);
+              $this->UpdateFiles($id_issue, $payload);
             }
           }
 
@@ -290,7 +293,7 @@ class HelpdeskController extends \yii\rest\Controller
             ->where(
               "id_issue = :id_issue",
               [
-                ":id_issue" => $issue["id"]
+                ":id_issue" => $id_issue
               ]
             )
             ->all();
@@ -300,7 +303,7 @@ class HelpdeskController extends \yii\rest\Controller
             ->where(
               "id_issue = :id_issue",
               [
-                ":id_issue" => $issue["id"]
+                ":id_issue" => $id_issue
               ]
             )
             ->all();
@@ -1298,20 +1301,20 @@ class HelpdeskController extends \yii\rest\Controller
 
   }
 
-  private function UpdateFiles($id_thread, $payload)
+  private function UpdateFiles($id_issue, $payload)
   {
     HdIssueFile::deleteAll("id_issue = :id_issue", [":id_issue" => $id_issue]);
 
     foreach( $payload["id_files"] as $item_file )
     {
-      // cek recordnya
-      $test = IssueFiles::findOne($item_file);
+      // cek record file-nya di kms_files
+      $test = ForumFiles::findOne($item_file);
 
       if( is_null($test) == false ) 
       {
         $path = Yii::$app->basePath .
           DIRECTORY_SEPARATOR . "web" .
-          DIRECTORY_SEPARATOR . "hd_files" .
+          DIRECTORY_SEPARATOR . "files" .
           DIRECTORY_SEPARATOR;
 
         // cek filenya
@@ -2215,14 +2218,14 @@ class HelpdeskController extends \yii\rest\Controller
    *    "pesan": "",
    *    "result":
    *    {
- *        "jawaban":
- *        {
- *          count: 123,
- *          records:
- *          [
- *            { object_jawaban }, ...
- *          ]
- *        },
+   *        "jawaban":
+   *        {
+   *          count: 123,
+   *          records:
+   *          [
+   *            { object_jawaban }, ...
+   *          ]
+   *        },
    *      "record":
    *      {
    *        "hd_issue":
@@ -2395,6 +2398,8 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
           $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
           $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+          $hasil["files"]["count"] = count($files);
+          $hasil["files"]["records"] = $files;
           break;
         }
 
@@ -2421,6 +2426,7 @@ class HelpdeskController extends \yii\rest\Controller
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang diperlukan tidak valid.",
+        "payload" => $payload
       ];
     }
 
@@ -5068,7 +5074,7 @@ class HelpdeskController extends \yii\rest\Controller
               "id_roles = :id_role"
             ],
             [
-              ":id_user" => $test_user,
+              ":id_user" => $payload["id_user"],
               ":id_role" => $id_role,
             ]
           )
@@ -5081,7 +5087,7 @@ class HelpdeskController extends \yii\rest\Controller
           // rekam disposisi
           $new = new HdIssueDisposisi();
           $new["id_issue"] = $payload["id_issue"];
-          $new["id_user"] = $payload["id_user"];
+          $new["id_sme"] = $payload["id_user"];
           $new["pesan"] = $payload["pesan"];
           $new["time_create"] = date("Y-m-j H:i:s");
           $new->save();
@@ -5089,7 +5095,7 @@ class HelpdeskController extends \yii\rest\Controller
           // tandai record issuse bahwa sedang dalam keadaan disposisi
           $test_issue["is_disposisi"] = 1;
           $test_issue["time_disposisi"] = date("Y-m-j H:i:s");
-          $test_issue["id_user_disposisi"] = $payload["id_iser"];
+          $test_issue["id_user_disposisi"] = $payload["id_user"];
           $test_issue->save();
 
           return [

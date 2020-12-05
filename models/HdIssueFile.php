@@ -9,8 +9,6 @@ use Yii;
  *
  * @property int $id
  * @property int $id_issue
- * @property string $nama
- * @property string $file_name
  * @property int $id_user_create
  * @property string $time_create
  * @property int|null $id_user_delete
@@ -33,11 +31,9 @@ class HdIssueFile extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_issue', 'nama', 'file_name', 'id_user_create', 'time_create'], 'required'],
+            [['id_issue', 'id_user_create', 'time_create'], 'required'],
             [['id_issue', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
             [['time_create', 'time_delete'], 'safe'],
-            [['nama'], 'string', 'max' => 500],
-            [['file_name'], 'string', 'max' => 1500],
         ];
     }
 
@@ -49,8 +45,6 @@ class HdIssueFile extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'id_issue' => 'Id Issue',
-            'nama' => 'Nama',
-            'file_name' => 'File Name',
             'id_user_create' => 'Id User Create',
             'time_create' => 'Time Create',
             'id_user_delete' => 'Id User Delete',
