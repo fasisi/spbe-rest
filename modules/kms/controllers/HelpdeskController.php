@@ -5160,6 +5160,26 @@ class HelpdeskController extends \yii\rest\Controller
 
     }
   }
+  
+   public function actionPesanDisposisi()
+  {
+    $payload = $this->GetPayload();
+
+    $query = new Query;
+    $query->select('hid.id,hid.id_issue,hid.id_sme,hid.pesan,hid.time_create,u.nama,u.username')
+    ->from('hd_issue_disposisi hid')
+    ->join('LEFT JOIN', 'user u','u.id = hid.id_sme')
+    ->where('id_issue = '.$payload["id_issue"]);
+
+    $command = $query->createCommand();
+    $data = $command->queryAll();
+
+    return [
+        "status" => "ok",
+        "pesan" => "Data berhasil diambil",
+        "record" => $data
+    ];
+  }
 
   /*
    * Mengambil daftar tiket yang di-disposisikan kepada si user
@@ -5525,6 +5545,8 @@ class HelpdeskController extends \yii\rest\Controller
           "result" => $hasil
         ];
       }
+      
+      
 
 
   // ==========================================================================

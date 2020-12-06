@@ -120,7 +120,10 @@ class GlobalController extends \yii\rest\Controller
 	    	a.*,
 		(
 			select group_concat(nama) from user join hd_kategori_pic on hd_kategori_pic.id_user = user.id where hd_kategori_pic.id_kategori = a.id
-		) as nama_pic
+		) as nama_pic,
+		(
+			select group_concat(user.id) from user join hd_kategori_pic on hd_kategori_pic.id_user = user.id where hd_kategori_pic.id_kategori = a.id
+		) as id_pic
 	    ')->from($payload["table_name"]." a");
             $command = $query->createCommand();
             $data = $command->queryAll();
@@ -344,6 +347,101 @@ class GlobalController extends \yii\rest\Controller
                 "status" => "not ok",
                 "pesan" => "Required parameter: id",
             ];
+        }
+    }
+
+    public function actionDropdownsolverwithkategori()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+        $code_name = "'".$payload["code_name"]."'";
+        $id_kategori = $payload["id_kategori"];
+        $id_instansi = $payload["id_instansi"];
+        if(($id_kategori == "") && ($id_instansi == "")) {
+
+            if (isset($payload["code_name"]) == true) {
+                $query = new Query;
+                $query->select('u.id AS id_user,u.nama AS nama_user')
+                ->from("user u")
+                ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+                ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+                ->where("r.code_name =".$code_name);
+                $command = $query->createCommand();
+                $data = $command->queryAll();
+    
+                if (!empty($data)) {
+                    return [
+                        "status" => "ok",
+                        "pesan" => "Record found",
+                        "result" => $data
+                    ];
+                } else {
+                    return [
+                        "status" => "not ok",
+                        "pesan" => "Record not found",
+                    ];
+                }
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Required parameter: id",
+                ];
+            }
+        } else if(($id_kategori != "") && ($id_instansi == "")) {
+            $query = new Query;
+            $query->select('u.id AS id_user,u.nama AS nama_user')
+            ->from("user u")
+            ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+            ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+            ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
+            
+            ->where("r.code_name =".$code_name)
+            ->andWhere("ku.id_kategori =" .$payload['id_kategori'])
+	        ->groupBy('id_user');
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } else {
+            $query = new Query;
+            $query->select('u.id AS id_user,u.nama AS nama_user,d.name AS nama_department,d.id AS id_departments,kk.id AS id_kategori')
+            ->from("user u")
+            ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+            ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+            ->join('LEFT JOIN', 'departments d','u.id_departments = d.id')	
+            ->join('LEFT JOIN', 'hd_kategori_pic ku','ku.id_user = u.id')	
+            ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
+            ->where("r.code_name =".$code_name)
+            ->andWhere("kk.id =" .$payload['id_kategori'])
+            ->andWhere("d.id =" .$payload['id_instansi'])
+	        ->groupBy('id_user');
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
         }
     }
 }

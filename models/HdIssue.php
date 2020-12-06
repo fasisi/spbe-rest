@@ -4,6 +4,8 @@ namespace app\models;
 
 use Yii;
 
+use yii\db\Query;
+
 /**
  * This is the model class for table "hd_issue".
  *
@@ -77,5 +79,31 @@ class HdIssue extends \yii\db\ActiveRecord
             'is_publish' => 'Is Publish',
             'status' => 'Status',
         ];
+    }
+    
+    public static function StatusInRange($id_issue, $type_status, $tanggal_awal, $tanggal_akhir)
+    {
+      $q = new Query();
+      $q->select("count(l.id) as jumlah");
+      $q->from("hd_issue_activity_log l");
+      $q->join("JOIN", "hd_issue h", "h.id = l.id_issue");
+      $q->where([
+          "and",
+          "l.id_issue = :id_issue",
+          "l.type_log = 1",
+          "l.status = :type_status",
+          "l.time_status >= :awal",
+          "l.time_status <= :akhir"
+        ])
+        ->params([
+          ":id_issue" => $id_issue,
+          ":type_status" => $type_status,
+          ":awal" => date("Y-m-j 00:00:00", $tanggal_awal->timestamp),
+          ":akhir" => date("Y-m-j 23:59:59", $tanggal_akhir->timestamp),
+        ]);
+      $hasil = $q->one();
+
+      return $hasil["jumlah"];
+
     }
 }
