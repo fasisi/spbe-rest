@@ -1223,7 +1223,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         if( $is_id_issue_valid == true && $is_id_user_valid )
         {
-          if( UserRoles($payload["id_user"], "sme") == true )
+          if( UserRoles::CekRole($payload["id_user"], "sme") == true )
           {
             // pasangkan user sebagai solver issue ini
             $this->UpdateSolver($payload["id_issue"], [$payload["id_user"]]);
@@ -2252,7 +2252,7 @@ class HelpdeskController extends \yii\rest\Controller
     {
       //  lakukan query dari tabel kms_artikel
       $issue = HdIssue::findOne($payload["id_issue"]);
-      $user = User::findOne($issue["id_user_create"]);
+      $user_creator = User::findOne($issue["id_user_create"]);
 
       /* $temp_list_komentar = HdIssueComment::find() */
       /*   ->where("id_issue = :id", [":id" => $payload["id_issue"]]) */
@@ -2347,8 +2347,8 @@ class HelpdeskController extends \yii\rest\Controller
             'query' => [
               /* 'spaceKey' => 'PS', */
               'expand' => 'participants',
-	      	'start' => 0,
-	    	'limit' => 100,
+              'start' => 0,
+              'limit' => 100,
             ],
           ]
         );
@@ -2365,7 +2365,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["hd_issue"] = $issue;
           $hasil["record"]["issue_comments"] = $list_komentar;
           $hasil["record"]["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
-          $hasil["record"]["user_create"] = $user;
+          $hasil["record"]["user_create"] = $user_creator;
           $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           /* $hasil["record"]["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]); */
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
@@ -2377,6 +2377,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["jawaban"]["records"] = $jawaban;
           $hasil["files"]["count"] = count($files);
           $hasil["files"]["records"] = $files;
+          $hasil["is_pic"] = HdKategoriPic($payload["id_issue"], $issue["id_kategori"]);
 
         //   $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
           break;
@@ -2390,9 +2391,9 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
           $hasil["record"]["confluence"]["status"] = "not ok";
-          $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
-          $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-          $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+          /* $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"]; */
+          /* $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"]; */
+          /* $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"]; */
           $hasil["files"]["count"] = count($files);
           $hasil["files"]["records"] = $files;
           break;

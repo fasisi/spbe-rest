@@ -421,7 +421,7 @@ class GlobalController extends \yii\rest\Controller
             ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
             ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
             ->join('LEFT JOIN', 'departments d','u.id_departments = d.id')	
-            ->join('LEFT JOIN', 'hd_kategori_pic ku','ku.id_user = u.id')	
+            ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
             ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
             ->where("r.code_name =".$code_name)
             ->andWhere("kk.id =" .$payload['id_kategori'])

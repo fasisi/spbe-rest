@@ -57,6 +57,12 @@
               );
             }
 
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_puas",
@@ -78,6 +84,11 @@
                 $send_item["nama"]
               );
             }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
 
             // Content
             $html = Yii::$app->controller->renderPartial(

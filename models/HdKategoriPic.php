@@ -43,4 +43,12 @@ class HdKategoriPic extends \yii\db\ActiveRecord
             'id_user' => 'Id User',
         ];
     }
+
+
+    public static function IsPic($iduser, $idkategori)
+    {
+      $test = HdKategoriPic::findOne(["id_user" => $iduser, "id_kategori" => $idkategori]);
+
+      return is_null($test) == false;
+    }
 }

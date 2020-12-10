@@ -2351,9 +2351,9 @@ class ArticleController extends \yii\rest\Controller
         ->where(
           [
             "and",
-            ["in", "id_kategori", $daftar_kategori],
+            /* ["in", "id_kategori", $daftar_kategori], */
             "is_delete = 0",
-            "is_publish = 0",
+            /* "is_publish = 0", */
             ["in", "status", [1]]
           ]
         )
@@ -2369,13 +2369,18 @@ class ArticleController extends \yii\rest\Controller
 
         $daftar_id .= $artikel["linked_id_content"];
       }
-      $daftar_id = "ID IN ($daftar_id)";
+
+      if( $daftar_id != "" )
+      {
+        $daftar_id = "AND ID IN ($daftar_id)";
+      }
 
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
       $client = new \GuzzleHttp\Client([
         'base_uri' => $base_url
       ]);
+
 
       $res = $client->request(
         'GET',
@@ -2393,7 +2398,7 @@ class ArticleController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'cql' => "$keywords AND $daftar_id",
+            'cql' => "$keywords $daftar_id",
             'expand' => 'body.view',
             'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
             'limit' => $payload["items_per_page"],
@@ -2407,6 +2412,8 @@ class ArticleController extends \yii\rest\Controller
       case 200:
         $response_payload = $res->getBody();
         $response_payload = Json::decode($response_payload);
+
+        $total_rows = $response_payload["totalSize"];
 
         foreach($response_payload["results"] as $item)
         {
@@ -2435,10 +2442,10 @@ class ArticleController extends \yii\rest\Controller
         return [
           "status" => "ok",
           "pesan" => "Search berhasil",
-          "cql" => "$keywords AND $daftar_id",
+          "cql" => "$keywords $daftar_id",
           "result" => 
           [
-            "total_rows" => $response_payload["size"],
+            "total_rows" => $total_rows,
             "page_no" => $payload["page_no"],
             "Items_per_page" => $payload["items_per_page"],
             "records" => $hasil

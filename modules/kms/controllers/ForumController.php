@@ -2443,7 +2443,7 @@ class ForumController extends \yii\rest\Controller
           'query' => [
             'type' => 'question',
             'query' => $payload["search_keyword"],
-            'limit' => 1000,
+            'limit' => 10000,
             'start' => 0,
             'spaceKey' => 'PS',
           ],
@@ -2457,8 +2457,24 @@ class ForumController extends \yii\rest\Controller
           $response_payload = Json::decode($response_payload);
 
           $results = $response_payload["results"];
-          foreach( $results as $result_item )
+          $total_rows = count($results);
+
+          $start = $payload["items_per_page"] * ($payload["page_no"] - 1);
+          $end = $start + $payload["items_per_page"] - 1;
+          if( $end >= $total_rows )
           {
+            $end = $total_rows - 1;
+          }
+
+          $i = $start;
+          $count = 0;
+          $fail_count = 0;
+          $terus = true;
+
+          do
+          {
+            $result_item = $results[$i];
+
             // ambil record confluence
             $linked_id_question = $result_item["id"];
             $response = $this->Conf_GetQuestion($client, $linked_id_question);
@@ -2523,25 +2539,27 @@ class ForumController extends \yii\rest\Controller
 
                   if( $is_id_user_actor_valid == true )
                   {
-                    // periksa hak akses kategori bagi user ini
-                    $test = KategoriUser::find()
-                      ->where(
-                        [
-                          "and",
-                          "id_user = :id_user",
-                          "id_kategori = :id_kategori"
-                        ],
-                        [
-                          ":id_user" => $payload["id_user_actor"],
-                          ":id_kategori" => $thread["id_kategori"]
-                        ]
-                      )
-                      ->one();
+                    /* // periksa hak akses kategori bagi user ini */
+                    /* $test = KategoriUser::find() */
+                    /*   ->where( */
+                    /*     [ */
+                    /*       "and", */
+                    /*       "id_user = :id_user", */
+                    /*       "id_kategori = :id_kategori" */
+                    /*     ], */
+                    /*     [ */
+                    /*       ":id_user" => $payload["id_user_actor"], */
+                    /*       ":id_kategori" => $thread["id_kategori"] */
+                    /*     ] */
+                    /*   ) */
+                    /*   ->one(); */
 
-                    if( is_null($test) == false )
-                    {
-                      $hasil[] = $temp;
-                    }
+                    /* if( is_null($test) == false ) */
+                    /* { */
+                    /* } */
+
+                    $hasil[] = $temp;
+                    $count++;
                   }
                   else
                   {
@@ -2553,6 +2571,7 @@ class ForumController extends \yii\rest\Controller
               else
               {
                 $gagal["thread not found"][] = $linked_id_question;
+                $fail_count++;
               }
             }
             catch(yii\base\InvalidArgumentException $e)
@@ -2561,7 +2580,18 @@ class ForumController extends \yii\rest\Controller
             }
 
             // ambil record SPBE
-          }
+            
+            
+            if( $count == $payload["items_per_page"] || $i >= $end )
+            {
+              $terus = false;
+            }
+            else
+            {
+              $i++;
+            }
+
+          } while( $terus == true );
 
           // kembalikan hasilnya
           return [
@@ -2569,6 +2599,11 @@ class ForumController extends \yii\rest\Controller
             "pesan" => "Pencarian berhasil dilakukan",
             "result" => 
             [
+              "total_rows" => $total_rows,
+              "counts" => $count,
+              "fail counts" => $fail_count,
+              "page_no" => $payload["page_no"],
+              "items_per_page" => $payload["items_per_page"],
               "records" => $hasil,
               "failed" => $gagal,
             ]

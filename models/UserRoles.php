@@ -52,7 +52,7 @@ class UserRoles extends \yii\db\ActiveRecord
 
       $test = UserRoles::find()
         ->where(
-          ["id_user = :id_user", "id_roles = :id_roles"],
+          ["and", "id_user = :id_user", "id_roles = :id_roles"],
           [":id_user" => $id_user, ":id_roles" => $id_role]
         )
         ->one();
