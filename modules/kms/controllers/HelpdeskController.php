@@ -364,7 +364,7 @@ class HelpdeskController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
-    $is_id_valid = isset($payload["id_issue"]);
+    $is_id_valid = isset($payload["id"]);
 
     if(
         $is_id_valid == true 
@@ -373,7 +373,7 @@ class HelpdeskController extends \yii\rest\Controller
       $jira_conf = Yii::$app->restconf->confs['jira'];
       $client = $this->SetupGuzzleClient();
 
-      $issue = HdIssue::findOne($payload["id_issue"]);
+      $issue = HdIssue::findOne($payload["id"]);
 
       if( is_null($issue) == false)
       {
@@ -432,9 +432,11 @@ class HelpdeskController extends \yii\rest\Controller
 
         // update record issue
 
-        // kirim notifikasi kepada PIC kategori
-        $this->NotifikasiPIC($issue["id"], $payload["id_user"]);
+        // memasangkan tiket ini dengan PIC sebagai solvernya
+        $this->BindWithPIC($issue["id"], $issue["id_user_create"]);
 
+        // kirim notifikasi kepada PIC kategori
+        $this->NotifikasiPIC($issue["id"], $issue["id_user_create"]);
 
         return [
           "status" => "ok",
@@ -463,12 +465,11 @@ class HelpdeskController extends \yii\rest\Controller
   }
 
   /*
-   * Membuat notifikasi kepada PIC mengenai tiket baru.
-   * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
+   * Mengembalikan daftar PIC berdasarkan id_issue dan id_user (dipembuat tiket).
    *
-   * Pencarian PIC mengikuti konsep inheritance.
+   * Jika tidak menemukan PIC, function akan mengembalikan FALSE.
     * */
-  private function NotifikasiPIC($id_issue, $id_user)
+  private function GetPIC($id_issue, $id_user)
   {
     $user = User::findOne($id_user);
     $id_instansi = $user["id_departments"];
@@ -479,6 +480,8 @@ class HelpdeskController extends \yii\rest\Controller
     $id_role = Roles::IdByCodeName("sme");
 
     $q = new Query();
+
+    $hasil = null;
 
     do
     {
@@ -506,24 +509,8 @@ class HelpdeskController extends \yii\rest\Controller
 
       if( is_null($test) == false )
       {
-        $daftar_email = [];
-        foreach($test as $item)
-        {
-          $temp = [];
-          $temp["nama"] = $item["nama"];
-          $temp["email"] = $item["email"];
 
-          $daftar_email[] = $temp;
-        }
-
-        //kirim notifikasi kepada PIC
-        Notifikasi::Kirim(
-          [
-            "type" => "pic_tiket_baru", 
-            "tiket" => $tiket,
-            "daftar_email" => $daftar_email
-          ]
-        );
+        $hasil =  $test;
 
         $terus = false;
       }
@@ -545,11 +532,74 @@ class HelpdeskController extends \yii\rest\Controller
           //
           // GAGAL
 
+          $hasil = false;
+
           $terus = false;
         }
       }
 
     } while( $terus == true );
+
+
+    return $hasil;
+  }
+
+  /*
+   * Memasangkan tiket dengan PIC sebagai solver nya
+    * */
+  private function BindWithPIC($id_issue, $id_user)
+  {
+    $temp = $this->GetPIC($id_issue, $id_user);
+
+    if( is_array($temp) == true )
+    {
+      $pic = $temp[0];
+
+      // reset daftar solver atas suatu tiket
+      HdIssueSolver::deleteAll(["and", "id_issue = :id_issue"], [":id_issue" => $id_issue]);
+
+      $new = new HdIssueSolver();
+      $new["id_issue"] = $id_issue;
+      $new["id_user"] = $pic["id"];
+      $new->save();
+    }
+  }
+
+  /*
+   * Membuat notifikasi kepada PIC mengenai tiket baru.
+   * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
+   *
+   * Pencarian PIC mengikuti konsep inheritance.
+    * */
+  private function NotifikasiPIC($id_issue, $id_user)
+  {
+    $test = $this->GetPIC($id_issue, $id_user);
+
+    if( is_array($test) == true )
+    {
+      $daftar_email = [];
+      foreach($test as $item)
+      {
+        $temp = [];
+        $temp["nama"] = $item["nama"];
+        $temp["email"] = $item["email"];
+
+        $daftar_email[] = $temp;
+      }
+
+      //kirim notifikasi kepada PIC
+      Notifikasi::Kirim(
+        [
+          "type" => "pic_tiket_baru", 
+          "tiket" => $tiket,
+          "daftar_email" => $daftar_email
+        ]
+      );
+    }
+    else
+    {
+    }
+
   }
 
 
@@ -2325,7 +2375,20 @@ class HelpdeskController extends \yii\rest\Controller
           ];
         }
 
-        $files = HdIssueFile::findAll(["id_issue" => $payload["id_issue"]]);
+        $temp_files = HdIssueFile::findAll(["id_issue" => $payload["id_issue"]]);
+        $files = [];
+        foreach( $temp_files as $a_file )
+        {
+          $file = ForumFiles::findOne( $a_file["id_file"] );
+
+          if( is_null($file) == false )
+          {
+            $files[] = [
+              "TiketFile" => $file,
+              "link" => BaseUrl::base(true) . "/files/" . $file["nama"]
+            ];
+          }
+        }
 
         //  lakukan query dari Confluence
         $hasil = [];
@@ -2377,7 +2440,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["jawaban"]["records"] = $jawaban;
           $hasil["files"]["count"] = count($files);
           $hasil["files"]["records"] = $files;
-          $hasil["is_pic"] = HdKategoriPic($payload["id_issue"], $issue["id_kategori"]);
+          $hasil["is_pic"] = HdKategoriPic::IsPic($payload["id_user_actor"], $issue["id_kategori"]);
 
         //   $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
           break;
