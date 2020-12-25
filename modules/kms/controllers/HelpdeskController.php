@@ -64,6 +64,7 @@ class HelpdeskController extends \yii\rest\Controller
         'comment'               => ['POST', 'GET', 'DELETE', 'PUT'],
         'answer'                => ['POST', 'GET', 'PUT', 'DELETE'],
         'myitems'               => ['GET'],
+        'ceksla'                => ['POST'],
 
         'attachments'           => ['POST'],
         'logsbytags'            => ['GET'],
@@ -98,7 +99,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         Yii::info("base_url = $base_url");
         $client = new \GuzzleHttp\Client([
-          'base_uri' => $base_url . "/index.php?r="
+          'base_uri' => $base_url
         ]);
 
         return $client;
@@ -149,7 +150,7 @@ class HelpdeskController extends \yii\rest\Controller
         $new["time_{$type_name}"] = date("Y=m-j H:i:s");
         $new->save();
 
-        HdIssueUserAction::Summarize($id_issue);
+        /* HdIssueUserAction::Summarize($id_issue); */
       }
 
       /* private function ActivityLog($id_artikel, $id_user, $type_action) */
@@ -491,11 +492,11 @@ class HelpdeskController extends \yii\rest\Controller
         $q->select("u.*")
           ->from("user u")
           ->join("join", "user_roles ur", "ur.id_user = u.id")
-          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+          ->join("join", "hd_kategori_pic pic", "pic.id_user = u.id")
           ->where(
             [
               "and",
-              "ku.id_kategori = :id_kategori",
+              "pic.id_kategori = :id_kategori",
               "ur.id_roles = :id_role",
               "u.id_departments = :id_instansi"
             ],
@@ -556,7 +557,15 @@ class HelpdeskController extends \yii\rest\Controller
       $pic = $temp[0];
 
       // reset daftar solver atas suatu tiket
-      HdIssueSolver::deleteAll(["and", "id_issue = :id_issue"], [":id_issue" => $id_issue]);
+      HdIssueSolver::deleteAll(
+        [
+          "and", 
+          "id_issue = :id_issue"
+        ], 
+        [
+          ":id_issue" => $id_issue
+        ]
+      );
 
       $new = new HdIssueSolver();
       $new["id_issue"] = $id_issue;
@@ -4275,6 +4284,30 @@ class HelpdeskController extends \yii\rest\Controller
 
             // simpan attachment
 
+
+            switch(true)
+            {
+              case $issue["status"] == 2 : // in progress
+                $this->IssueLog(
+                  $payload["id_issue"], 
+                  $payload["id_user"], 
+                  2, 
+                  2   // respon oleh sme
+                );
+
+                break;
+
+              case $issue["status"] == 3 : // waiting for customer
+                $this->IssueLog(
+                  $payload["id_issue"], 
+                  $payload["id_user"], 
+                  2, 
+                  1   // respon oleh mk
+                );
+                break;
+
+            }
+
             /* // kirim ke CQ */
             /*     $request_payload = [ */
             /*       "body" => $payload["konten"], */
@@ -4933,6 +4966,8 @@ class HelpdeskController extends \yii\rest\Controller
     // ambil daftar tiket yang statusnya IN PROGRESS atau WAITING FOR CUSTOMER
     // memperhatikan id_kategori dan id_instansi
 
+    $hasil = [];
+
     $q = new Query();
     $daftar_tiket =
       $q->select("t.*")
@@ -4947,112 +4982,140 @@ class HelpdeskController extends \yii\rest\Controller
         )
         ->all();
 
-    foreach($daftar_tiket as $tiket)
+    if( count($daftar_tiket) > 0 )
     {
-      //cek SLA setiap tiket
-
-      $id_kategori = $tiket["id_kategori"];
-
-      // ambil konfigurasi SLA atas kategori ini
-      // jika tidak menemukan, ambil SLA dari parent. mengikuti prinsip 
-      // inheritance
-
-      $terus = false;
-      $sla = null;
-      do
+      foreach($daftar_tiket as $tiket)
       {
-        $sla = HdKategoriSla::find()
-          ->where(
-            [
-              "and",
-              "id_kategori = :id_kategori"
-            ],
-            [
-              ":id_kategori" => $id_kategori
-            ]
-          )
-          ->one();
+        //cek SLA setiap tiket
 
-        if( is_null($sla) == false )
+        $id_kategori = $tiket["id_kategori"];
+
+        // ambil konfigurasi SLA atas kategori ini
+        // jika tidak menemukan, ambil SLA dari parent. mengikuti prinsip 
+        // inheritance
+
+        $terus = false;
+        $sla = null;
+        do
         {
-          //cek nilai sla_open dll
+          $sla = HdKategoriSla::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori"
+              ],
+              [
+                ":id_kategori" => $id_kategori
+              ]
+            )
+            ->one();
 
-          if( $sla["sla_open"] == -1 )
+          if( is_null($sla) == false )
           {
-            // lanjutkan pencarian SLA
-            $terus = true;
+            //cek nilai sla_open dll
 
-            // cek SLA parent. jika tidak ada parent, hentikan pencarian SLA
-            $this->GekParent($id_kategori, $terus, $sla);
+            if( $sla["sla_open"] == -1 )
+            {
+              // lanjutkan pencarian SLA
+              $terus = true;
+
+              // cek SLA parent. jika tidak ada parent, hentikan pencarian SLA
+              $this->GetParent($id_kategori, $terus, $sla);
+            }
+            else
+            {
+              // SLA telah ditemukan.
+              $terus = false;
+            }
           }
           else
           {
-            // SLA telah ditemukan.
-            $terus = false;
+            // tidak menemukan record SLA.
+            // cek SLA pada parent
+            $this->GetParent($id_kategori, $terus, $sla);
+          }
+
+        } while($terus == true);
+
+        if( is_null($sla) == false )
+        {
+          // ambil status terakhir sebuah tiket dan hitung umurnya
+
+          switch( $tiket["status"] )
+          {
+            case 2: // in progress
+              $threshold = $sla["sla_in_progress"];
+              break;
+
+            case 3: // waiting for customer
+              $threshold = $sla["sla_waiting_for_customer"];
+              break;
+
+          }
+
+          $time_a = strtotime($tiket["time_status"]);
+          $time_b = time();
+
+          $duration = $time_b - ($time_a / 60 / 60 / 24);  //satuan hari
+
+          if( $duration > $threshold )
+          {
+            // terbitkan notifikasi
+
+            // ganti status menjadi COMPLETE. lakukan via API call
+            $client = $this->SetupGuzzleClientSPBE();
+
+            $payload = [
+              "id_issue" => [ $tiket["id"] ],
+              "id_user" => $tiket["id_user_create"],
+              "status" => 5,  // complete
+            ];
+
+            $res = $client->request(
+              "PUT",
+               "web/index.php?r=kms/helpdesk/status",
+              [
+                "json" => $payload
+              ]
+            );
+
+            $temp = [];
+            $temp["result"] = $res;
+            $temp["payload"] = $payload;
+
+            $hasil["sukses"][] = $temp;
           }
         }
         else
         {
-          // tidak menemukan record SLA.
-          // cek SLA pada parent
-          $this->GekParent($id_kategori, $terus, $sla);
+          $hasil["gagal"][] = $tiket;
         }
 
-      } while($terus == true);
+      } // loop daftar tiket
 
-      if( is_null($sla) == false )
-      {
-        // ambil status terakhir sebuah tiket dan hitung umurnya
+      return [
+        "status" => "ok",
+        "Pesan" => "Cek SLA telah selesai",
+        "result" => [
+          "sukses" => $hasil["sukses"],
+          "gagal" => $hasil["gagal"]
+        ]
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "ok",
+        "pesan" => "Tidak ada record tiket yang dapat diproses",
+      ];
+    }
 
-        switch( $tiket["status"] )
-        {
-          case 2: // in progress
-            $threshold = $sla["sla_in_progress"];
-            break;
-
-          case 3: // waiting for customer
-            $threshold = $sla["sla_in_progress"];
-            break;
-
-        }
-
-        $time_a = strtotime($tiket["time_status"]);
-        $time_b = time();
-
-        $duration = $time_b - ($time_a / 60 / 60 / 24);  //satuan hari
-
-        if( $duration > $threshold )
-        {
-          // terbitkan notifikasi
-
-          // ganti status menjadi COMPLETE. lakukan via API call
-          $client = $this->SetupGuzzleClientSPBE();
-
-          $res = $client->request(
-            "POST",
-            "kms/helpdesk/status",
-            [
-              "json" => [
-                "id_issue" => $tiket["id"],
-                "id_user" => $tiket["id_user_create"],
-                "status" => 5,  // complete
-              ]
-            ]
-          );
-        }
-      }
-      else
-      {
-        // tidak ada SLA
-      }
-
-    } // loop daftar tiket
   }
 
   private function GetParent(&$id_kategori, &$terus, &$sla)
   {
     $kategori = KmsKategori::findOne($id_kategori);
-    if( $kategori["parent"] != -1 )
+    if( $kategori["id_parent"] != -1 )
     {
       $terus = true;
 
@@ -5117,12 +5180,16 @@ class HelpdeskController extends \yii\rest\Controller
 
         $is_id_issue_valid = isset( $payload["id_issue"] );
         $is_id_user_valid = isset( $payload["id_user"] );
+        $is_id_user_actor_valid = isset( $payload["id_user_actor"] );
 
         $test_issue = HdIssue::findOne($payload["id_issue"]);
         $is_id_issue_valid = $is_id_issue_valid && is_null( $test_issue ) == false;
 
         $test_user = User::findOne($payload["id_user"]);
         $is_id_user_valid = $is_id_user_valid && is_null( $test_user ) == false;
+
+        $test_user_actor = User::findOne($payload["id_user_actor"]);
+        $is_id_user_actor_valid = $is_id_user_actor_valid && is_null( $test_user_actor ) == false;
 
         $id_role = Roles::IdByCodeName("sme");
         $test_role = UserRoles::find()
@@ -5141,12 +5208,15 @@ class HelpdeskController extends \yii\rest\Controller
 
         $is_id_user_valid = $is_id_user_valid && is_null( $test_role ) == false;
 
-        if( $is_id_issue_valid == true && $is_id_user_valid == true )
+        if( $is_id_issue_valid == true  
+            && $is_id_user_valid == true 
+            && $is_id_user_actor_valid == true )
         {
           // rekam disposisi
           $new = new HdIssueDisposisi();
           $new["id_issue"] = $payload["id_issue"];
-          $new["id_sme"] = $payload["id_user"];
+          $new["id_sme_out"] = $payload["id_user_actor"];
+          $new["id_sme_in"] = $payload["id_user"];
           $new["pesan"] = $payload["pesan"];
           $new["time_create"] = date("Y-m-j H:i:s");
           $new->save();
@@ -5201,6 +5271,9 @@ class HelpdeskController extends \yii\rest\Controller
             return [
               "status" => "ok",
               "pesan" => "Pembatalan disposis berhasil",
+              "result" => [
+                "record" => $test_issue,
+              ]
             ];
           }
           else
