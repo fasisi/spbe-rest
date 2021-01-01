@@ -1872,6 +1872,7 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+	    $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
@@ -1886,6 +1887,7 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+	    $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
@@ -3503,12 +3505,12 @@ class ArticleController extends \yii\rest\Controller
     ) {
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
-      $query->select('ka.id AS id, ka.time_create AS time_create, kl.action, count(kl.action) as count, ka.id_user_create AS id_user_create, ka.linked_id_content AS linked_id_content')
+      $query->select('ka.id AS id, ka.time_create AS time_create, kl.action, count(kl.action) as count, ka.id_user_create AS id_user_create, ka.linked_id_content AS linked_id_content, ka.view, ka.like, ka.dislike')
         ->from("kms_artikel ka")
         ->join('LEFT JOIN', 'kms_artikel_activity_log kl', 'ka.id = kl.id_artikel')
         ->where('kl.action = 1')
         ->groupBy('ka.id')
-        ->orderBy('count desc')
+        ->orderBy('ka.view desc')
         ->limit(5);
       $command = $query->createCommand();
       $list_artikel = $command->queryAll();
@@ -3684,7 +3686,7 @@ class ArticleController extends \yii\rest\Controller
           {
             $file_name_2 = "";
             $is_image = true;
-            if( preg_match_all("/(jpg|jpeg)/i", $file->extension) == true )
+            if( preg_match_all("/(jpg|jpeg|png|gif)/i", $file->extension) == true )
             {
               $asal = WideImage::loadFromFile($path . $file_name);
               $file_name_2 = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;

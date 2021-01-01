@@ -6,6 +6,8 @@ use Yii;
 use yii\helpers\Json;
 use yii\db\Query;
 use yii\db\IntegrityException;
+use yii\web\UploadedFile;
+use yii\helpers\BaseUrl;
 
 use app\models\User;
 use app\models\UserRoles;
@@ -13,6 +15,11 @@ use app\models\KategoriUser;
 use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\HakAksesRoles;
+use app\models\KmsFiles;
+
+
+use Carbon\Carbon;
+use WideImage\WideImage;
 
 class UserController extends \yii\rest\Controller
 {
@@ -33,6 +40,27 @@ class UserController extends \yii\rest\Controller
       ]
     ];
     return $behaviors;
+  }
+
+
+  private function GetPayload()
+  {
+
+    // pastikan request parameter lengkap
+    $payload = Yii::$app->request->rawBody;
+
+    try
+    {
+      return Json::decode($payload);
+    }
+    catch(yii\base\InvalidArgumentException $e)
+    {
+      return [
+        "status"=> "not ok",
+        "pesan"=> "Failed on JSON parsing",
+        "payload" => $payload
+      ];
+    }
   }
 
 
@@ -1084,6 +1112,230 @@ class UserController extends \yii\rest\Controller
         "status" => "not ok",
         "pesan" => "Record not found",
         "result" => "empty"
+      ];
+    }
+  }
+
+
+  // menerima file yang menjadi foto profile suatu user.
+  // file akan di-standarisasi sehingga ukurannya menjadi 3x4
+  public function actionFotoProfile()
+  {
+    $payload = $this->GetPayload();
+
+    if( Yii::$app->request->isPost )
+    {
+      $file = UploadedFile::getInstanceByName("file");
+
+      if( is_null($file) == false )
+      {
+        $deskripsi = "Foto profile user";
+        $id_user_actor = Yii::$app->request->post("id_user_actor");
+        $is_id_user_valid = isset($id_user_actor);
+        $is_file_valid = isset($file);
+
+        if( $is_id_user_valid == true && $is_file_valid == true )
+        {
+          $path = Yii::$app->basePath . 
+            DIRECTORY_SEPARATOR . 'web' .
+            DIRECTORY_SEPARATOR . 'files'.
+            DIRECTORY_SEPARATOR;
+
+          Yii::info("path = $path");
+
+          $time_hash = date("YmdHis");
+          $file_name = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "." . $file->extension;
+
+          ini_set("display_errors", 1);
+          error_reporting(E_ALL);
+
+          if($file->saveAs($path . $file_name) == true)
+          {
+            $file_name_2 = "";
+            $is_image = true;
+            if( preg_match_all("/(jpg|jpeg|png)/i", $file->extension) == true )
+            {
+              $asal = WideImage::loadFromFile($path . $file_name);
+              $file_name_2 = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "-thumb" . "." . $file->extension;
+
+              $resize = $asal->resize("150", "200");
+              $resize->saveToFile($path . $file_name_2);
+            }
+            else
+            {
+              $file_name_2 = "logo_pdf.png";
+              $is_image = false;
+            }
+
+            $kf = new KmsFiles();
+            $kf["nama"] = $file_name;
+            $kf["deskripsi"] = $deskripsi;
+            $kf["thumbnail"] = $file_name_2;
+            $kf["id_user_create"] = $id_user_actor;
+            $kf["time_create"] = date("Y-m-d H:i:s");
+            $kf->save();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Berhasil menyimpan file",
+              "result" => $kf,
+              "thumbnail" => 
+                $is_image == true ? 
+                  BaseUrl::base(true) . "/files/" . $kf["thumbnail"] : 
+                  BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+              "link" => BaseUrl::base(true) . "/files/" . $kf["nama"], 
+            ];
+
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Gagal menyimpan file",
+              "result" => 
+              [
+                "path.file_name" => $path . $file_name,
+                "UploadedFile" => $file,
+                "last error" => error_get_last()
+              ]
+            ];
+          }
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang diperlukan tidak lengkap: id_user_actor, file",
+            "request" =>
+            [
+              "payload" => $payload,
+              "UploadedFile" => $file,
+              "full_path" => Yii::$app->request->post("full_path")
+            ]
+          ];
+        }
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "There is something wrong",
+          "result" => 
+          [
+            "UploadedFile" => $file,
+            "full_path" => Yii::$app->request->post("full_path")
+          ]
+        ];
+      }
+
+    }
+    else if( Yii::$app->request->isPut )
+    {
+      // update attachment
+    }
+    else if( Yii::$app->request->isDelete )
+    {
+      // hapus attachment
+
+      $payload = $this->GetPayload();
+
+      $is_id_file_valid = isset($payload["id_file"]);
+      $is_id_artikel_valid = isset($payload["id_artikel"]);
+      $is_id_user_valid = isset($payload["id_user_actor"]);
+
+      if( 
+          $is_id_file_valid == true && 
+          $is_id_artikel_valid == true &&
+          $is_id_user_valid == true 
+        )
+      {
+        $test = KmsFiles::findOne($payload["id_file"]);
+        $test_artikel = KmsArtikel::findOne($payload["id_artikel"]);
+
+        if( 
+            is_null($test) == false 
+          )
+        {
+          // hapus record file
+            $test["is_delete"] = 1;
+            $test["id_user_delete"] = $payload["id_user_actor"];
+            $test["time_delete"] = date("Y-m-d H:i:s");
+            $test->save();
+          // hapus record file
+
+          // hapus file-nya
+            $path = Yii::$app->basePath .
+              DIRECTORY_SEPARATOR . "web" .
+              DIRECTORY_SEPARATOR. "files" .
+              DIRECTORY_SEPARATOR;
+
+            unlink($path . $test["nama"]);
+
+            // jika attachment tipenya JPG, maka hapus juga thumbnail-nya.
+            if( preg_match_all("/(jpg|jpeg)/i", $test["nama"]) != false )
+            {
+              unlink($path . $test["thumbnail"]);
+            }
+
+          // hapus file-nya
+
+          // hapus relasinya dengan artikel
+
+
+            if( is_null($test_artikel) == false )
+            {
+              $artikel_file = KmsArtikelFile::find()
+                ->where(
+                  "id_artikel = :id_artikel and id_file = :id_file",
+                  [
+                    ":id_artikel" => $payload["id_artikel"],
+                    ":id_file" => $payload["id_file"],
+                  ]
+                )
+                ->one();
+
+              $artikel_file["is_delete"] = 1;
+              $artikel_file["id_user_delete"] = $payload["id_user_actor"];
+              $artikel_file["time_delete"] = date("Y-m-d H:i:s");
+              $artikel_file->save();
+            }
+            else
+            {
+            }
+
+          // hapus relasinya dengan artikel
+
+          return [
+            "status" => "ok",
+            "pesan" => "File berhasil dihapus",
+            "result" => 
+            [
+              "artikel_file" => $artikel_file,
+            ]
+          ];
+
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Record file tidak ditemukan",
+            "payload" => $payload
+          ];
+        }
+
+      }
+      else
+      {
+      }
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Request hanya menerima method POST, PUT atau DELETE",
       ];
     }
   }
