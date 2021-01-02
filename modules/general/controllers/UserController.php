@@ -121,16 +121,17 @@ class UserController extends \yii\rest\Controller
     {
 
       $new = new User();
-      $new["nama"]            = $payload["nama"];
-      $new["username"]        = $payload["username"];
-      $new["password"]        = $payload["password"];
-      $new["jenis_kelamin"]   = $payload["jenis_kelamin"];
-      $new["id_departments"]  = $payload["id_departments"];
-      $new["time_create"]     = date("Y-m-j H:i:s");
-      $new["id_user_create"]  = $payload["id_user_create"];
-      $new["nip"]             = $payload["nip"];
-      $new["hp"]             = $payload["hp"];
+      $new["nama"]              = $payload["nama"];
+      $new["username"]          = $payload["username"];
+      $new["password"]          = $payload["password"];
+      $new["jenis_kelamin"]     = $payload["jenis_kelamin"];
+      $new["id_departments"]    = $payload["id_departments"];
+      $new["time_create"]       = date("Y-m-j H:i:s");
+      $new["id_user_create"]    = $payload["id_user_create"];
+      $new["nip"]               = $payload["nip"];
+      $new["hp"]                = $payload["hp"];
       $new["email"]             = $payload["email"];
+      $new["id_file_profile"]   = $payload["id_file_profile"];
       $new->save();
 
       // Mencari record terakhir
@@ -203,6 +204,14 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($record) == false )
       {
+        $profile = "";
+        if( $record["id_file_profile"] != -1 )
+        {
+          // ambil record kms_file
+          $kf = KmsFiles::find()->where(["id" => $record["id_file_profile"] ])->one();
+          $profile = BaseUrl::base(true) . "/files/" . $kf["thumbnail"];
+        }
+
         $roles = $record->getRoles()->all();
         $list_kategori_user = KategoriUser::find()
           ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
@@ -226,6 +235,7 @@ class UserController extends \yii\rest\Controller
             "record" => $record,
             "roles" => $roles,
             "categories" => $categories,
+            "profile" => $profile,
           ]
         ];
       }
@@ -279,13 +289,14 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($user) == false )
       {
-        $user["nama"]           = $payload["nama"];
-        $user["username"]       = $payload["username"];
-        $user["email"]          = $payload["email"];
-        $user["hp"]             = $payload["hp"];
-        $user["nip"]            = $payload["nip"];
-        $user["id_departments"] = $payload["id_departments"];
-        $user["jenis_kelamin"]  = $payload["jenis_kelamin"];
+        $user["nama"]             = $payload["nama"];
+        $user["username"]         = $payload["username"];
+        $user["email"]            = $payload["email"];
+        $user["hp"]               = $payload["hp"];
+        $user["nip"]              = $payload["nip"];
+        $user["id_departments"]   = $payload["id_departments"];
+        $user["jenis_kelamin"]    = $payload["jenis_kelamin"];
+        $user["id_file_profile"]  = $payload["id_file_profile"];
         $user->save();
 
         if( $user->hasErrors() == false )
