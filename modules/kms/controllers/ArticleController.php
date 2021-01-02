@@ -1753,6 +1753,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1767,6 +1769,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -2028,6 +2032,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
         $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
         break;
@@ -2044,6 +2050,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
         break;
       }
 

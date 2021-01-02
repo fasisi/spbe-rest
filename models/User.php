@@ -86,4 +86,22 @@ class User extends \yii\db\ActiveRecord
       return $this->hasMany(KategoriUser::className(), ["id_user" => "id"]);
     }
 
+    public function getImage($id_file)
+    {
+      $roles = KmsFiles::find()
+        ->where(
+          [
+            "and",
+            "id = :id"
+          ],
+          [
+            ":id" => $id_file
+          ]
+        )
+        ->one();
+
+      return $roles["thumbnail"];
+    }
+
+
 }
