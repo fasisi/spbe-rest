@@ -1617,6 +1617,7 @@ class ArticleController extends \yii\rest\Controller
    *  Request format:
    *  {
    *    "id_kategori": [1, 2, ...],
+   *    "id_tag": [1, 2, ...],
    *    "page_no": 123,
    *    "items_per_page": 123,
    *    "id_user": 123,
@@ -1654,41 +1655,47 @@ class ArticleController extends \yii\rest\Controller
 
     //  cek parameter
     $is_kategori_valid = isset($payload["id_kategori"]);
+    $is_tag_valid = isset($payload["id_tag"]);
     $is_page_no_valid = isset($payload["page_no"]);
     $is_items_per_page_valid = isset($payload["items_per_page"]);
     $is_id_user_valid = isset($payload["id_user"]);
 
     $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
+    $is_tag_valid = $is_tag_valid && is_array($payload["id_tag"]);
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
     $is_id_user_valid = $is_id_user_valid && is_numeric($payload["id_user"]);
 
     if(
         $is_kategori_valid == true &&
+        $is_tag_valid == true &&
         $is_page_no_valid == true &&
         $is_items_per_page_valid == true 
         /* $is_id_user_valid == true */
       )
     {
       //  lakukan query dari tabel kms_artikel
+      $where = [];
+      $where[] = "and";
+      $where[] = "is_delete = 0";
+      $where[] = "status = 1";
+      $where[] = ["in", "id_kategori", $payload["id_kategori"]];
+
+      if( count($payload["id_tag"]) > 0 )
+      {
+        $where[] = ["in", "kat.id_tag", $payload["id_tag"]];
+      }
+
       $test = KmsArtikel::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "status = 1",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
+        ->join("join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
+        ->where($where)
         ->orderBy("time_create desc")
         ->all();
       $total_rows = count($test);
 
       $list_artikel = KmsArtikel::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "status = 1",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
+        ->join("join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
+        ->where($where)
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
         ->limit( $payload["items_per_page"] )
@@ -3465,7 +3472,13 @@ class ArticleController extends \yii\rest\Controller
     $payload = Json::decode($payload);
 
     $query = new Query;
-    $query->select('kt.id AS idtags,kt.nama AS namatags,count(kt.nama) AS count')
+    $query
+      ->select(
+        "
+          kt.id AS idtags,
+          kt.nama AS namatags,
+          count(kt.nama) AS count
+        ")
       ->from("kms_artikel_tag kat")
       ->join('LEFT JOIN', 'kms_tags kt', 'kt.id = kat.id_tag')
       ->groupBy('kt.nama')
