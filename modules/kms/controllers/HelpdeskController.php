@@ -25,6 +25,7 @@ use app\models\KmsTags;
 use app\models\ForumTags;
 use app\models\User;
 use app\models\KmsKategori;
+use app\models\KmsFiles;
 use app\models\ForumFiles;
 use app\models\ForumThread;
 use app\models\Roles;
@@ -2396,12 +2397,12 @@ class HelpdeskController extends \yii\rest\Controller
         $files = [];
         foreach( $temp_files as $a_file )
         {
-          $file = ForumFiles::findOne( $a_file["id_file"] );
+          $file = KmsFiles::findOne( $a_file["id_file"] );
 
           if( is_null($file) == false )
           {
             $files[] = [
-              "TiketFile" => $file,
+              "KmsFiles" => $file,
               "link" => BaseUrl::base(true) . "/files/" . $file["nama"]
             ];
           }
@@ -5476,8 +5477,6 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
             $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
-            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
-            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -5493,8 +5492,6 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
             $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
-            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
-            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
