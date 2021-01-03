@@ -1890,6 +1890,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1904,6 +1906,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -2861,6 +2865,8 @@ class ArticleController extends \yii\rest\Controller
         $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
         $records[] = $temp;
       } // loop artikel yang dibikin si user
