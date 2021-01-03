@@ -1662,6 +1662,7 @@ class ForumController extends \yii\rest\Controller
    *  {
    *    "id_user": 123,
    *    "id_kategori": [1, 2, ...],
+   *    "id_tag": [1, 2, ...],
    *    "page_no": 123,
    *    "items_per_page": 123
    *  }
@@ -1698,38 +1699,44 @@ class ForumController extends \yii\rest\Controller
 
     //  cek parameter
     $is_kategori_valid = isset($payload["id_kategori"]);
+    $is_tag_valid = isset($payload["id_tag"]);
     $is_page_no_valid = isset($payload["page_no"]);
     $is_items_per_page_valid = isset($payload["items_per_page"]);
 
     $is_kategori_valid = $is_kategori_valid && is_array($payload["id_kategori"]);
+    $is_tag_valid = $is_tag_valid && is_array($payload["id_tag"]);
     $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
 
     if(
         $is_kategori_valid == true &&
+        $is_tag_valid == true &&
         $is_page_no_valid == true &&
         $is_items_per_page_valid == true
       )
     {
       //  lakukan query dari tabel forum_thread
+      $where = [];
+      $where[] = "and";
+      $where[] = "is_delete = 0";
+      $where[] = ["in", "status", [-3, -2, 1, 4]];
+      $where[] = ["in", "id_kategori", $payload["id_kategori"]];
+
+      if( count($payload["id_tag"]) > 0 )
+      {
+        $where[] = ["in", "ftt.id_tag", $payload["id_tag"]];
+      }
+
       $test = ForumThread::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "status IN (-3,-2,1,4)",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
+        ->join("join", "forum_thread_tag ftt", "ftt.id_thread = forum_thread.id")
+        ->where($where)
         ->orderBy("time_create desc")
         ->all();
       $total_rows = count($test);
 
       $list_thread = ForumThread::find()
-        ->where([
-          "and",
-          "is_delete = 0",
-          "status IN (-3,-2,1,4)",
-          ["in", "id_kategori", $payload["id_kategori"]]
-        ])
+        ->join("join", "forum_thread_tag ftt", "ftt.id_thread = forum_thread.id")
+        ->where($where)
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
         ->limit( $payload["items_per_page"] )

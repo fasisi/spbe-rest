@@ -1712,6 +1712,7 @@ class ArticleController extends \yii\rest\Controller
       $hasil = [];
       foreach($list_artikel as $artikel)
       {
+        $file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
         $user = User::findOne($artikel["id_user_create"]);
 
         $res = $client->request(
@@ -1746,6 +1747,7 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "ok";
@@ -1753,6 +1755,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1761,12 +1765,15 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1886,6 +1893,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1900,6 +1909,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -1981,6 +1992,7 @@ class ArticleController extends \yii\rest\Controller
         ->one();
 
       $user = User::findOne($artikel["id_user_create"]);
+      $file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
 
       //  lakukan query dari Confluence
       $client = $this->SetupGuzzleClient();
@@ -2019,6 +2031,7 @@ class ArticleController extends \yii\rest\Controller
 
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
@@ -2028,6 +2041,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
         $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
         break;
@@ -2036,6 +2051,7 @@ class ArticleController extends \yii\rest\Controller
         // kembalikan response
         $hasil = [];
         $hasil["kms_artikel"] = $artikel;
+        $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $hasil["user_create"] = $user;
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
@@ -2044,6 +2060,8 @@ class ArticleController extends \yii\rest\Controller
         $hasil["confluence"]["status"] = "not ok";
         $hasil["confluence"]["judul"] = $response_payload["title"];
         $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
         break;
       }
 
@@ -2853,6 +2871,8 @@ class ArticleController extends \yii\rest\Controller
         $temp["confluence"]["id"] = $response_payload["id"];
         $temp["confluence"]["judul"] = $response_payload["title"];
         $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
         $records[] = $temp;
       } // loop artikel yang dibikin si user
@@ -3882,6 +3902,106 @@ class ArticleController extends \yii\rest\Controller
       return [
         "status" => "not ok",
         "pesan" => "Request hanya menerima method POST, PUT atau DELETE",
+      ];
+    }
+  }
+
+  /*
+   * Memilih suatu lampiran untuk diubah menjadi cover artikel.
+   *
+   * Method: POST
+   * Request type: JSON
+   * Request format:
+   * {
+   *   id_attachment: 123,
+   *   id_artikel: 123,
+   *   id_user_actor: 123
+   * }
+   * response type: JSON
+   * Response format:
+   * {
+   *   status: ok,
+   *   pesan: "",
+   *   result:
+   *   {
+   *     record: { object of kms_thread record  }
+   *   }
+   * }
+    * */
+  public function actionMakeCover()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_attachment_valid = isset($payload["id_attachment"]);
+    $is_id_artikel_valid = isset($payload["id_artikel"]);
+    $is_id_user_actor_valid = isset($payload["id_user_actor"]);
+
+    if(
+        $is_id_attachment_valid == true &&
+        $is_id_artikel_valid == true &&
+        $is_id_user_actor_valid == true
+      )
+    {
+      // ambil record artikel
+      $artikel = KmsArtikel::findOne($payload["id_artikel"]);
+
+      if( is_null($artikel) == false )
+      {
+        // cek id_user_create vs id_user_actor
+        if( $artikel["id_user_create"] == $payload["id_user_actor"] )
+        {
+          // update id_file_cover
+          $artikel["id_file_cover"] = $payload["id_attachment"];
+          $artikel->save();
+
+          // resize file
+          $file = KmsFiles::findOne( $payload["id_attachment"] );
+
+          $path = Yii::$app->basePath . 
+            DIRECTORY_SEPARATOR . 'web' .
+            DIRECTORY_SEPARATOR . 'files'.
+            DIRECTORY_SEPARATOR;
+
+          $asal = WideImage::loadFromFile($path . $file["nama"]);
+
+          unlink($path . $file["thumbnail"]);
+          $resize = $asal->resize("150");
+          $resize->saveToFile($path . $file["thumbnail"]);
+
+          return [
+            "status" => "ok",
+            "pesan" => "File telah dikonversi menjadi cover",
+            "result" => [
+              "record" => $artikel
+            ]
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "ID_USER_ACTOR berbeda dari ID_USER_CREATE",
+            "payload" => $payload,
+          ];
+        }
+
+      }
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "Record artikel tidak ditemukan",
+          "payload" => $payload,
+        ];
+      }
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "pesan" => "Payload tidak lengkap",
+        "payload" => $payload
       ];
     }
   }
