@@ -4,6 +4,7 @@ namespace app\controllers;
 
 use Yii;
 use yii\helpers\Json;
+use yii\helpers\BaseUrl;
 use yii\db\Query;
 
 use app\models\KmsKategori;
@@ -443,5 +444,31 @@ class GlobalController extends \yii\rest\Controller
                 ];
             }
         }
+    }
+
+    public function actionCekimageuser()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        $id_user = $payload["id_user"];
+
+        $query = new Query;
+        $query->select('u.id, u.id_file_profile, k.thumbnail')
+        ->from("user u")
+        ->join('LEFT JOIN', 'kms_files k','u.id_file_profile = k.id')
+        ->where("u.id =".$id_user);
+        $command = $query->createCommand();
+        $data = $command->queryAll();
+
+        foreach($data as $val) {
+            $thumb = $val['thumbnail'];
+        }
+
+        return [
+            "image_name" => $thumb,
+            "image_thumb" => BaseUrl::base(true) . "/files/".$thumb
+        ];
     }
 }

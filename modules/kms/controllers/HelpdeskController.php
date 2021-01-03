@@ -2090,6 +2090,8 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
               $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
               $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
               $hasil[] = $temp;
               break;
@@ -2105,6 +2107,8 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
               $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
               $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
               $hasil[] = $temp;
               break;
@@ -2210,6 +2214,8 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
               $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
               $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
               $hasil[] = $temp;
               break;
@@ -2225,6 +2231,8 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
               $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
               $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
               $hasil[] = $temp;
               break;
@@ -5468,6 +5476,8 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
             $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -5483,6 +5493,8 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
             $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
             break;
@@ -5588,6 +5600,8 @@ class HelpdeskController extends \yii\rest\Controller
             $temp["servicedesk"]["id"] = $response_payload["issueId"];
             $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
             $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
             $hasil[] = $temp;
           }
