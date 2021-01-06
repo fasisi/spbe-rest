@@ -2383,7 +2383,20 @@ class HelpdeskController extends \yii\rest\Controller
 
           $user = User::findOne($record_jawaban["id_user_create"]);
 
-          $files = HdIssueDiscussionFile::findAll(["id_discussion" => $record_jawaban["id"]]);
+          $temp_files = HdIssueDiscussionFile::findAll(["id_discussion" => $record_jawaban["id"]]);
+          $files = [];
+          foreach( $temp_files as $a_file )
+          {
+            $file = KmsFiles::findOne( $a_file["id_file"] );
+
+            if( is_null($file) == false )
+            {
+              $files[] = [
+                "KmsFiles" => $file,
+                "link" => BaseUrl::base(true) . "/files/" . $file["nama"]
+              ];
+            }
+          }
 
           $jawaban[] = [
             "jawaban" => $record_jawaban,
@@ -2456,8 +2469,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
           $hasil["jawaban"]["count"] = count($jawaban);
           $hasil["jawaban"]["records"] = $jawaban;
-          $hasil["files"]["count"] = count($files);
-          $hasil["files"]["records"] = $files;
+          $hasil["files"] = $files;
           $hasil["is_pic"] = HdKategoriPic::IsPic($payload["id_user_actor"], $issue["id_kategori"]);
 
         //   $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
@@ -4288,6 +4300,8 @@ class HelpdeskController extends \yii\rest\Controller
                   $new = new HdIssueDiscussionFile();
                   $new["id_discussion"] = $id_discussion;
                   $new["id_file"] = $item_file;
+                  $new["time_create"] = date("Y-m-j H:i:s");
+                  $new["id_user_create"] = $payload["id_user"];
                   $new->save();
                 }
 

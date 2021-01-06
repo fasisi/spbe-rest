@@ -8,9 +8,10 @@ use Yii;
  * This is the model class for table "hd_issue_discussion_file".
  *
  * @property int $id
- * @property int $id_discussion
- * @property string $nama
- * @property string $file_name
+ * @property int $id_discussion Relasi ke tabel hd_issue
+ * @property int $id_file Relasi ke tabel kms_files
+ * @property string|null $nama
+ * @property string|null $file_name
  * @property int $id_user_create
  * @property string $time_create
  * @property int|null $id_user_delete
@@ -33,8 +34,8 @@ class HdIssueDiscussionFile extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_discussion', 'nama', 'file_name', 'id_user_create', 'time_create'], 'required'],
-            [['id_discussion', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
+            [['id_discussion', 'id_file', 'id_user_create', 'time_create'], 'required'],
+            [['id_discussion', 'id_file', 'id_user_create', 'id_user_delete', 'is_delete'], 'integer'],
             [['time_create', 'time_delete'], 'safe'],
             [['nama'], 'string', 'max' => 500],
             [['file_name'], 'string', 'max' => 1500],
@@ -49,6 +50,7 @@ class HdIssueDiscussionFile extends \yii\db\ActiveRecord
         return [
             'id' => 'ID',
             'id_discussion' => 'Id Discussion',
+            'id_file' => 'Id File',
             'nama' => 'Nama',
             'file_name' => 'File Name',
             'id_user_create' => 'Id User Create',

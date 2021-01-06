@@ -2462,6 +2462,8 @@ class ArticleController extends \yii\rest\Controller
           $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
           $temp["data_user"]["user_create"] = $user->nama;
           $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+	  $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+          $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
           $hasil[] = $temp;
         }
@@ -2861,9 +2863,11 @@ class ArticleController extends \yii\rest\Controller
 
 
         $user = User::findOne($artikel["id_user_create"]);
+	$file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
 
         $temp = [];
         $temp["kms_artikel"] = $artikel;
+	$temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $temp["user_create"] = $user;
         $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $temp["tags"] = $tags;
