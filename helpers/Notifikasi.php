@@ -99,6 +99,33 @@
             );
 
             break;
+
+          case $params["type"] == "pic_tiket_complete" :
+
+            $mail->Subject = 'Notifikasi tiket complete : ';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/pic_topik_complete",
+              [
+                "tiket" => $params["tiket"],
+              ]
+            );
+
+            break;
         }
 
         $mail->isHTML(true);                                  // Set email format to HTML

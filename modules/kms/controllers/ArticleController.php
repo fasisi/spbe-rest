@@ -8,6 +8,7 @@ use yii\web\UploadedFile;
 use yii\helpers\Json;
 use yii\helpers\BaseUrl;
 
+use app\models\Departments;
 use app\models\KmsArtikel;
 use app\models\KmsArtikelActivityLog;
 use app\models\KmsArtikelUserStatus;
@@ -1755,6 +1756,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -1772,6 +1774,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -1886,13 +1889,14 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
-	    $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "ok";
             $temp["confluence"]["linked_id_content"] = $response_payload["id"];
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -1903,12 +1907,13 @@ class ArticleController extends \yii\rest\Controller
             // kembalikan response
             $temp = [];
             $temp["kms_artikel"] = $artikel;
-	    $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -2035,6 +2040,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
+        $hasil["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
         $hasil["confluence"]["status"] = "ok";
@@ -2053,6 +2059,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["kms_artikel"] = $artikel;
         $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $hasil["user_create"] = $user;
+        $hasil["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
@@ -2461,8 +2468,9 @@ class ArticleController extends \yii\rest\Controller
           $temp["kms_artikel"] = $artikel;
           $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
           $temp["data_user"]["user_create"] = $user->nama;
+          $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
           $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-	  $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+          $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
           $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
           $hasil[] = $temp;
@@ -2867,8 +2875,9 @@ class ArticleController extends \yii\rest\Controller
 
         $temp = [];
         $temp["kms_artikel"] = $artikel;
-	$temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
+        $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $temp["user_create"] = $user;
+        $temp["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
         $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $temp["tags"] = $tags;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);

@@ -76,11 +76,11 @@ class GlobalController extends \yii\rest\Controller
                   switch( intval($payload["type"]) )
                   {
                     case 1: // artikel
-                      $jumlah = KmsArtikel::RecentCountByCategory($a_data["id"]);
+                      $jumlah = KmsArtikel::AllCountByCategory($a_data["id"]);
                       break;
 
                     case 2: // topik
-                      $jumlah = ForumThread::RecentCountByCategory($a_data["id"]);
+                      $jumlah = ForumThread::AllCountByCategory($a_data["id"]);
                       break;
 
                   }
@@ -108,6 +108,61 @@ class GlobalController extends \yii\rest\Controller
             ];
         }
     }
+    
+    public function actionDropdownkategoriwithcountv2()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        if (isset($payload["table_name"]) == true) {
+            $query = new Query;
+            $query->select('kk.id, kk.id_parent as parent, kk.nama as text')->from($payload["table_name"]);
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if (!empty($data)) 
+            {
+                foreach($data as $key => $a_data)
+                {
+                  $jumlah = 0;
+                  switch( intval($payload["type"]) )
+                  {
+                    case 1: // artikel
+                      $jumlah = KmsArtikel::RecentCountByCategory($a_data["id"]);
+                      break;
+
+                    case 2: // topik
+                      $jumlah = ForumThread::RecentCountByCategory($a_data["id"]);
+                      break;
+
+                  }
+
+                  $data[$key]["text"] = $a_data["text"] . " ($jumlah)";
+                }
+                
+                Yii::info("data = " . Json::encode($data));
+
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } else {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: id",
+            ];
+        }
+    }
+    
+    
 
     public function actionKategoriwithname()
     {
@@ -199,6 +254,75 @@ class GlobalController extends \yii\rest\Controller
                       "result" => [
                           "all_kategori" => $data,
                           "hak_kategori" => $data1
+                      ]
+                  ];
+              } 
+              else 
+              {
+                  return [
+                      "status" => "not ok",
+                      "pesan" => "Record not found",
+                  ];
+              }
+            }
+
+
+        } 
+        else 
+        {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: id",
+            ];
+        }
+    }
+
+    public function actionHakakseskategoriv2()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+
+        if (isset($payload["id_user"]) == true) {
+
+            // hanya role "user terdaftar" yang tidak dibatasi hak akses kategorinya
+            $id_role = $payload["id_role"];
+            if($payload["id_user"] != -1) {
+
+            $query = new Query;
+            $query->select('kk.id, kk.id_parent as parent, kk.nama as text')
+                ->from("kategori_user ku")
+                ->join("LEFT JOIN",'kms_kategori kk','kk.id= ku.id_kategori')
+                ->where('ku.id_user ='.$payload['id_user']);
+            } else {
+                $query = new Query;
+                $query->select('kk.id, kk.id_parent as parent, kk.nama as text')
+                    ->from("kms_kategori kk");
+            }
+            $command = $query->createCommand();
+            $data = $command->queryAll();
+
+            if(Roles::CheckRoleByCodeName($id_role, "user_terdaftar"))
+            {
+              return [
+                  "status" => "ok",
+                  "pesan" => "Record found",
+                  "result" => [
+                      "all_kategori" => [],
+                      
+                  ]
+              ];
+            }
+            else
+            {
+              if (!empty($data)) 
+              {
+                  return [
+                      "status" => "ok",
+                      "pesan" => "Record found",
+                      "result" => [
+                          "all_kategori" => $data,
+                          
                       ]
                   ];
               } 
@@ -455,7 +579,7 @@ class GlobalController extends \yii\rest\Controller
         $id_user = $payload["id_user"];
 
         $query = new Query;
-        $query->select('u.id, u.id_file_profile, k.thumbnail')
+        $query->select('u.id, u.id_file_profile, k.thumbnail, k.nama')
         ->from("user u")
         ->join('LEFT JOIN', 'kms_files k','u.id_file_profile = k.id')
         ->where("u.id =".$id_user);
@@ -464,11 +588,13 @@ class GlobalController extends \yii\rest\Controller
 
         foreach($data as $val) {
             $thumb = $val['thumbnail'];
+	    $nama = $val['nama'];
         }
 
         return [
             "image_name" => $thumb,
-            "image_thumb" => BaseUrl::base(true) . "/files/".$thumb
+            "image_thumb" => BaseUrl::base(true) . "/files/".$thumb,
+	    "image_ori" => BaseUrl::base(true) . "/files/".$nama
         ];
     }
 }

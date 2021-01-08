@@ -209,4 +209,39 @@ class KmsArtikel extends \yii\db\ActiveRecord
 
       return $jumlah;
     }
+
+
+    /*
+     * Menghitung jumlah artikel
+      * */
+    public static function AllCountByCategory($id_kategori)
+    {
+      //
+      $tanggal_b = Carbon::createFromFormat("Y-m-d", date("Y-m-j"));
+      $tanggal_a = Carbon::createFromTimeStamp($tanggal_b->timestamp);
+      $tanggal_a->addDay(-30);
+
+      $q = new Query();
+      $hasil = 
+        $q->select("count(a.id) as jumlah")
+          ->from("kms_artikel a")
+          ->join("join", "kms_artikel_activity_log l", "l.id_artikel = a.id")
+          ->where(
+            [
+              "and",
+              "a.is_delete = 0",
+              ["in", "a.status", [1]],    // publish
+              "a.id_kategori = :id_kategori",
+              ["in", "l.status", [1]]
+            ],
+            [
+              ":id_kategori" => $id_kategori,
+            ]
+          )
+          ->one();
+      $jumlah = $hasil["jumlah"];
+
+      return $jumlah;
+    }
+
 }

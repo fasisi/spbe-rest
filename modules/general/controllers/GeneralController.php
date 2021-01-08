@@ -151,128 +151,39 @@ class GeneralController extends \yii\rest\Controller
 
         switch(true)
         {
-        case $method == 'POST':
+          case $method == 'POST':
 
-          $is_nama_valid = isset($payload["nama"]);
-          $is_deskripsi_valid = isset($payload["deskripsi"]);
-          $is_id_parent_valid = isset($payload["id_parent"]);
-          $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
-          $is_max_child_depth_valid = isset($payload["max_child_depth"]);
-          $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
+            $is_nama_valid = isset($payload["nama"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+            $is_max_child_depth_valid = isset($payload["max_child_depth"]);
+            $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
 
-          if(
-              $is_nama_valid == true &&
-              $is_deskripsi_valid == true &&
-              $is_id_parent_valid == true
-            )
-          {
-            $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
-            if( $test["hasil"] == true)
-            {
-              $new = new KmsKategori();
-              $new["id_parent"] = $payload["id_parent"];
-              $new["max_child_depth"] = $payload["max_child_depth"];
-              $new["nama"] = $payload["nama"];
-              $new["deskripsi"] = $payload["deskripsi"];
-              $new["id_user_create"] = 123;
-              $new["time_create"] = date("Y-m-j H:i:s");
-              $new->save();
-              $id = $new->primaryKey;
-
-              return [
-                "status" => "ok",
-                "pesan" => "Kategori telah disimpan",
-                "result" => $new
-              ];
-            }
-            else
-            {
-              return [
-                "status" => "not ok",
-                "pesan" => $test["pesan"],
-                "payload" => $payload
-              ];
-            }
-
-          }
-          else
-          {
-            return [
-              "status" => "not ok",
-              "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
-            ];
-          }
-
-          break;
-        case $method == 'GET':
-          $is_id_valid = isset($payload["id"]);
-          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
-
-          if(
-              $is_id_valid == true
-            )
-          {
-            $record = KmsKategori::findOne($payload["id"]);
-
-            if( is_null($record) == false )
-            {
-              return [
-                "status" => "ok",
-                "pesan" => "Record Kategori ditemukan",
-                "result" => $record
-              ];
-            }
-            else
-            {
-              return [
-                "status" => "ok",
-                "pesan" => "Record Kategori tidak ditemukan",
-              ];
-            }
-
-          }
-          else
-          {
-            return [
-              "status" => "not ok",
-              "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
-            ];
-          }
-          break;
-        case $method == 'PUT':
-          $is_nama_valid = isset($payload["nama"]);
-          $is_deskripsi_valid = isset($payload["deskripsi"]);
-          $is_id_valid = isset($payload["id"]);
-          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
-          $is_id_parent_valid = isset($payload["id_parent"]);
-          $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
-          $is_max_child_depth_valid = isset($payload["max_child_depth"]);
-          $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
-
-          if(
-              $is_nama_valid == true &&
-              $is_deskripsi_valid == true &&
-              $is_id_parent_valid == true &&
-              $is_id_valid == true
-            )
-          {
-            $record = KmsKategori::findOne($payload["id"]);
-
-            if( is_null($record) == false )
+            if(
+                $is_nomor_valid == true &&
+                $is_nama_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true
+              )
             {
               $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
               if( $test["hasil"] == true)
               {
-                $record["id_parent"] = $payload["id_parent"];
-                $record["max_child_depth"] = $payload["max_child_depth"];
-                $record["nama"] = $payload["nama"];
-                $record["deskripsi"] = $payload["deskripsi"];
-                $record->save();
+                $new = new KmsKategori();
+                $new["id_parent"] = $payload["id_parent"];
+                $new["max_child_depth"] = $payload["max_child_depth"];
+                $new["nama"] = $payload["nama"];
+                $new["deskripsi"] = $payload["deskripsi"];
+                $new["id_user_create"] = 123;
+                $new["time_create"] = date("Y-m-j H:i:s");
+                $new->save();
+                $id = $new->primaryKey;
 
                 return [
                   "status" => "ok",
                   "pesan" => "Kategori telah disimpan",
-                  "result" => $record
+                  "result" => $new
                 ];
               }
               else
@@ -280,6 +191,7 @@ class GeneralController extends \yii\rest\Controller
                 return [
                   "status" => "not ok",
                   "pesan" => $test["pesan"],
+                  "payload" => $payload
                 ];
               }
 
@@ -287,60 +199,150 @@ class GeneralController extends \yii\rest\Controller
             else
             {
               return [
-                "status" => "ok",
-                "pesan" => "Record Kategori tidak ditemukan",
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
               ];
             }
 
-          }
-          else
-          {
-            return [
-              "status" => "not ok",
-              "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id",
-            ];
-          }
-          break;
-        case $method == 'DELETE':
-          $is_id_valid = isset($payload["id"]);
-          $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+            break;
+          case $method == 'GET':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
 
-          if(
-              $is_id_valid == true
-            )
-          {
-            $record = KmsKategori::findOne($payload["id"]);
-
-            if( is_null($record) == false )
+            if(
+                $is_id_valid == true
+              )
             {
-              $record["is_delete"] = 1;
-              $record["id_user_delete"] = 123;
-              $record["time_delete"] = date("Y-m-j H:i:s");
-              $record->save();
+              $record = KmsKategori::findOne($payload["id"]);
 
-              return [
-                "status" => "ok",
-                "pesan" => "Record Kategori telah dihapus",
-                "result" => $record
-              ];
+              if( is_null($record) == false )
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Kategori ditemukan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Kategori tidak ditemukan",
+                ];
+              }
+
             }
             else
             {
               return [
-                "status" => "ok",
-                "pesan" => "Record Kategori tidak ditemukan",
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
               ];
             }
+            break;
+          case $method == 'PUT':
+            $is_nama_valid = isset($payload["nama"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+            $is_max_child_depth_valid = isset($payload["max_child_depth"]);
+            $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
 
-          }
-          else
-          {
-            return [
-              "status" => "not ok",
-              "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
-            ];
-          }
-          break;
+            if(
+                $is_nama_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true &&
+                $is_id_valid == true
+              )
+            {
+              $record = KmsKategori::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
+                if( $test["hasil"] == true)
+                {
+                  $record["id_parent"] = $payload["id_parent"];
+                  $record["max_child_depth"] = $payload["max_child_depth"];
+                  $record["nomor"] = $payload["nomor"];
+                  $record["nama"] = $payload["nama"];
+                  $record["deskripsi"] = $payload["deskripsi"];
+                  $record->save();
+
+                  return [
+                    "status" => "ok",
+                    "pesan" => "Kategori telah disimpan",
+                    "result" => $record
+                  ];
+                }
+                else
+                {
+                  return [
+                    "status" => "not ok",
+                    "pesan" => $test["pesan"],
+                  ];
+                }
+
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Kategori tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id",
+              ];
+            }
+            break;
+          case $method == 'DELETE':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = KmsKategori::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["is_delete"] = 1;
+                $record["id_user_delete"] = 123;
+                $record["time_delete"] = date("Y-m-j H:i:s");
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Kategori telah dihapus",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Kategori tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
         }
       }
 
@@ -505,6 +507,15 @@ class GeneralController extends \yii\rest\Controller
 
         $is_id_kategori_valid = isset($payload["id_kategori"]);
         $is_id_parent_valid = isset($payload["id_parent"]);
+
+        // LOGIC mengupdate parent dan urutan kategori
+        //
+        // 1. load children dari parent = id_parent
+        // 2. set value A = nomor dari node child pada urutan = new_position
+        // 3. update nomor = nomor + 1 dari semua child, dimulai dari child dengan nomor = A
+        // 4. update set id_parent dan set nomor = A, pada node = id_kategori
+        // 5. selesai
+
 
         $test = KmsKategori::findOne($payload["id_kategori"]);
         if( is_null($test) == true )

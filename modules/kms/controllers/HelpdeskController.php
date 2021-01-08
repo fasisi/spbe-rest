@@ -575,6 +575,7 @@ class HelpdeskController extends \yii\rest\Controller
     }
   }
 
+
   /*
    * Membuat notifikasi kepada PIC mengenai tiket baru.
    * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
@@ -601,6 +602,42 @@ class HelpdeskController extends \yii\rest\Controller
       Notifikasi::Kirim(
         [
           "type" => "pic_tiket_baru", 
+          "tiket" => $tiket,
+          "daftar_email" => $daftar_email
+        ]
+      );
+    }
+    else
+    {
+    }
+
+  }
+  /*
+   * Membuat notifikasi kepada PIC mengenai tiket complete.
+   * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
+   *
+   * Pencarian PIC mengikuti konsep inheritance.
+    * */
+  private function NotifikasiPICComplete($id_issue, $id_user)
+  {
+    $test = $this->GetPIC($id_issue, $id_user);
+
+    if( is_array($test) == true )
+    {
+      $daftar_email = [];
+      foreach($test as $item)
+      {
+        $temp = [];
+        $temp["nama"] = $item["nama"];
+        $temp["email"] = $item["email"];
+
+        $daftar_email[] = $temp;
+      }
+
+      //kirim notifikasi kepada PIC
+      Notifikasi::Kirim(
+        [
+          "type" => "pic_tiket_complete", 
           "tiket" => $tiket,
           "daftar_email" => $daftar_email
         ]
@@ -5084,6 +5121,7 @@ class HelpdeskController extends \yii\rest\Controller
           if( $duration > $threshold )
           {
             // terbitkan notifikasi
+            $this->NotifikasiPICComplete($tiket["id"], $tiket["id_user_create"]);
 
             // ganti status menjadi COMPLETE. lakukan via API call
             $client = $this->SetupGuzzleClientSPBE();
