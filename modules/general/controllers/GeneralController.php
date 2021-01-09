@@ -537,14 +537,65 @@ class GeneralController extends \yii\rest\Controller
 
         if( $is_id_kategori_valid == true && $is_id_parent_valid == true )
         {
-          $test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
+          $depth_test = KmsKategori::CheckDepthValidity($payload["id_parent"]);
 
-          if( $test["hasil"] == true )
+          if( $depth_test["hasil"] == true )
           {
             // lakukan update
-            $kategori = KmsKategori::findOne($payload["id_kategori"]);
-            $kategori["id_parent"] = $payload["id_parent"];
-            $kategori->save();
+            // 1.
+            $children = KmsKategori::find()
+              ->where(
+                [
+                  "id_parent" => $payload["id_parent"]
+                ]
+              )
+              ->all();
+
+            // 2.
+            $temp = $children[ $payload["new_position"] ];
+            $start_from = $temp["nomor"];
+            Yii::info("start_from = " . $start_from);
+
+            // 3.
+            $children = KmsKategori::find()
+              ->where(
+                [
+                  "AND",
+                  "id_parent = :id_parent",
+                ],
+                [
+                  ":id_parent" => $payload["id_parent"],
+                ]
+              )
+              ->all();
+
+            foreach( $children as $child )
+            {
+              if( intval($payload["old_position"]) < intval($payload["new_position"]) )
+              {
+                if( $child["nomor"] <= $start_from )
+                {
+                  $child["nomor"] = $child["nomor"] - 1;
+                  $child->save();
+                }
+              }
+              else if( intval($payload["old_position"]) > intval($payload["new_position"]) )
+              {
+                if( $child["nomor"] >= $start_from )
+                {
+                  $child["nomor"] = $child["nomor"] + 1;
+                  $child->save();
+                }
+              }
+
+
+            }
+
+            // 4.
+            $test = KmsKategori::findOne($payload["id_kategori"]);
+            $test["id_parent"] = $payload["id_parent"];
+            $test["nomor"] = $start_from;
+            $test->save();
 
             return [
               "status" => "ok",
@@ -556,7 +607,7 @@ class GeneralController extends \yii\rest\Controller
           {
             return [
               "status" => "not ok",
-              "pesan" => $test["pesan"],
+              "pesan" => $depth_test["pesan"],
             ];
           }
 

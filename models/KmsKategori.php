@@ -73,7 +73,7 @@ class KmsKategori extends \yii\db\ActiveRecord
     {
       $daftar = KmsKategori::find()
         ->where("id_parent = -1 and is_delete = 0")
-        ->orderBy("nama asc")
+        ->orderBy("nomor asc")
         ->all();
 
       foreach($daftar as $item)
@@ -87,7 +87,7 @@ class KmsKategori extends \yii\db\ActiveRecord
 
         $children = KmsKategori::find()
           ->where("id_parent = {$item["id"]} and is_delete = 0")
-          ->orderBy("nama asc")
+          ->orderBy("nomor asc")
           ->all();
 
         // apakah punya children??
@@ -104,7 +104,7 @@ class KmsKategori extends \yii\db\ActiveRecord
     {
       $current = KmsKategori::find()
         ->where("id = $id_parent")
-        ->orderBy("nama asc")
+        ->orderBy("nomor asc")
         ->one();
 
       $temp = [];
@@ -116,7 +116,7 @@ class KmsKategori extends \yii\db\ActiveRecord
 
       $children = KmsKategori::find()
         ->where("id_parent = $id_parent and is_delete = 0")
-        ->orderBy("nama asc")
+        ->orderBy("nomor asc")
         ->all();
 
       // apakah punya children??

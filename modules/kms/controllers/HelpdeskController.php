@@ -575,7 +575,6 @@ class HelpdeskController extends \yii\rest\Controller
     }
   }
 
-
   /*
    * Membuat notifikasi kepada PIC mengenai tiket baru.
    * PIC dipilih berdasarkan id_kategori issue dan id_instansi si user.
