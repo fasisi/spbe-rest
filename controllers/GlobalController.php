@@ -215,6 +215,7 @@ class GlobalController extends \yii\rest\Controller
             // hanya role "user terdaftar" yang tidak dibatasi hak akses kategorinya
             $id_role = $payload["id_role"];
 
+            // daftar kategori yang bukan hak si user
             $query = new Query;
             $query->select('id')
                 ->from("kms_kategori")
@@ -224,7 +225,7 @@ class GlobalController extends \yii\rest\Controller
 
 
 
-
+            // kategori pertama yang menjadi hak si user
             $query1 = new Query;
             $query1->select('id')
                 ->from("kms_kategori")
@@ -239,8 +240,8 @@ class GlobalController extends \yii\rest\Controller
                   "status" => "ok",
                   "pesan" => "Record found",
                   "result" => [
-                      "all_kategori" => [],
-                      "hak_kategori" => $data1
+                      "all_kategori" => [],      // tanpa limitasi
+                      "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
                   ]
               ];
             }
@@ -252,8 +253,8 @@ class GlobalController extends \yii\rest\Controller
                       "status" => "ok",
                       "pesan" => "Record found",
                       "result" => [
-                          "all_kategori" => $data,
-                          "hak_kategori" => $data1
+                          "all_kategori" => $data,   // kategori yang bukan jadi hak si user
+                          "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
                       ]
                   ];
               } 

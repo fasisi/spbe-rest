@@ -632,6 +632,36 @@ class GeneralController extends \yii\rest\Controller
 
       }
 
+      /*
+       * Memeriksa apakah id_user dapat mengakses id_kategori
+        * */
+      public function actionCanAksesKategori()
+      {
+        $payload = $this->GetPayload();
+
+        $id_user = $payload["id_user"];
+        $id_kategori = $payload["id_kategori"];
+
+        $test = KategoriUser::find()
+          ->where(
+            [
+              "and",
+              "id_user = :id_user",
+              "id_kategori = :id_kategori"
+            ],
+            [
+              "id_user" => $id_user,
+              "id_kategori" => $id_kategori,
+            ]
+          )
+          ->one();
+
+        return [
+          "status" => "ok",
+          "result" => is_null( $test ) == false
+        ];
+      }
+
   // ==========================================================================
   // Kategori management
   // ==========================================================================
