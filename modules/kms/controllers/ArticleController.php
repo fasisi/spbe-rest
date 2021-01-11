@@ -2040,7 +2040,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["user_create"] = $user;
-        $hasil["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
+        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
         $hasil["confluence"]["status"] = "ok";
@@ -2059,7 +2059,7 @@ class ArticleController extends \yii\rest\Controller
         $hasil["kms_artikel"] = $artikel;
         $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $hasil["user_create"] = $user;
-        $hasil["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
+        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
         $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
@@ -2877,7 +2877,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["kms_artikel"] = $artikel;
         $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $temp["user_create"] = $user;
-        $temp["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
+        $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
         $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $temp["tags"] = $tags;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);

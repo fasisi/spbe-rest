@@ -517,8 +517,8 @@ class GeneralController extends \yii\rest\Controller
         // 5. selesai
 
 
-        $test = KmsKategori::findOne($payload["id_kategori"]);
-        if( is_null($test) == true )
+        $current_node = KmsKategori::findOne($payload["id_kategori"]);
+        if( is_null($current_node) == true )
         {
           return [
             "status" => "not ok",
@@ -526,13 +526,16 @@ class GeneralController extends \yii\rest\Controller
           ];
         }
 
-        $test = KmsKategori::findOne($payload["id_parent"]);
-        if( is_null($test) == true )
+        if( $payload["id_parent"] != -1 )
         {
-          return [
-            "status" => "not ok",
-            "pesan" => "id_parent tidak dikenal"
-          ];
+          $test = KmsKategori::findOne($payload["id_parent"]);
+          if( is_null($test) == true )
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "id_parent tidak dikenal"
+            ];
+          }
         }
 
         if( $is_id_kategori_valid == true && $is_id_parent_valid == true )
@@ -549,12 +552,16 @@ class GeneralController extends \yii\rest\Controller
                   "id_parent" => $payload["id_parent"]
                 ]
               )
+              ->orderBy("nomor asc")
               ->all();
 
             // 2.
-            $temp = $children[ $payload["new_position"] ];
-            $start_from = $temp["nomor"];
-            Yii::info("start_from = " . $start_from);
+            $temp = $children[ intval($payload["new_position"]) ];
+            $target = $temp["nomor"];
+            /* Yii::info("new_position = " . $payload["new_position"] ); */
+            /* Yii::info("children = " . Json::encode($children) ); */
+            /* Yii::info("target = " . Json::encode($temp) ); */
+            /* Yii::info("target = " . $target); */
 
             // 3.
             $children = KmsKategori::find()
@@ -567,13 +574,14 @@ class GeneralController extends \yii\rest\Controller
                   ":id_parent" => $payload["id_parent"],
                 ]
               )
+              ->orderBy("nomor asc")
               ->all();
 
             foreach( $children as $child )
             {
               if( intval($payload["old_position"]) < intval($payload["new_position"]) )
               {
-                if( $child["nomor"] <= $start_from )
+                if( $child["nomor"] <= $target )
                 {
                   $child["nomor"] = $child["nomor"] - 1;
                   $child->save();
@@ -581,7 +589,7 @@ class GeneralController extends \yii\rest\Controller
               }
               else if( intval($payload["old_position"]) > intval($payload["new_position"]) )
               {
-                if( $child["nomor"] >= $start_from )
+                if( $child["nomor"] >= $target )
                 {
                   $child["nomor"] = $child["nomor"] + 1;
                   $child->save();
@@ -592,10 +600,10 @@ class GeneralController extends \yii\rest\Controller
             }
 
             // 4.
-            $test = KmsKategori::findOne($payload["id_kategori"]);
-            $test["id_parent"] = $payload["id_parent"];
-            $test["nomor"] = $start_from;
-            $test->save();
+            $current_node = KmsKategori::findOne($payload["id_kategori"]);
+            $current_node["id_parent"] = $payload["id_parent"];
+            $current_node["nomor"] = $target;
+            $current_node->save();
 
             return [
               "status" => "ok",

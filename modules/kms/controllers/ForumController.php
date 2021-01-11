@@ -1801,13 +1801,13 @@ class ForumController extends \yii\rest\Controller
               $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
               $temp["user_create"] = $user;
               $temp['data_user']['user_create'] = $user;
-              $temp["data_user"]["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
               $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
               $temp["jawaban"]["count"] = count($jawaban);
               $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+              $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
               $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
               $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -1827,11 +1827,10 @@ class ForumController extends \yii\rest\Controller
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
               $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
               $temp["user_create"] = $user;
-              $temp["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
-              $temp['data_user']['user_create'] = $user;
               $temp["confluence"]["status"] = "not ok";
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+              $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
               $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
               $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
               
@@ -2100,13 +2099,13 @@ class ForumController extends \yii\rest\Controller
       $hasil["record"]["thread_comments"] = $list_komentar;
       $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
       $hasil["record"]["user_create"] = $user;
-      $hasil["record"]["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
       $hasil["record"]["user_actor_status"] = ForumThreadUserAction::GetUserAction($payload["id_thread"], $payload["id_user_actor"]);
       $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
       $hasil["record"]["files"] = $files;
       $hasil["record"]["list_hak_baca"] = $list_hak_baca;
       $hasil["jawaban"]["count"] = count($jawaban);
       $hasil["jawaban"]["records"] = $jawaban;
+      $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
       $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
       $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
@@ -5504,7 +5503,7 @@ class ForumController extends \yii\rest\Controller
             $temp["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
             $temp["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
             $temp["record"]["user_create"] = $user;
-            $temp["record"]["user_create"]["departments"] = Departments::NameById($user["id_departments"]);
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
