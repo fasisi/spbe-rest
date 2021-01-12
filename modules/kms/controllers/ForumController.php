@@ -1830,6 +1830,7 @@ class ForumController extends \yii\rest\Controller
               $temp["confluence"]["status"] = "not ok";
               $temp["confluence"]["judul"] = $response_payload["title"];
               $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+              $temp['data_user']['user_create'] = $user;
               $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
               $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
               $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
