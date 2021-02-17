@@ -3551,7 +3551,18 @@ class ArticleController extends \yii\rest\Controller
     ) {
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
-      $query->select('ka.id AS id, ka.time_create AS time_create, kl.action, count(kl.action) as count, ka.id_user_create AS id_user_create, ka.linked_id_content AS linked_id_content, ka.view, ka.like, ka.dislike')
+      $query
+        ->select('
+            ka.id AS id, 
+            ka.time_create AS time_create, 
+            kl.action, 
+            count(kl.action) as count, 
+            ka.id_user_create AS id_user_create, 
+            ka.linked_id_content AS linked_id_content, 
+            ka.view, 
+            ka.like, 
+            ka.dislike
+          ')
         ->from("kms_artikel ka")
         ->join('LEFT JOIN', 'kms_artikel_activity_log kl', 'ka.id = kl.id_artikel')
         ->where('kl.action = 1')
