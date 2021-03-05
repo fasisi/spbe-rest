@@ -1083,33 +1083,34 @@ class HelpdeskController extends \yii\rest\Controller
 
 
           // kembalikan response
-              $tags = HdIssueTag::findAll("id_issue = {$issue["id"]}");
 
-              return 
-              [
-                'status' => 'ok',
-                'pesan' => 'Record issue telah diupdate',
-                'result' => 
+              /* return */ 
+              /* [ */
+              /*   'status' => 'ok', */
+              /*   'pesan' => 'Record issue telah diupdate', */
+              /*   'result' => */ 
+              /*   [ */
+              /*     "helpdesk_issue" => $issue, */
+              /*     "tags" => $tags */
+              /*   ] */
+              /* ]; */
+
+              $tags = HdIssueTag::findAll("id_issue = {$issue["id"]}");
+              $files = HdIssueFile::findAll(["id_issue" => $payload["id"]]);
+
+              return [
+                "status" => "ok",
+                "pesan" => "Record berhasil diupdate",
+                "result" =>
                 [
-                  "helpdesk_issue" => $issue,
-                  "tags" => $tags
+                  "issue" => $issue,
+                  "files" => $files,
+                  "tags" => $tags,
                 ]
               ];
 
-
-              $files = HdIssueFile::findAll(["id_issue" => $payload["id"]]);
           // kembalikan response
 
-          return [
-            "status" => "ok",
-            "pesan" => "Record berhasil diupdate",
-            "result" =>
-            [
-              "issue" => $issue,
-              "files" => $files,
-              "tags" => $tags,
-            ]
-          ];
         }
         else
         {
@@ -1246,6 +1247,10 @@ class HelpdeskController extends \yii\rest\Controller
 
   private function UpdateSolver($id_issue, $solvers)
   {
+    // set is_disposisi = 0
+    $issue = HdIssue::findOne($id_issue);
+    $issue["is_disposisi"] = 0;
+    $issue->save();
 
     HdIssueSolver::deleteAll(["id_issue" => $id_issue]);
 
@@ -1351,7 +1356,7 @@ class HelpdeskController extends \yii\rest\Controller
 
         break;
 
-      case Yii::$app->request->isPost == true:
+      case Yii::$app->request->isDelete == true:
         $payload = $this->GetPayload();
 
         $is_id_issue_valid = isset( $payload["id_issue"] );
@@ -2523,8 +2528,8 @@ class HelpdeskController extends \yii\rest\Controller
           /* $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"]; */
           /* $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"]; */
           /* $hasil["record"]["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"]; */
-          $hasil["files"]["count"] = count($files);
-          $hasil["files"]["records"] = $files;
+          /* $hasil["files"]["count"] = count($files); */
+          $hasil["files"] = $files;
           break;
         }
 
@@ -5248,8 +5253,15 @@ class HelpdeskController extends \yii\rest\Controller
         $test_user = User::findOne($payload["id_user"]);
         $is_id_user_valid = $is_id_user_valid && is_null( $test_user ) == false;
 
-        $test_user_actor = User::findOne($payload["id_user_actor"]);
-        $is_id_user_actor_valid = $is_id_user_actor_valid && is_null( $test_user_actor ) == false;
+        if($payload["id_user_actor"] != -1)
+        {
+          $test_user_actor = User::findOne($payload["id_user_actor"]);
+          $is_id_user_actor_valid = $is_id_user_actor_valid && is_null( $test_user_actor ) == false;
+        }
+        else
+        {
+          $is_id_user_actor_valid = true;
+        }
 
         $id_role = Roles::IdByCodeName("sme");
         $test_role = UserRoles::find()
