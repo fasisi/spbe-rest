@@ -2729,37 +2729,37 @@ class ArticleController extends \yii\rest\Controller
           'base_uri' => $base_url
         ]);
 
-        $res = $client->request(
-          'GET',
-          "/rest/api/content/{$record["linked_id_content"]}",
-          [
-            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-            /* 'debug' => true, */
-            'http_errors' => false,
-            'headers' => [
-              "Content-Type" => "application/json",
-              "accept" => "application/json",
-            ],
-            'auth' => [
-              $jira_conf["user"],
-              $jira_conf["password"]
-            ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
-          ]
-        );
+        /* $res = $client->request( */
+        /*   'GET', */
+        /*   "/rest/api/content/{$record["linked_id_content"]}", */
+        /*   [ */
+        /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+        /*     /1* 'debug' => true, *1/ */
+        /*     'http_errors' => false, */
+        /*     'headers' => [ */
+        /*       "Content-Type" => "application/json", */
+        /*       "accept" => "application/json", */
+        /*     ], */
+        /*     'auth' => [ */
+        /*       $jira_conf["user"], */
+        /*       $jira_conf["password"] */
+        /*     ], */
+        /*     'query' => [ */
+        /*       'spaceKey' => 'PS', */
+        /*       'expand' => 'history,body.view' */
+        /*     ], */
+        /*   ] */
+        /* ); */
 
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        /* $response_payload = $res->getBody(); */
+        /* $response_payload = Json::decode($response_payload); */
 
         $temp = [];
         $temp["kms_artikel"] = $record;
         $temp["user_create"] = $user;
         $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
-        $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        /* $temp["confluence"]["judul"] = $response_payload["title"]; */
+        /* $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES); */
 
         $hasil[] = $temp;
       }
