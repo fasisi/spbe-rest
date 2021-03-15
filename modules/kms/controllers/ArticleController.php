@@ -1859,43 +1859,49 @@ class ArticleController extends \yii\rest\Controller
       {
         $user = User::findOne($artikel["id_user_create"]);
 
-        $res = $client->request(
-          'GET',
-          "/rest/api/content/{$artikel["linked_id_content"]}",
-          [
-            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-            /* 'debug' => true, */
-            'http_errors' => false,
-            'headers' => [
-              "Content-Type" => "application/json",
-              "accept" => "application/json",
-            ],
-            'auth' => [
-              $jira_conf["user"],
-              $jira_conf["password"]
-            ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
-          ]
-        );
+        //  lakukan query dari Confluence
+
+        // eliminate REST call
+        /* $res = $client->request( */
+        /*   'GET', */
+        /*   "/rest/api/content/{$artikel["linked_id_content"]}", */
+        /*   [ */
+        /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+        /*     /1* 'debug' => true, *1/ */
+        /*     'http_errors' => false, */
+        /*     'headers' => [ */
+        /*       "Content-Type" => "application/json", */
+        /*       "accept" => "application/json", */
+        /*     ], */
+        /*     'auth' => [ */
+        /*       $jira_conf["user"], */
+        /*       $jira_conf["password"] */
+        /*     ], */
+        /*     'query' => [ */
+        /*       'spaceKey' => 'PS', */
+        /*       'expand' => 'history,body.view' */
+        /*     ], */
+        /*   ] */
+        /* ); */
 
         //  kembalikan hasilnya
-        switch ($res->getStatusCode()) {
+        switch (200  /* $res->getStatusCode() */  ) 
+        {
           case 200:
             // ambil id dari result
-            $response_payload = $res->getBody();
-            $response_payload = Json::decode($response_payload);
+
+            // eliminate REST call
+            /* $response_payload = $res->getBody(); */
+            /* $response_payload = Json::decode($response_payload); */
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "ok";
-            $temp["confluence"]["linked_id_content"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+            /* $temp["confluence"]["linked_id_content"] = $response_payload["id"]; */
+            /* $temp["confluence"]["judul"] = $response_payload["title"]; */
+            /* $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES); */
             $temp['data_user']['user_create'] = $user->nama;
             $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
@@ -1911,8 +1917,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $temp["confluence"]["status"] = "not ok";
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+            /* $temp["confluence"]["judul"] = $response_payload["title"]; */
+            /* $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES); */
             $temp['data_user']['user_create'] = $user->nama;
             $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
@@ -2723,37 +2729,37 @@ class ArticleController extends \yii\rest\Controller
           'base_uri' => $base_url
         ]);
 
-        $res = $client->request(
-          'GET',
-          "/rest/api/content/{$record["linked_id_content"]}",
-          [
-            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-            /* 'debug' => true, */
-            'http_errors' => false,
-            'headers' => [
-              "Content-Type" => "application/json",
-              "accept" => "application/json",
-            ],
-            'auth' => [
-              $jira_conf["user"],
-              $jira_conf["password"]
-            ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
-          ]
-        );
+        /* $res = $client->request( */
+        /*   'GET', */
+        /*   "/rest/api/content/{$record["linked_id_content"]}", */
+        /*   [ */
+        /*     /1* 'sink' => Yii::$app->basePath . "/guzzledump.txt", *1/ */
+        /*     /1* 'debug' => true, *1/ */
+        /*     'http_errors' => false, */
+        /*     'headers' => [ */
+        /*       "Content-Type" => "application/json", */
+        /*       "accept" => "application/json", */
+        /*     ], */
+        /*     'auth' => [ */
+        /*       $jira_conf["user"], */
+        /*       $jira_conf["password"] */
+        /*     ], */
+        /*     'query' => [ */
+        /*       'spaceKey' => 'PS', */
+        /*       'expand' => 'history,body.view' */
+        /*     ], */
+        /*   ] */
+        /* ); */
 
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        /* $response_payload = $res->getBody(); */
+        /* $response_payload = Json::decode($response_payload); */
 
         $temp = [];
         $temp["kms_artikel"] = $record;
         $temp["user_create"] = $user;
         $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
-        $temp["confluence"]["judul"] = $response_payload["title"];
-        $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        /* $temp["confluence"]["judul"] = $response_payload["title"]; */
+        /* $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES); */
 
         $hasil[] = $temp;
       }
@@ -3554,6 +3560,26 @@ class ArticleController extends \yii\rest\Controller
     ) {
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
+
+      /* $query */
+      /*   ->select(' */
+      /*       ka.id AS id, */ 
+      /*       ka.time_create AS time_create, */ 
+      /*       kl.action, */ 
+      /*       count(kl.action) as count, */ 
+      /*       ka.id_user_create AS id_user_create, */ 
+      /*       ka.linked_id_content AS linked_id_content, */ 
+      /*       ka.view, */ 
+      /*       ka.like, */ 
+      /*       ka.dislike */
+      /*     ') */
+      /*   ->from("kms_artikel ka") */
+      /*   ->join('LEFT JOIN', 'kms_artikel_activity_log kl', 'ka.id = kl.id_artikel') */
+      /*   ->where('kl.action = 1') */
+      /*   ->groupBy('ka.id') */
+      /*   ->orderBy('ka.view desc') */
+      /*   ->limit(5); */
+
       $query
         ->select("
             ka.*
