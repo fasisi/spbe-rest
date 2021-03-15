@@ -1847,6 +1847,8 @@ class ArticleController extends \yii\rest\Controller
         ->limit($payload["items_per_page"])
         ->all();
 
+      // REST initialization
+      //
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
       Yii::info("base_url = $base_url");
