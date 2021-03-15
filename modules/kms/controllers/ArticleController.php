@@ -1823,7 +1823,8 @@ class ArticleController extends \yii\rest\Controller
       $is_page_no_valid == true &&
       $is_items_per_page_valid == true
       // && $is_id_user_valid == true
-    ) {
+    ) 
+    {
       //  lakukan query dari tabel kms_artikel
       $test = KmsArtikel::find()
         ->where([
@@ -1846,7 +1847,6 @@ class ArticleController extends \yii\rest\Controller
         ->limit($payload["items_per_page"])
         ->all();
 
-      //  lakukan query dari Confluence
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
       Yii::info("base_url = $base_url");
@@ -1855,7 +1855,8 @@ class ArticleController extends \yii\rest\Controller
       ]);
 
       $hasil = [];
-      foreach ($list_artikel as $artikel) {
+      foreach ($list_artikel as $artikel) 
+      {
         $user = User::findOne($artikel["id_user_create"]);
 
         $res = $client->request(
@@ -1934,7 +1935,9 @@ class ArticleController extends \yii\rest\Controller
           "records" => $hasil
         ]
       ];
-    } else {
+    } 
+    else 
+    {
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang diperlukan tidak valid.",
@@ -3552,23 +3555,22 @@ class ArticleController extends \yii\rest\Controller
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
       $query
-        ->select('
-            ka.id AS id, 
-            ka.time_create AS time_create, 
-            kl.action, 
-            count(kl.action) as count, 
-            ka.id_user_create AS id_user_create, 
-            ka.linked_id_content AS linked_id_content, 
-            ka.view, 
-            ka.like, 
-            ka.dislike
-          ')
+        ->select("
+            ka.*
+          ")
         ->from("kms_artikel ka")
-        ->join('LEFT JOIN', 'kms_artikel_activity_log kl', 'ka.id = kl.id_artikel')
-        ->where('kl.action = 1')
-        ->groupBy('ka.id')
-        ->orderBy('ka.view desc')
+        ->join("JOIN", "kms_artikel_activity_log kl", "ka.id = kl.id_artikel")
+        ->where(
+            [
+              "and",
+              "kl.action = 1",
+              "ka.status = 1"
+            ],
+            []
+          )
+        ->orderBy("ka.view desc")
         ->limit(5);
+
       $command = $query->createCommand();
       $list_artikel = $command->queryAll();
 
@@ -3581,7 +3583,8 @@ class ArticleController extends \yii\rest\Controller
       ]);
 
       $hasil = [];
-      foreach ($list_artikel as $artikel) {
+      foreach ($list_artikel as $artikel) 
+      {
         $user = User::findOne($artikel["id_user_create"]);
 
         $res = $client->request(
@@ -3607,7 +3610,8 @@ class ArticleController extends \yii\rest\Controller
         );
 
         //  kembalikan hasilnya
-        switch ($res->getStatusCode()) {
+        switch ($res->getStatusCode()) 
+        {
           case 200:
             // ambil id dari result
             $response_payload = $res->getBody();
@@ -3651,7 +3655,9 @@ class ArticleController extends \yii\rest\Controller
           "records" => $hasil
         ]
       ];
-    } else {
+    } 
+    else 
+    {
       return [
         "status" => "not ok",
         "pesan" => "Parameter yang diperlukan tidak valid.",
