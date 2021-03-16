@@ -2001,88 +2001,97 @@ class ArticleController extends \yii\rest\Controller
         )
         ->one();
 
-      $user = User::findOne($artikel["id_user_create"]);
-      $file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
-
-      //  lakukan query dari Confluence
-      $client = $this->SetupGuzzleClient();
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
-
-      $hasil = [];
-      $res = $client->request(
-        'GET',
-        "/rest/api/content/{$artikel["linked_id_content"]}",
-        [
-          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-          /* 'debug' => true, */
-          'http_errors' => false,
-          'headers' => [
-            "Content-Type" => "application/json",
-            "accept" => "application/json",
-          ],
-          'auth' => [
-            $jira_conf["user"],
-            $jira_conf["password"]
-          ],
-          'query' => [
-            'spaceKey' => 'PS',
-            'expand' => 'history,body.view'
-          ],
-        ]
-      );
-
-      //  kembalikan hasilnya
-      switch( $res->getStatusCode() )
+      if( is_null($artikel) == false)
       {
-      case 200:
-        // ambil id dari result
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        $user = User::findOne($artikel["id_user_create"]);
+        $file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
+
+        //  lakukan query dari Confluence
+        $client = $this->SetupGuzzleClient();
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
 
         $hasil = [];
-        $hasil["kms_artikel"] = $artikel;
-        $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
-        $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
-        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-        $hasil["user_create"] = $user;
-        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-        $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
-        $hasil["confluence"]["status"] = "ok";
-        $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
-        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
-        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+        $res = $client->request(
+          'GET',
+          "/rest/api/content/{$artikel["linked_id_content"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
 
-        $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
-        break;
+        //  kembalikan hasilnya
+        switch( $res->getStatusCode() )
+        {
+          case 200:
+            // ambil id dari result
+            $response_payload = $res->getBody();
+            $response_payload = Json::decode($response_payload);
 
-      default:
-        // kembalikan response
-        $hasil = [];
-        $hasil["kms_artikel"] = $artikel;
-        $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
-        $hasil["user_create"] = $user;
-        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-        $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
-        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-        $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
-        $hasil["confluence"]["status"] = "not ok";
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
-        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
-        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
-        break;
+            $hasil = [];
+            $hasil["kms_artikel"] = $artikel;
+            $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
+            $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
+            $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $hasil["user_create"] = $user;
+            $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+            $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+            $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
+            $hasil["confluence"]["status"] = "ok";
+            $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
+            $hasil["confluence"]["judul"] = $response_payload["title"];
+            $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+            $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+
+            $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
+            break;
+
+          default:
+            // kembalikan response
+            $hasil = [];
+            $hasil["kms_artikel"] = $artikel;
+            $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
+            $hasil["user_create"] = $user;
+            $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+            $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
+            $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+            $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
+            $hasil["confluence"]["status"] = "not ok";
+            $hasil["confluence"]["judul"] = $response_payload["title"];
+            $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+            $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+            break;
+        }
+
+        return [
+          "status" => "ok",
+          "pesan" => "Query finished",
+          "result" => $hasil
+        ];
       }
-
-      return [
-        "status" => "ok",
-        "pesan" => "Query finished",
-        "result" => $hasil
-      ];
-
+      else
+      {
+        return [
+          "status" => "not ok",
+          "pesan" => "ID Artikel tidak ditemukan",
+        ];
+      }
     }
     else
     {
@@ -2448,63 +2457,63 @@ class ArticleController extends \yii\rest\Controller
       $hasil = array();
       switch( $res->getStatusCode() )
       {
-      case 200:
-        $response_payload = $res->getBody();
-        $response_payload = Json::decode($response_payload);
+        case 200:
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
 
-        $total_rows = $response_payload["totalSize"];
+          $total_rows = $response_payload["totalSize"];
 
-        foreach($response_payload["results"] as $item)
-        {
-          $temp = array();
-          $temp["confluence"]["status"] = "ok";
-          $temp["confluence"]["linked_id_content"] = $item["id"];
-          $temp["confluence"]["judul"] = $item["title"];
-          $temp["confluence"]["konten"] = html_entity_decode($item["body"]["view"]["value"], ENT_QUOTES);
+          foreach($response_payload["results"] as $item)
+          {
+            $temp = array();
+            $temp["confluence"]["status"] = "ok";
+            $temp["confluence"]["linked_id_content"] = $item["id"];
+            $temp["confluence"]["judul"] = $item["title"];
+            $temp["confluence"]["konten"] = html_entity_decode($item["body"]["view"]["value"], ENT_QUOTES);
 
-          $artikel = KmsArtikel::find()
-            ->where(
-              [
-                "linked_id_content" => $item["id"]
-              ]
-            )
-            ->one();
-          $user = User::findOne($artikel["id_user_create"]);
-          $temp["kms_artikel"] = $artikel;
-          $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-          $temp["data_user"]["user_create"] = $user->nama;
-          $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-          $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-          $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
-          $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+            $artikel = KmsArtikel::find()
+              ->where(
+                [
+                  "linked_id_content" => $item["id"]
+                ]
+              )
+              ->one();
+            $user = User::findOne($artikel["id_user_create"]);
+            $temp["kms_artikel"] = $artikel;
+            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+            $temp["data_user"]["user_create"] = $user->nama;
+            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
-          $hasil[] = $temp;
-        }
+            $hasil[] = $temp;
+          }
 
-        return [
-          "status" => "ok",
-          "pesan" => "Search berhasil",
-          "cql" => "$keywords $daftar_id",
-          "result" => 
-          [
-            "total_rows" => $total_rows,
-            "page_no" => $payload["page_no"],
-            "Items_per_page" => $payload["items_per_page"],
-            "records" => $hasil
-          ]
-        ];
-        break;
+          return [
+            "status" => "ok",
+            "pesan" => "Search berhasil",
+            "cql" => "$keywords $daftar_id",
+            "result" => 
+            [
+              "total_rows" => $total_rows,
+              "page_no" => $payload["page_no"],
+              "Items_per_page" => $payload["items_per_page"],
+              "records" => $hasil
+            ]
+          ];
+          break;
 
-      default:
-        // kembalikan response
-        return [
-          'status' => 'not ok',
-          "cql" => "$keywords AND $daftar_id",
-          'pesan' => 'REST API request failed: ' . $res->getBody(),
-          'result' => $artikel,
-          'category_path' => KmsKategori::CategoryPath($artikel["id_kategori"])
-        ];
-        break;
+        default:
+          // kembalikan response
+          return [
+            'status' => 'not ok',
+            "cql" => "$keywords AND $daftar_id",
+            'pesan' => 'REST API request failed: ' . $res->getBody(),
+            'result' => $artikel,
+            'category_path' => KmsKategori::CategoryPath($artikel["id_kategori"])
+          ];
+          break;
       }
 
     }
