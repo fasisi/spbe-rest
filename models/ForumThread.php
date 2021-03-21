@@ -321,23 +321,16 @@ class ForumThread extends \yii\db\ActiveRecord
       * */
     public static function AllCountByCategory($id_kategori)
     {
-      //
-      $tanggal_b = Carbon::createFromFormat("Y-m-d", date("Y-m-j"));
-      $tanggal_a = Carbon::createFromTimeStamp($tanggal_b->timestamp);
-      $tanggal_a->addDay(-30);
-
       $q = new Query();
       $hasil = 
         $q->select("count(f.id) as jumlah")
           ->from("forum_thread f")
-          ->join("join", "forum_thread_activity_log l", "l.id_thread = f.id")
           ->where(
             [
               "and",
               "f.is_delete = 0",
               ["in", "f.status", [1, 4, 5, -2, -3]],    // publish, freeze, knowledge, sedang dirangkum, telah selesai dirangkum
               "f.id_kategori = :id_kategori",
-              ["in", "l.status", [1]]
             ],
             [
               ":id_kategori" => $id_kategori,
