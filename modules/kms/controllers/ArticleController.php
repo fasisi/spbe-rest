@@ -1688,18 +1688,20 @@ class ArticleController extends \yii\rest\Controller
       }
 
       $test = KmsArtikel::find()
-        ->join("join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
+        ->join("left join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
         ->where($where)
         ->orderBy("time_create desc")
+        ->groupBy("kms_artikel.id")
         ->all();
       $total_rows = count($test);
 
       $list_artikel = KmsArtikel::find()
-        ->join("join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
+        ->join("left join", "kms_artikel_tag kat", "kat.id_artikel = kms_artikel.id")
         ->where($where)
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
         ->limit( $payload["items_per_page"] )
+        ->groupBy("kms_artikel.id")
         ->all();
 
       //  lakukan query dari Confluence
