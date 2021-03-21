@@ -1068,20 +1068,26 @@ class GeneralController extends \yii\rest\Controller
           {
               //Server settings
               $mail->SMTPDebug = SMTP::DEBUG_OFF;
-              $mail->isSMTP();                                            // Send using SMTP
-              $mail->Host       = 'smtp.gmail.com';                    // Set the SMTP server to send through
-              $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
-              $mail->Username   = 'frans.indroyono@gmail.com';                     // SMTP username
-              $mail->Password   = 'ujwxdobmlzzubyyy';                               // SMTP password
-              $mail->SMTPSecure = 'ssl';  //'tls/ssl';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
-              $mail->Port       = 465;  //587 / 465;                                    // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
+              $mail->isSMTP();                                  // Send using SMTP
+              $mail->Host       = 'smtp.gmail.com';             // Set the SMTP server to send through
+              $mail->SMTPAuth   = true;                         // Enable SMTP authentication
+              $mail->Username   = 'frans.indroyono@gmail.com';  // SMTP username
+              $mail->Password   = 'ujwxdobmlzzubyyy';           // SMTP password
+              $mail->SMTPSecure = 'ssl';  //'tls/ssl';          // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
+              $mail->Port       = 465;  //587 / 465;            // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
 
               //Recipients
               $mail->setFrom('frans.indroyono@gmail.com', 'Frans Indroyono');
+
+              // default recipients
               $mail->addAddress('kotak.backup.satu@gmail.com', 'Backup Satu');     // Add a recipient
               $mail->addAddress('rezachrismardianto20@gmail.com', 'Reza Indonesia 02');     // Add a recipient
-              /* $mail->addAddress('awen1965@gmail.com', 'Pak Wenwen');     // Add a recipient */
-              /* $mail->addAddress('wenwen.ruswendi@bppt.go.id', 'Pak Wenwen');     // Add a recipient */
+              $mail->addAddress('awen1965@gmail.com', 'Pak Wenwen');     // Add a recipient
+              $mail->addAddress('wenwen.ruswendi@bppt.go.id', 'Pak Wenwen');     // Add a recipient
+
+              // requester's email
+              $mail->addAddress($test["email"], $test['nama']);  // Add a recipient
+
               /* $mail->addAddress('ellen@example.com');               // Name is optional */
               /* $mail->addReplyTo('info@example.com', 'Information'); */
               /* $mail->addCC('cc@example.com'); */

@@ -2382,7 +2382,7 @@ class ArticleController extends \yii\rest\Controller
           $keywords .= " OR ";
         }
 
-        $keywords .= "(text ~ $keyword)";
+        $keywords .= "(text ~ '$keyword*')";
       }
       $keywords = "($keywords)";
 
