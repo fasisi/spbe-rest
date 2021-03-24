@@ -43,6 +43,10 @@ $config = [
         'db' => $db,
         /* */
         'urlManager' => [
+            /* 
+	    'baseUrl' => '/rest/web',
+	    'hostInfo' => 'https://simpan-spbe.bppt.go.id/',
+	    */
             'enablePrettyUrl' => false,
             'showScriptName' => false,
             'enableStrictParsing' => true,

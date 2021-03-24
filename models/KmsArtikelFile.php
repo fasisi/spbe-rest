@@ -70,7 +70,7 @@ class KmsArtikelFile extends \yii\db\ActiveRecord
 
         $hasil[] = [
           "KmsFiles" => $file,
-          "link" => BaseUrl::base(true) . "/files/" . $file["nama"]
+          "link" => Yii::$app->urlManager->baseUrl . "/files/" . $file["nama"]
         ];
       }
 

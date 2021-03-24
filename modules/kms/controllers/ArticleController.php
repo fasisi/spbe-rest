@@ -2448,7 +2448,7 @@ class ArticleController extends \yii\rest\Controller
             $jira_conf["password"]
           ],
           'query' => [
-            'cql' => "$keywords $daftar_id",
+            'cql' => "$keywords",
             'expand' => 'body.view',
             'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
             'limit' => $payload["items_per_page"],
@@ -2495,7 +2495,7 @@ class ArticleController extends \yii\rest\Controller
           return [
             "status" => "ok",
             "pesan" => "Search berhasil",
-            "cql" => "$keywords $daftar_id",
+            "cql" => "$keywords ",
             "result" => 
             [
               "total_rows" => $total_rows,
@@ -2510,7 +2510,7 @@ class ArticleController extends \yii\rest\Controller
           // kembalikan response
           return [
             'status' => 'not ok',
-            "cql" => "$keywords AND $daftar_id",
+            "cql" => "$keywords ",
             'pesan' => 'REST API request failed: ' . $res->getBody(),
             'result' => $artikel,
             'category_path' => KmsKategori::CategoryPath($artikel["id_kategori"])
