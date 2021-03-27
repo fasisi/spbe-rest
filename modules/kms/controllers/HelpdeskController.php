@@ -1404,7 +1404,7 @@ class HelpdeskController extends \yii\rest\Controller
     foreach( $payload["id_files"] as $item_file )
     {
       // cek record file-nya di kms_files
-      $test = ForumFiles::findOne($item_file);
+      $test = KmsFiles::findOne($item_file);
 
       if( is_null($test) == false ) 
       {
@@ -4336,7 +4336,7 @@ class HelpdeskController extends \yii\rest\Controller
 
                 HdIssueDiscussionFile::deleteAll(["id_discussion" => $payload["id_parent"]]);
 
-                foreach($payload["id_files"] as $item_file)
+                foreach($payload["files"] as $item_file)
                 {
                   $new = new HdIssueDiscussionFile();
                   $new["id_discussion"] = $id_discussion;
