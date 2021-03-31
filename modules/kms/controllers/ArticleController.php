@@ -593,6 +593,8 @@ class ArticleController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
+    Yii::info("payload = " . print_r($payload, true));
+
     if( isset($payload["id_user"]) == false )
       $id_user = false;
 
@@ -616,7 +618,7 @@ class ArticleController extends \yii\rest\Controller
 
     if( 
         $id_valid == true && $judul_valid == true && $body_valid == true &&
-        $kategori_valid == true && $status_valid == true
+        $kategori_valid == true
       )
     {
       // ambil nomor versi bersadarkan id_linked_content
@@ -713,7 +715,7 @@ class ArticleController extends \yii\rest\Controller
 
             // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
-            $artikel['status'] = $payload["status"];
+            /* $artikel['status'] = $payload["status"]; */
             $artikel['time_update'] = date("Y-m-j H:i:s");
             $artikel['id_user_update'] = $payload["id_user"];
             $artikel['id_kategori'] = $payload["id_kategori"];
@@ -975,6 +977,8 @@ class ArticleController extends \yii\rest\Controller
     // pastikan request parameter lengkap
     $payload = $this->GetPayload();
 
+    Yii::info("payload = " . print_r($payload, true));
+
     $tanggal_awal = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_awal"]);
     $tanggal_akhir = Carbon::createFromFormat("Y-m-d", $payload["filter"]["tanggal_akhir"]);
 
@@ -1005,46 +1009,124 @@ class ArticleController extends \yii\rest\Controller
     Yii::info("filter = " . print_r($payload["filter"], true));
 
     $where[] = "and";
-    foreach( $payload["filter"] as $key => $value )
-    {
-      switch(true)
-      {
-        case $key == "tanggal_awal":
-          $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
-          $where[] = "l.time_action >= '$value'";
-        break;
 
-        case $key == "tanggal_akhir":
-          $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
-          $where[] = "l.time_action <= '$value'";
-        break;
+    // tanggal awal dan tanggal akhir
+        $value_awal = date("Y-m-d 00:00:00", $tanggal_awal->timestamp);
+        $value_akhir = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp);
+        $where[] = [
+          "or", 
+          ["and", "l.time_action >= '$value_awal'", "l.time_action <= '$value_akhir'"],
+          ["and", "l.time_status >= '$value_awal'", "l.time_status <= '$value_akhir'"],
+        ];
+    // tanggal awal dan tanggal akhir
+       
 
-        case $key == "actions":
+
+    // actions and status =====================================================
+        $temp_where = [];
+        if( count($payload["filter"]["status"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $type_action )
+          foreach( $payload["filter"]["status"] as $type_status )
           {
-            $temp[] = $type_action["action"];
+            $temp[] = $type_status;
           }
-          $where[] = ["in", "l.action", $temp];
-        break;
 
-        case $key == "id_kategori":
-          $q->join("join", "kms_artikel a2", "a2.id = l.id_artikel");
-          /* $q->join("join", "kms_kategori k", "a2.id_kategori = k.id"); */
+          $temp_where[] = ["in", "l.status", $temp];
+        }
 
+        if( count($payload["filter"]["actions"]) > 0)
+        {
           $temp = [];
-          foreach( $value as $id_kategori )
+          foreach( $payload["filter"]["actions"] as $type_actions )
           {
-            $temp[] = $id_kategori;
+            $temp[] = $type_actions["action"];
           }
-          $where[] = ["in", "a2.id_kategori", $temp];
-        break;
 
-        case $key == "id_artikel":
-          $where[] = "l.id_artikel = " . $value;
-        break;
-      }// switch filter key
-    } //loop keys in filter
+          $temp_where[] = ["in", "l.action", $temp];
+        }
+
+        if( count($temp_where) > 0 )
+        {
+          if( count($temp_where) == 1 )
+          {
+            $where[] = $temp_where[0];
+          }
+          else
+          {
+            $where[] = ["or", $temp_where[0], $temp_where[1]];
+          }
+        }
+    // actions and status =====================================================
+
+
+    // id_kategori
+        $temp = [];
+        $q->join("join", "kms_artikel a2", "a2.id = l.id_artikel");
+        foreach( $payload["filter"]["id_kategori"] as $id_kategori )
+        {
+          $temp[] = $id_kategori;
+        }
+        $where[] = ["in", "a2.id_kategori", $temp];
+    // id_kategori
+
+    /* foreach( $payload["filter"] as $key => $value ) */
+    /* { */
+    /*   switch(true) */
+    /*   { */
+    /*     case $key == "tanggal_awal": */
+    /*       $value = date("Y-m-d 00:00:00", $tanggal_awal->timestamp); */
+    /*       $where[] = "l.time_action >= '$value'"; */
+    /*     break; */
+
+    /*     case $key == "tanggal_akhir": */
+    /*       $value = date("Y-m-d 23:59:59", $tanggal_akhir->timestamp); */
+    /*       $where[] = "l.time_action <= '$value'"; */
+    /*     break; */
+
+    /*     case $key == "actions": */
+    /*       $temp = []; */
+    /*       foreach( $value as $type_action ) */
+    /*       { */
+    /*         $temp[] = $type_action["action"]; */
+    /*       } */
+
+    /*       if( count($temp) > 0 ) */
+    /*       { */
+    /*         $where[] = ["in", "l.action", $temp]; */
+    /*       } */
+    /*     break; */
+
+    /*     case $key == "status": */
+    /*       $temp = []; */
+    /*       foreach( $value as $type_status ) */
+    /*       { */
+    /*         $temp[] = $type_status; */
+    /*       } */
+
+    /*       if( count($temp) > 0 ) */
+    /*       { */
+    /*         $where[] = ["in", "l.status", $temp]; */
+    /*       } */
+    /*     break; */
+
+    /*     case $key == "id_kategori": */
+    /*       $q->join("join", "kms_artikel a2", "a2.id = l.id_artikel"); */
+    /*       /1* $q->join("join", "kms_kategori k", "a2.id_kategori = k.id"); *1/ */
+
+    /*       $temp = []; */
+    /*       foreach( $value as $id_kategori ) */
+    /*       { */
+    /*         $temp[] = $id_kategori; */
+    /*       } */
+    /*       $where[] = ["in", "a2.id_kategori", $temp]; */
+    /*     break; */
+
+    /*     case $key == "id_artikel": */
+    /*       $where[] = "l.id_artikel = " . $value; */
+    /*     break; */
+    /*   }// switch filter key */
+    /* } //loop keys in filter */
 
     $q->where($where);
 
@@ -1062,6 +1144,9 @@ class ArticleController extends \yii\rest\Controller
     }
 
     //execute the query
+    //
+    // Mengambil daftar artikel yang terlibat dalam action / status
+    // dalam rentang waktu tertentu
     $records = $q->all();
 
     $hasil = [];
@@ -1104,6 +1189,8 @@ class ArticleController extends \yii\rest\Controller
             $temp["dislike"] = KmsArtikel::ActionReceivedInRange($artikel["id"], $type_action, $tanggal_awal, $tanggal_akhir);
         // ================
         // filter by action
+
+
 
         // filter by status
         // ================
@@ -2457,6 +2544,7 @@ class ArticleController extends \yii\rest\Controller
       );
 
       $hasil = array();
+      $hasil_no_relation = array();
       switch( $res->getStatusCode() )
       {
         case 200:
@@ -2480,16 +2568,27 @@ class ArticleController extends \yii\rest\Controller
                 ]
               )
               ->one();
-            $user = User::findOne($artikel["id_user_create"]);
-            $temp["kms_artikel"] = $artikel;
-            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-            $temp["data_user"]["user_create"] = $user->nama;
-            $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-            $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-            $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
-            $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
-            $hasil[] = $temp;
+            if(is_null($artikel) == false)
+            {
+              $user = User::findOne($artikel["id_user_create"]);
+              $temp["kms_artikel"] = $artikel;
+              $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+              $temp["data_user"]["user_create"] = $user->nama;
+              $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+              $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+
+              $hasil[] = $temp;
+            }
+            else
+            {
+              // tidak menampilkan record JIRA yang tidak ada relasi dengan tabel kms_artikel
+              
+              $hasil_no_relation[] = $temp;
+              continue;
+            }
           }
 
           return [
@@ -2501,7 +2600,8 @@ class ArticleController extends \yii\rest\Controller
               "total_rows" => $total_rows,
               "page_no" => $payload["page_no"],
               "Items_per_page" => $payload["items_per_page"],
-              "records" => $hasil
+              "records" => $hasil,
+              "missing_records" => $hasil_no_relations
             ]
           ];
           break;
@@ -3252,6 +3352,7 @@ class ArticleController extends \yii\rest\Controller
           ->all();
       $total_artikel = count($total_artikel);
 
+      // ambil jumlah artikel per status
       $q = new Query();
       $artikel_status = 
         $q->select("log.status, a.id")
@@ -3281,7 +3382,7 @@ class ArticleController extends \yii\rest\Controller
           ->groupBy("log.action, a.id")
           ->all();
 
-      // ambil jumlah user per kejadian (new, publish, .., freeze)
+      // ambil jumlah user per status (new, publish, .., freeze)
       $q = new Query();
       $total_user = 
         $q->select("u.id")
@@ -3323,6 +3424,7 @@ class ArticleController extends \yii\rest\Controller
           ->all();
       $total_user = count($total_user);
 
+      // ambil jumlah user per status (draft, new, publish, ...)
       $q = new Query();
       $user_status = 
         $q->select("log.status, u.id")
@@ -3338,7 +3440,7 @@ class ArticleController extends \yii\rest\Controller
           ->groupBy("log.status, u.id")
           ->all();
 
-      // ambil jumlah artikel per action (like/dislike)
+      // ambil jumlah user per action (like/dislike)
       $q = new Query();
       $user_action = 
         $q->select("log.action, u.id")

@@ -158,8 +158,8 @@ class KmsArtikel extends \yii\db\ActiveRecord
           "l.id_artikel = :id_artikel",
           "l.type_log = 1",
           "l.status = :type_status",
-          "l.time_action >= :awal",
-          "l.time_action <= :akhir"
+          "l.time_status >= :awal",
+          "l.time_status <= :akhir"
         ])
         ->params([
           ":id_artikel" => $id_artikel,
