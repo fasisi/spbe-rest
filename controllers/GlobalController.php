@@ -11,6 +11,7 @@ use app\models\KmsKategori;
 use app\models\KmsArtikel;
 use app\models\ForumThread;
 use app\models\Roles;
+use app\models\User;
 
 /**
  * Default controller for the `general` module
@@ -386,6 +387,9 @@ class GlobalController extends \yii\rest\Controller
 
     public function actionDropdownkategori()
     {
+        ini_set("display_errors", 1);
+        error_reporting(E_ALL);
+
         $payload = Yii::$app->request->rawBody;
         Yii::info("payload = $payload");
         $payload = Json::decode($payload);
@@ -568,6 +572,58 @@ class GlobalController extends \yii\rest\Controller
                     "pesan" => "Record not found",
                 ];
             }
+        }
+    }
+
+    public function actionDropdownsolverwithkategoriandsolver()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+        $code_name = "'".$payload["code_name"]."'";
+        $id_kategori = $payload["id_kategori"];
+        $id_solver = $payload["id_solver"];
+
+        $a_solver = User::find()
+          ->where([
+            "id" => $payload["id_solver"]
+          ])
+          ->one();
+
+        $query = new Query;
+        $query->select('
+            u.id AS id_user,
+            u.nama AS nama_user,
+            d.name AS nama_department,
+            d.id AS id_departments,
+            kk.id AS id_kategori
+          ')
+        ->from("user u")
+        ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+        ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+        ->join('LEFT JOIN', 'departments d','u.id_departments = d.id')	
+        ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
+        ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
+        ->where("r.code_name =".$code_name)
+        ->andWhere("kk.id =" .$payload['id_kategori'])
+        ->andWhere("d.id =" .$a_solver['id_departments'])
+      ->groupBy('id_user');
+        $command = $query->createCommand();
+        $data = $command->queryAll();
+
+        if (!empty($data)) {
+            return [
+                "status" => "ok",
+                "pesan" => "Record found",
+                "result" => $data
+            ];
+        } 
+        else 
+        {
+            return [
+                "status" => "not ok",
+                "pesan" => "Record not found",
+            ];
         }
     }
 

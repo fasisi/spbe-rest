@@ -33,13 +33,23 @@
       {
         //Server settings
         $mail->SMTPDebug = SMTP::DEBUG_OFF;
-        $mail->isSMTP();                                            // Send using SMTP
-        $mail->Host       = 'smtp.gmail.com';                    // Set the SMTP server to send through
-        $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
-        $mail->Username   = 'frans.indroyono@gmail.com';                     // SMTP username
-        $mail->Password   = 'ujwxdobmlzzubyyy';                               // SMTP password
+
+        /* $mail->isSMTP();                              // Send using SMTP */
+        /* $mail->Host       = 'mail.bppt.go.id';        // Set the SMTP server to send through */
+        /* $mail->SMTPAuth   = true;                     // Enable SMTP authentication */
+        /* $mail->Username   = 'simpan.ptik@bppt.go.id'; // SMTP username */
+        /* $mail->Password   = 'jBAIZXRW';               // SMTP password */
+        /* $mail->SMTPSecure = 'ssl';  //'tls/ssl';      // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged */
+        /* $mail->Port       = 465;  //587 / 465;        // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above */
+
+
+        $mail->isSMTP();                                 // Send using SMTP
+        $mail->Host       = 'smtp.gmail.com';            // Set the SMTP server to send through
+        $mail->SMTPAuth   = true;                        // Enable SMTP authentication
+        $mail->Username   = 'frans.indroyono@gmail.com'; // SMTP username
+        $mail->Password   = 'ujwxdobmlzzubyyy';          // SMTP password
         $mail->SMTPSecure = 'ssl';  //'tls/ssl';         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
-        $mail->Port       = 465;  //587 / 465;                                    // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
+        $mail->Port       = 465;  //587 / 465;           // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
 
         $mail->setFrom('frans.indroyono@gmail.com', 'Frans Indroyono');
 

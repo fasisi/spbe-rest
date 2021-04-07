@@ -96,11 +96,10 @@ class HelpdeskController extends \yii\rest\Controller
       private function SetupGuzzleClientSPBE()
       {
         $base_url = BaseUrl::base(true);
-        
 
         Yii::info("base_url = $base_url");
         $client = new \GuzzleHttp\Client([
-          'base_uri' => $base_url
+          'base_uri' => "http://localhost/kms/"  // override untuk kondisi di dalam server BPPT
         ]);
 
         return $client;
@@ -989,6 +988,9 @@ class HelpdeskController extends \yii\rest\Controller
   //  }
   public function actionUpdate()
   {
+    //ini_set("display_errors", 1);
+    //error_reporting(E_ALL);
+
     $id_valid = true;
     $id_id_user_valid = true;
     $judul_valid = true;
@@ -3016,6 +3018,7 @@ class HelpdeskController extends \yii\rest\Controller
               if( is_null($issue) == false )
               {
                 $issue["status"] = $payload["status"];
+                $issue["time_status"] = date("Y-m-j H:i:s");
                 $issue->save();
 
                 $daftar_sukses[] = $issue;
@@ -5120,7 +5123,8 @@ class HelpdeskController extends \yii\rest\Controller
           $time_a = strtotime($tiket["time_status"]);
           $time_b = time();
 
-          $duration = $time_b - ($time_a / 60 / 60 / 24);  //satuan hari
+          /* $duration = $time_b - ($time_a / 60 / 60 / 24);  //satuan hari */
+          $duration = $time_b - ($time_a / 60);  //satuan menit
 
           if( $duration > $threshold )
           {
@@ -5238,6 +5242,9 @@ class HelpdeskController extends \yii\rest\Controller
     * */
   public function actionDisposisi()
   {
+    //ini_set("display_errors", 1);
+    //error_reporting(E_ALL);
+
     switch(true)
     {
       case Yii::$app->request->isPost == true :
