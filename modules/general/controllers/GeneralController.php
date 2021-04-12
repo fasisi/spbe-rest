@@ -28,9 +28,14 @@ class GeneralController extends \yii\rest\Controller
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
         'gettags'            => ['GET'],
+
         'kategori'           => ['POST', 'GET', 'PUT', 'DELETE'],
         'kategorilist'       => ['GET'],
         'kategoriparent'     => ['PUT'],
+
+        'instansi'           => ['POST', 'GET', 'PUT', 'DELETE'],
+        'instansilist'       => ['GET'],
+        'instansiparent'     => ['PUT'],
 
         'taglist'            => ['GET'],
         'tagcreate'          => ['POST'],
@@ -664,6 +669,561 @@ class GeneralController extends \yii\rest\Controller
 
   // ==========================================================================
   // Kategori management
+  // ==========================================================================
+
+
+
+
+  // ==========================================================================
+  // Instansi management
+  // ==========================================================================
+
+      /*
+       *  Fungsi untuk melakukan management Instansi
+       *
+       *  --===== Create Instansi =====----
+       *  Method: POST
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "nama": "abc",
+       *    "id_parent": "-1/123",
+       *    "deskripsi": "abc"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Instansi> }
+       *  }
+       *
+       *  --===== Get Instansi =====----
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Instansi> }
+       *  }
+       *
+       *  --===== Update Instansi =====----
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *    "id_parent": 123,
+       *    "nama": "asdfasdf",
+       *    "deskripsi": "asdfasd"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Instansi> }
+       *  }
+       *
+       *  --===== DELETE Instansi =====----
+       *  Method: DELETE
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Instansi> }
+       *  }
+        * */
+      public function actionInstansi()
+      {
+        $payload = $this->GetPayload();
+        $method = Yii::$app->request->method;
+
+        switch(true)
+        {
+          case $method == 'POST':
+
+            $is_nama_valid = isset($payload["nama"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+            if(
+                $is_nomor_valid == true &&
+                $is_nama_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true
+              )
+            {
+              $new = new Departments();
+              $new["id_parent"] = $payload["id_parent"];
+              $new["name"] = $payload["nama"];
+              $new["description"] = $payload["deskripsi"];
+              $new["id_user_create"] = 123;
+              $new["time_create"] = date("Y-m-j H:i:s");
+              $new->save();
+              $id = $new->primaryKey;
+
+              return [
+                "status" => "ok",
+                "pesan" => "Instansi telah disimpan",
+                "result" => $new
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
+              ];
+            }
+
+            break;
+          case $method == 'GET':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = Departments::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Instansi ditemukan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Instansi tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
+          case $method == 'PUT':
+            $is_nama_valid = isset($payload["nama"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+            if(
+                $is_nama_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true &&
+                $is_id_valid == true
+              )
+            {
+              $record = Departments::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["id_parent"] = $payload["id_parent"];
+                $record["nomor"] = $payload["nomor"];
+                $record["name"] = $payload["nama"];
+                $record["description"] = $payload["deskripsi"];
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Instansi telah disimpan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Instansi tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id",
+              ];
+            }
+            break;
+          case $method == 'DELETE':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = Departments::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["is_delete"] = 1;
+                $record["id_user_delete"] = 123;
+                $record["time_delete"] = date("Y-m-j H:i:s");
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Instansi telah dihapus",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Instansi tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
+        }
+      }
+
+      /*
+       *  Mengembalikan semua record Instansi
+       *
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format: 
+       *  {
+       *  },
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": 
+       *    [
+       *      {
+       *        "id": 123,
+       *        "id_parent": 123,
+       *        "status": "abc",
+       *        "level": 123
+       *      }, ...
+       *    ]
+       *  }
+        * */
+      public function actionInstansilist()
+      {
+        $list = Departments::GetList();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Daftar Instansi berhasil diambil",
+          "result" => $list,
+        ];
+      }
+
+      public function actionCategoriesByUser()
+      {
+        $payload = $this->GetPayload();
+
+        $iduser = ($payload["iduser"]);
+
+        $q = new Query();
+        $q->select("c.*")
+          ->from("kms_kategori c")
+          ->join("JOIN", "kategori_user ku", "ku.id_kategori = c.id")
+          ->where(
+            [
+              "and",
+              "ku.id_user = :iduser"
+            ],
+            [
+              ":iduser" => $iduser,
+            ]
+          )
+          ->orderBy("c.nama asc");
+        $categories = $q->all();
+
+        $hasil = [];
+        foreach( $categories as $category )
+        {
+          $temp = Departments::CategoryPath($category["id"]);
+          $text = "";
+          foreach($temp as $a_temp)
+          {
+            $text = $text . ($text == "" ? $a_temp["nama"] : " > " . $a_temp["nama"]); 
+          }
+
+          $temp = [];
+          $temp["value"] = $category["id"];
+          $temp["text"] = $text;
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "records" => $hasil,
+        ];
+          
+      }
+
+      // Mengembalikan daftar user berdasarkan string pencarian, instansi dan Instansi
+      public function actionUsersForHakBaca()
+      {
+        $payload = $this->GetPayload();
+
+        $iduser = ($payload["iduser"]);
+        $nama = ($payload["nama"]);
+
+        $user = User::findOne($iduser);
+
+        $temp_list_Instansi = KategoriUser::findAll(["id_user" => $user["id"]]);
+        $list_Instansi = [];
+        foreach($temp_list_Instansi as $a_Instansi)
+        {
+          $list_Instansi[] = $a_Instansi["id_kategori"];
+        }
+
+        $q = new Query();
+        $q->select("u.*")
+          ->from("user u")
+          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+          ->where(
+            [
+              "and",
+              ["in", "ku.id_kategori", $list_Instansi],
+              "u.id_departments = :idinstansi",
+              "u.id <> :iduser",
+              ["like", "u.nama", $nama]
+            ],
+            [
+              ":iduser" => $user["id"],
+              ":idinstansi" => $user["id_departments"],
+            ]
+          )
+          ->orderBy("u.nama asc")
+          ->groupBy("u.id");
+
+        $daftar_user = $q->all();
+
+        $hasil = [];
+        foreach( $daftar_user as $a_user )
+        {
+          $temp = [];
+          $temp["value"] = $a_user["id"];
+          $temp["text"] = $a_user["nama"];
+
+          $hasil[] = $temp;
+        }
+
+        return [
+          "records" => $hasil,
+        ];
+
+      }
+
+      /*
+       *  Mengupdate parent suatu Instansi
+       *
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    id_Instansi: 123,
+       *    id_parent: 123
+       *  }
+       *  Reponse type: JSON
+       *  Response format:
+       *  {
+       *    status: ok,
+       *    result:
+       *    {
+       *      object of record
+       *    }
+       *  }
+        * */
+      public function actionInstansiparent()
+      {
+        $payload = $this->GetPayload();
+
+        $is_id_instansi_valid = isset($payload["id_instansi"]);
+        $is_id_parent_valid = isset($payload["id_parent"]);
+
+        // LOGIC mengupdate parent dan urutan Instansi
+        //
+        // 1. load children dari parent = id_parent
+        // 2. set value A = nomor dari node child pada urutan = new_position
+        // 3. update nomor = nomor + 1 dari semua child, dimulai dari child dengan nomor = A
+        // 4. update set id_parent dan set nomor = A, pada node = id_Instansi
+        // 5. selesai
+
+
+        $current_node = Departments::findOne($payload["id_instansi"]);
+        if( is_null($current_node) == true )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id_Instansi tidak dikenal"
+          ];
+        }
+
+        if( $payload["id_parent"] != -1 )
+        {
+          $test = Departments::findOne($payload["id_parent"]);
+          if( is_null($test) == true )
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "id_parent tidak dikenal"
+            ];
+          }
+        }
+
+        if( $is_id_instansi_valid == true && $is_id_parent_valid == true )
+        {
+          // lakukan update
+          // 1.
+          $children = Departments::find()
+            ->where(
+              [
+                "id_parent" => $payload["id_parent"]
+              ]
+            )
+            ->orderBy("nomor asc")
+            ->all();
+
+          // 2.
+          $temp = $children[ intval($payload["new_position"]) ];
+          $target = $temp["nomor"];
+          /* Yii::info("new_position = " . $payload["new_position"] ); */
+          /* Yii::info("children = " . Json::encode($children) ); */
+          /* Yii::info("target = " . Json::encode($temp) ); */
+          /* Yii::info("target = " . $target); */
+
+          // 3.
+          $children = Departments::find()
+            ->where(
+              [
+                "AND",
+                "id_parent = :id_parent",
+              ],
+              [
+                ":id_parent" => $payload["id_parent"],
+              ]
+            )
+            ->orderBy("nomor asc")
+            ->all();
+
+          foreach( $children as $child )
+          {
+            if( intval($payload["old_position"]) < intval($payload["new_position"]) )
+            {
+              if( $child["nomor"] <= $target )
+              {
+                $child["nomor"] = $child["nomor"] - 1;
+                $child->save();
+              }
+            }
+            else if( intval($payload["old_position"]) > intval($payload["new_position"]) )
+            {
+              if( $child["nomor"] >= $target )
+              {
+                $child["nomor"] = $child["nomor"] + 1;
+                $child->save();
+              }
+            }
+
+
+          }
+
+          // 4.
+          $current_node = Departments::findOne($payload["id_Instansi"]);
+          $current_node["id_parent"] = $payload["id_parent"];
+          $current_node["nomor"] = $target;
+          $current_node->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record berhasil di-update",
+            "result" => $Instansi
+          ];
+
+
+        }
+        else
+        {
+
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: id_Instansi (integer), id_parent (integer)",
+            "payload" => $payload
+          ];
+        }
+
+      }
+
+      /*
+       * Memeriksa apakah id_user dapat mengakses id_Instansi
+        * */
+      public function actionCanAksesInstansi()
+      {
+        $payload = $this->GetPayload();
+
+        $id_user = $payload["id_user"];
+        $id_Instansi = $payload["id_Instansi"];
+
+        $test = KategoriUser::find()
+          ->where(
+            [
+              "and",
+              "id_user = :id_user",
+              "id_kategori = :id_kategori"
+            ],
+            [
+              "id_user" => $id_user,
+              "id_Instansi" => $id_Instansi,
+            ]
+          )
+          ->one();
+
+        return [
+          "status" => "ok",
+          "result" => is_null( $test ) == false
+        ];
+      }
+
+  // ==========================================================================
+  // Instansi management
   // ==========================================================================
 
 
