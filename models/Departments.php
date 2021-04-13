@@ -107,7 +107,7 @@ class Departments extends \yii\db\ActiveRecord
       $temp = [];
       $temp["id"] = $current["id"];
       $temp["id_parent"] = $current["id_parent"];
-      $temp["nama"] = $current["nama"];
+      $temp["nama"] = $current["name"];
       $temp["level"] = $level;
       $hasil[] = $temp;
 
