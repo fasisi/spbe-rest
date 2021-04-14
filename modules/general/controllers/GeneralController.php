@@ -762,7 +762,6 @@ class GeneralController extends \yii\rest\Controller
             $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
 
             if(
-                $is_nomor_valid == true &&
                 $is_nama_valid == true &&
                 $is_deskripsi_valid == true &&
                 $is_id_parent_valid == true
@@ -788,6 +787,7 @@ class GeneralController extends \yii\rest\Controller
               return [
                 "status" => "not ok",
                 "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent",
+                "payload" => $payload
               ];
             }
 
