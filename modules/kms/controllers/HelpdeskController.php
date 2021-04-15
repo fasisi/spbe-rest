@@ -3014,13 +3014,9 @@ class HelpdeskController extends \yii\rest\Controller
 
             if( is_null($test) == false )
             {
-              $issue = HdIssue::findOne($id_issue);
-              if( is_null($issue) == false )
+              if(HdIssue::UpdateStatus($id_issue, $payload["status"]) == true)
               {
-                $issue["status"] = $payload["status"];
-                $issue["time_status"] = date("Y-m-j H:i:s");
-                $issue->save();
-
+                $issue = HdIssue::findOne($id_issue);
                 $daftar_sukses[] = $issue;
 
                 // tulis log
@@ -5131,28 +5127,10 @@ class HelpdeskController extends \yii\rest\Controller
             // terbitkan notifikasi
             $this->NotifikasiPICComplete($tiket["id"], $tiket["id_user_create"]);
 
-            // ganti status menjadi COMPLETE. lakukan via API call
-            $client = $this->SetupGuzzleClientSPBE();
+            // update status tiket
+            HdIssue::UpdateStatus($tiket['id'], 5);
 
-            $payload = [
-              "id_issue" => [ $tiket["id"] ],
-              "id_user" => $tiket["id_user_create"],
-              "status" => 5,  // complete
-            ];
-
-            $res = $client->request(
-              "PUT",
-               "web/index.php?r=kms/helpdesk/status",
-              [
-                "json" => $payload
-              ]
-            );
-
-            $temp = [];
-            $temp["result"] = $res;
-            $temp["payload"] = $payload;
-
-            $hasil["sukses"][] = $temp;
+            $hasil["sukses"][] = $tiket;
           }
         }
         else

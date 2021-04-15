@@ -106,4 +106,28 @@ class HdIssue extends \yii\db\ActiveRecord
       return $hasil["jumlah"];
 
     }
+
+
+    public static function UpdateStatus($id, $status)
+    {
+      $issue = HdIssue::findOne($id);
+      if( is_null($issue) == false )
+      {
+        $issue["status"] = $status;
+        $issue["time_status"] = date("Y-m-j H:i:s");
+        $issue->save();
+
+        return true;
+        $daftar_sukses[] = $issue;
+
+        // tulis log
+        $this->IssueLog($id_issue, $payload["id_user"], 1, $payload["status"]);
+      }
+      else
+      {
+        return false;
+
+        $daftar_gagal[] = $id_issue;
+      }
+    }
 }

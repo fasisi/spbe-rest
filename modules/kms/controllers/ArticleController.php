@@ -2601,7 +2601,7 @@ class ArticleController extends \yii\rest\Controller
               "page_no" => $payload["page_no"],
               "Items_per_page" => $payload["items_per_page"],
               "records" => $hasil,
-              "missing_records" => $hasil_no_relations
+              "missing_records" => $hasil_no_relation
             ]
           ];
           break;
