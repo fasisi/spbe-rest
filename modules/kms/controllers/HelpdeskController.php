@@ -66,6 +66,7 @@ class HelpdeskController extends \yii\rest\Controller
         'answer'                => ['POST', 'GET', 'PUT', 'DELETE'],
         'myitems'               => ['GET'],
         'ceksla'                => ['POST'],
+        'pic'                   => ['POST', 'PUT', 'GET', 'DELETE'],
 
         'attachments'           => ['POST'],
         'logsbytags'            => ['GET'],
@@ -4731,6 +4732,71 @@ class HelpdeskController extends \yii\rest\Controller
             return [
               "status" => "ok",
               "pesan" => "Record PIC ditemukan",
+              "result" => [
+                "record" => $test
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Record PIC tidak ditemukan",
+              "result" => [
+                "payload" => $payload
+              ]
+            ];
+          }
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak lengkap",
+            "result" => [
+              "payload" => $payload
+            ]
+          ];
+        }
+
+        break;
+
+      case Yii::$app->request->isDelete == true:
+        $payload = $this->GetPayload();
+
+        $is_id_kategori_valid = isset( $payload["id_kategori"] );
+        $is_id_user_valid = isset( $payload["id_user"] );
+
+        $test = KmsKategori::findOne( $payload["id_kategori"] );
+        $is_id_kategori_valid = $is_id_kategori_valid && is_null($test) == false;
+
+        $test = User::findOne( $payload["id_user"] );
+        $is_id_user_valid = $is_id_user_valid && is_null($test) == false;
+
+        if( $is_id_kategori_valid == true && $is_id_user_valid == true )
+        {
+
+          $test = HdKategoriPic::find()
+            ->where(
+              [
+                "and",
+                "id_kategori = :id_kategori",
+                "id_user = :id_user",
+              ],
+              [
+                ":id_kategori" => $payload["id_kategori"],
+                ":id_user" => $payload["id_user"],
+              ]
+            )
+            ->one();
+
+          if( is_null( $test ) == false )
+          {
+            $test->delete();
+
+            return [
+              "status" => "ok",
+              "pesan" => "Record PIC telah dihapus",
               "result" => [
                 "record" => $test
               ]
