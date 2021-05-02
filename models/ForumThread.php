@@ -64,7 +64,7 @@ class ForumThread extends \yii\db\ActiveRecord
             'id' => 'ID',
             'id_kategori' => 'Id Kategori',
             'linked_id_question' => 'Linked Id Question',
-	    'linked_id_artikel' => 'Linked Id Artikel',
+            'linked_id_artikel' => 'Linked Id Artikel',
             'judul' => 'Judul',
             'konten' => 'Konten',
             'view' => 'View',
@@ -329,6 +329,7 @@ class ForumThread extends \yii\db\ActiveRecord
             [
               "and",
               "f.is_delete = 0",
+              "f.linked_id_question <> -1",
               ["in", "f.status", [1, 4, 5, -2, -3]],    // publish, freeze, knowledge, sedang dirangkum, telah selesai dirangkum
               "f.id_kategori = :id_kategori",
             ],

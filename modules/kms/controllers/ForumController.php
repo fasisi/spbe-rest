@@ -1717,26 +1717,54 @@ class ForumController extends \yii\rest\Controller
       )
     {
       //  lakukan query dari tabel forum_thread
+      $active_query = ForumThread::find();
+
       $where = [];
       $where[] = "and";
       $where[] = "is_delete = 0";
+      $where[] = "linked_id_question <> -1";
       $where[] = ["in", "status", [-3, -2, 1, 4]];
       $where[] = ["in", "id_kategori", $payload["id_kategori"]];
 
       if( count($payload["id_tag"]) > 0 )
       {
         $where[] = ["in", "ftt.id_tag", $payload["id_tag"]];
+        $active_query
+          ->join(
+            "join", 
+            "forum_thread_tag ftt", 
+            "ftt.id_thread = forum_thread.id"
+          );
       }
 
-      $test = ForumThread::find()
-        ->join("join", "forum_thread_tag ftt", "ftt.id_thread = forum_thread.id")
+      $test = $active_query
         ->where($where)
         ->orderBy("time_create desc")
         ->all();
-      $total_rows = count($test);
 
-      $list_thread = ForumThread::find()
-        ->join("join", "forum_thread_tag ftt", "ftt.id_thread = forum_thread.id")
+      $total_rows = count($test);
+      Yii::info(
+        "rows = " . Json::encode($test)
+      );
+
+      Yii::info(
+        "total_rows = $total_rows"
+      );
+
+      $active_query = ForumThread::find();
+
+      if( count($payload["id_tag"]) > 0 )
+      {
+        $active_query
+          ->join(
+            "join", 
+            "forum_thread_tag ftt", 
+            "ftt.id_thread = forum_thread.id"
+          );
+      }
+
+
+      $list_thread = $active_query
         ->where($where)
         ->orderBy("time_create desc")
         ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
@@ -2523,80 +2551,80 @@ class ForumController extends \yii\rest\Controller
 
                 if(ForumThread::CekHakBaca($thread["id"], $user_actor["id"]) == true)
                 {
-                  // ambil record SPBE
+                  // ambil record SPBE - begin
 
-                  $short_konten = "";
-                  if( strlen($response_payload["body"]["content"]) < 300 )
-                  {
-                    $short_konten = strip_tags(
-                      $response_payload["body"]["content"]
-                    );
+                    $short_konten = "";
+                    if( strlen($response_payload["body"]["content"]) < 300 )
+                    {
+                      $short_konten = strip_tags(
+                        $response_payload["body"]["content"]
+                      );
+                    }
+                    else
+                    {
+                      $short_konten = strip_tags(
+                        $response_payload["body"]["content"]
+                      );
+                      $short_konten = substr($short_konten, 0, 300);
+                    }
+
+                    $user_create = User::findOne($thread["id_user_create"]);
+
+                    $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
+                    $temp = [];
+                    $temp["forum_thread"] = $thread;
+                    $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+                    $temp["data_user"]["user_create"] = $user_create;
+                    $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+                    $temp["confluence"]["id"] = $response_payload["id"];
+                    $temp["confluence"]["judul"] = $response_payload["title"];
+                    $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+                    $temp["confluence"]["short_konten"] = $short_konten;
+
+                    if( $is_id_user_actor_valid == true )
+                    {
+                      /* // periksa hak akses kategori bagi user ini */
+                      /* $test = KategoriUser::find() */
+                      /*   ->where( */
+                      /*     [ */
+                      /*       "and", */
+                      /*       "id_user = :id_user", */
+                      /*       "id_kategori = :id_kategori" */
+                      /*     ], */
+                      /*     [ */
+                      /*       ":id_user" => $payload["id_user_actor"], */
+                      /*       ":id_kategori" => $thread["id_kategori"] */
+                      /*     ] */
+                      /*   ) */
+                      /*   ->one(); */
+
+                      /* if( is_null($test) == false ) */
+                      /* { */
+                      /* } */
+
+                      $hasil[] = $temp;
+                      $count++;
+                    }
+                    else
+                    {
+                      $hasil[] = $temp;
+                    }
                   }
-                  else
-                  {
-                    $short_konten = strip_tags(
-                      $response_payload["body"]["content"]
-                    );
-                    $short_konten = substr($short_konten, 0, 300);
-                  }
 
-                  $user_create = User::findOne($thread["id_user_create"]);
-
-                  $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
-
-                  $temp = [];
-                  $temp["forum_thread"] = $thread;
-                  $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-                  $temp["data_user"]["user_create"] = $user_create;
-                  $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-                  $temp["confluence"]["id"] = $response_payload["id"];
-                  $temp["confluence"]["judul"] = $response_payload["title"];
-                  $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
-                  $temp["confluence"]["short_konten"] = $short_konten;
-
-                  if( $is_id_user_actor_valid == true )
-                  {
-                    /* // periksa hak akses kategori bagi user ini */
-                    /* $test = KategoriUser::find() */
-                    /*   ->where( */
-                    /*     [ */
-                    /*       "and", */
-                    /*       "id_user = :id_user", */
-                    /*       "id_kategori = :id_kategori" */
-                    /*     ], */
-                    /*     [ */
-                    /*       ":id_user" => $payload["id_user_actor"], */
-                    /*       ":id_kategori" => $thread["id_kategori"] */
-                    /*     ] */
-                    /*   ) */
-                    /*   ->one(); */
-
-                    /* if( is_null($test) == false ) */
-                    /* { */
-                    /* } */
-
-                    $hasil[] = $temp;
-                    $count++;
-                  }
-                  else
-                  {
-                    $hasil[] = $temp;
-                  }
                 }
-
+                else
+                {
+                  $gagal["thread not found"][] = $linked_id_question;
+                  $fail_count++;
+                }
               }
-              else
+              catch(yii\base\InvalidArgumentException $e)
               {
-                $gagal["thread not found"][] = $linked_id_question;
-                $fail_count++;
+                $gagal["CQ failed"][] = $linked_id_question;
               }
-            }
-            catch(yii\base\InvalidArgumentException $e)
-            {
-              $gagal["CQ failed"][] = $linked_id_question;
-            }
 
-            // ambil record SPBE
+            // ambil record SPBE - end
             
             
             if( $count == $payload["items_per_page"] || $i >= $end )

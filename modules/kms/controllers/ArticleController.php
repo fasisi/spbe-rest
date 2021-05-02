@@ -2537,8 +2537,10 @@ class ArticleController extends \yii\rest\Controller
           'query' => [
             'cql' => "$keywords",
             'expand' => 'body.view',
-            'start' => $payload["items_per_page"] * ($payload["page_no"] - 1),
-            'limit' => $payload["items_per_page"],
+            /* 'start' => $payload["items_per_page"] * ($payload["page_no"] - 1), */
+            /* 'limit' => $payload["items_per_page"], */
+            'start' => 0,
+            'limit' => 10000
           ],
         ]
       );
@@ -2552,6 +2554,11 @@ class ArticleController extends \yii\rest\Controller
           $response_payload = Json::decode($response_payload);
 
           $total_rows = $response_payload["totalSize"];
+
+          $start = ($payload['page_no'] - 1) * $payload['items_per_page'];
+          $limit = $payload['items_per_page'];
+          $counter = 0; 
+          $total_rows = 0;
 
           foreach($response_payload["results"] as $item)
           {
@@ -2571,16 +2578,28 @@ class ArticleController extends \yii\rest\Controller
 
             if(is_null($artikel) == false)
             {
-              $user = User::findOne($artikel["id_user_create"]);
-              $temp["kms_artikel"] = $artikel;
-              $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-              $temp["data_user"]["user_create"] = $user->nama;
-              $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-              $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
-              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
-              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+              $total_rows++;
 
-              $hasil[] = $temp;
+              if($counter >= $start)
+              {
+
+                if( $limit > count($hasil) )
+                {
+                  $user = User::findOne($artikel["id_user_create"]);
+                  $temp["kms_artikel"] = $artikel;
+                  $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+                  $temp["data_user"]["user_create"] = $user->nama;
+                  $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+                  $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+                  $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+                  $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+
+                  $hasil[] = $temp;
+                }
+              }
+              
+              $counter++;
+
             }
             else
             {

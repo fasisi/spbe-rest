@@ -65,7 +65,10 @@ class GlobalController extends \yii\rest\Controller
 
         if (isset($payload["table_name"]) == true) {
             $query = new Query;
-            $query->select('*')->from($payload["table_name"]);
+            $query
+              ->select('*')
+              ->from($payload["table_name"])
+              ->where('is_delete = 0');
             $command = $query->createCommand();
             $data = $command->queryAll();
 
