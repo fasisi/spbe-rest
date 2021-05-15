@@ -715,7 +715,7 @@ class ArticleController extends \yii\rest\Controller
 
             // update record kms_artikel
             $artikel = KmsArtikel::findOne($payload["id"]);
-            /* $artikel['status'] = $payload["status"]; */
+            $artikel['status'] = $payload["status"];
             $artikel['time_update'] = date("Y-m-j H:i:s");
             $artikel['id_user_update'] = $payload["id_user"];
             $artikel['id_kategori'] = $payload["id_kategori"];
@@ -1767,7 +1767,11 @@ class ArticleController extends \yii\rest\Controller
       $where[] = "and";
       $where[] = "is_delete = 0";
       $where[] = "status = 1";
-      $where[] = ["in", "id_kategori", $payload["id_kategori"]];
+
+      if( count($payload["id_kategori"]) > 0)
+      {
+        $where[] = ["in", "id_kategori", $payload["id_kategori"]];
+      }
 
       if( count($payload["id_tag"]) > 0 )
       {
@@ -3702,6 +3706,7 @@ class ArticleController extends \yii\rest\Controller
             ],
             []
           )
+        ->distinct()
         ->orderBy("ka.view desc")
         ->limit(5);
 
