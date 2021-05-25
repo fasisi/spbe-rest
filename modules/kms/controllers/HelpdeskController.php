@@ -2193,11 +2193,10 @@ class HelpdeskController extends \yii\rest\Controller
               "s.id_user = :id_solver",
               "i.is_delete = 0",
               ["in", "id_kategori", $payload["idkategori"]],
-              "i.status = :status"
+              ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
             ],
             [
               ":id_solver" => $payload["id_user"],
-              ":status" => $payload["status"]
             ]
           )
           ->all();
