@@ -198,6 +198,34 @@ class ForumThread extends \yii\db\ActiveRecord
     }
 
 
+    // Mengembalikan array berisi informasi status terakhir dari suatu
+    // thread.
+    //
+    public static function GetStatusInfo($id)
+    {
+      $hasil = ForumThreadActivityLog::find()
+        ->where(
+          [
+            "and",
+            "id_thread = :id",
+            "type_log = 1"
+          ],
+          [
+            ":id" => $id,
+          ]
+        )
+        ->orderBy("time_status desc")
+        ->one();
+
+      $user = User::findOne($hasil['id_user']);
+
+      return [
+        "status" => $hasil['status'],
+        "time_status" => date("d/m/Y H:i:s", strtotime($hasil["time_status"])),
+        "user" => $user,
+      ];
+    }
+
 
     /*
      *  Menghitung jumlah kejadian suatu status atas suatu thread, dalam rentang waktu tertentu

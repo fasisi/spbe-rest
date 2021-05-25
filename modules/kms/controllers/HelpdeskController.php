@@ -499,12 +499,12 @@ class HelpdeskController extends \yii\rest\Controller
               "and",
               "pic.id_kategori = :id_kategori",
               "ur.id_roles = :id_role",
-              "u.id_departments = :id_instansi"
+              /* "u.id_departments = :id_instansi" */
             ],
             [
               ":id_kategori" => $id_kategori,
               ":id_role" => $id_role,
-              ":id_instansi" => $id_instansi,
+              /* ":id_instansi" => $id_instansi, */
             ]
           )
           ->all();
@@ -2026,6 +2026,7 @@ class HelpdeskController extends \yii\rest\Controller
     //  cek parameter
     // $is_kategori_valid = isset($payload["id_kategori"]);
     
+    $is_idkategori_valid = isset($payload["idkategori"]);
     $is_status_valid = isset($payload["status"]);
     $is_list_mode_valid = isset($payload["list_mode"]);
     $is_id_user_valid = isset($payload["id_user"]);
@@ -2036,6 +2037,7 @@ class HelpdeskController extends \yii\rest\Controller
     $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
 
     if(
+        $is_idkategori_valid == true &&
         $is_status_valid == true &&
         $is_list_mode_valid == true &&
         $is_id_user_valid == true &&
@@ -2052,6 +2054,7 @@ class HelpdeskController extends \yii\rest\Controller
             [
               "and",
               "is_delete = 0",
+              ["in", "id_kategori", $payload["idkategori"]],
               "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
               "id_user_create = :id_user"
             ],
@@ -2068,6 +2071,7 @@ class HelpdeskController extends \yii\rest\Controller
             [
               "and",
               "is_delete = 0",
+              ["in", "id_kategori", $payload["idkategori"]],
               "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
               "id_user_create = :id_user"
             ],
@@ -2188,6 +2192,7 @@ class HelpdeskController extends \yii\rest\Controller
               "and",
               "s.id_user = :id_solver",
               "i.is_delete = 0",
+              ["in", "id_kategori", $payload["idkategori"]],
               "i.status = :status"
             ],
             [
@@ -2897,26 +2902,55 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil = array();
           foreach($response_payload["values"] as $item)
           {
-            $temp = array();
-            $temp["servicedesk"]["status"] = "ok";
-            $temp["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
-            $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
-            $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
-
             $issue = HdIssue::find()
               ->where(
                 [
-                  "linked_id_issue" => $item["id"]
+                  "linked_id_issue" => $item["issueId"]
                 ]
               )
               ->one();
-            $user = User::findOne($issue["id_user_create"]);
-            $temp["hd_issue"] = $issue;
-            $temp["user_create"] = $user->nama;
-            $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
 
-            $hasil[] = $temp;
+            if( is_null($issue) == false )
+            {
+              $user = User::findOne($issue["id_user_create"]);
+              $jawaban = HdIssueDiscussion::findAll([
+                "id_issue" => $issue["id"],
+                "is_delete" => 0
+              ]);
+
+              $temp = array();
+              $temp["servicedesk"]["status"] = "ok";
+              $temp["servicedesk"]["linked_id_issue"] = $item["issueId"];
+              $temp["servicedesk"]["judul"] = $item["requestFieldValues"][0]["value"];
+              $temp["servicedesk"]["konten"] = $item["requestFieldValues"][1]["value"];
+
+              $temp["hd_issue"] = $issue;
+              $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
+              $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+              $temp["user_create"] = $user;
+              $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
+              $temp["jawaban"]["count"] = count($jawaban);
+              $temp['data_user']['user_create'] = $user->nama;
+              $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
+              $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+
+              if(
+                $payload['status'] == 0 || 
+                $payload['status'] == $issue['status'] 
+              )
+              {
+                $hasil[] = $temp;
+              }
+            }
           }
+
+          Yii::info(
+            "payload = " . Json::encode($payload)
+          );
+
+          Yii::info(
+            "hasil = " . Json::encode($hasil)
+          );
 
           return [
             "status" => "ok",

@@ -491,85 +491,103 @@ class GlobalController extends \yii\rest\Controller
         $code_name = "'".$payload["code_name"]."'";
         $id_kategori = $payload["id_kategori"];
         $id_instansi = $payload["id_instansi"];
-        if(($id_kategori == "") && ($id_instansi == "")) {
 
-            if (isset($payload["code_name"]) == true) {
+        if(($id_kategori == "") && ($id_instansi == "")) 
+        {
+
+          if (isset($payload["code_name"]) == true) 
+          {
                 $query = new Query;
                 $query->select('u.id AS id_user,u.nama AS nama_user')
-                ->from("user u")
-                ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
-                ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
-                ->where("r.code_name =".$code_name);
+                  ->from("user u")
+                  ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+                  ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+                  ->where("r.code_name =".$code_name);
                 $command = $query->createCommand();
                 $data = $command->queryAll();
     
-                if (!empty($data)) {
+                if (!empty($data)) 
+                {
                     return [
                         "status" => "ok",
                         "pesan" => "Record found",
                         "result" => $data
                     ];
-                } else {
+                } 
+                else 
+                {
                     return [
                         "status" => "not ok",
                         "pesan" => "Record not found",
                     ];
                 }
-            } else {
-                return [
-                    "status" => "not ok",
-                    "pesan" => "Required parameter: id",
-                ];
-            }
-        } else if(($id_kategori != "") && ($id_instansi == "")) {
+          } 
+          else 
+          {
+              return [
+                  "status" => "not ok",
+                  "pesan" => "Required parameter: id",
+              ];
+          }
+        } 
+        else if(($id_kategori != "") && ($id_instansi == "")) 
+        {
             $query = new Query;
             $query->select('u.id AS id_user,u.nama AS nama_user')
-            ->from("user u")
-            ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
-            ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
-            ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
-            
-            ->where("r.code_name =".$code_name)
-            ->andWhere("ku.id_kategori =" .$payload['id_kategori'])
-	        ->groupBy('id_user');
+              ->from("user u")
+              ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+              ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+              ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
+              
+              ->where("r.code_name =".$code_name)
+              ->andWhere("ku.id_kategori =" .$payload['id_kategori'])
+              ->groupBy('id_user');
             $command = $query->createCommand();
             $data = $command->queryAll();
 
-            if (!empty($data)) {
+            if (!empty($data)) 
+            {
                 return [
                     "status" => "ok",
                     "pesan" => "Record found",
                     "result" => $data
                 ];
-            } else {
+            } 
+            else 
+            {
                 return [
                     "status" => "not ok",
                     "pesan" => "Record not found",
                 ];
             }
-        } else {
+        } 
+        else 
+        {
             $query = new Query;
             $query->select('u.id AS id_user,u.nama AS nama_user,d.name AS nama_department,d.id AS id_departments,kk.id AS id_kategori')
-            ->from("user u")
-            ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
-            ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
-            ->join('LEFT JOIN', 'departments d','u.id_departments = d.id')	
-            ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
-            ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
-            ->where("r.code_name =".$code_name)
-            ->andWhere("kk.id =" .$payload['id_kategori'])
-            ->andWhere("d.id =" .$payload['id_instansi'])
-	        ->groupBy('id_user');
+              ->from("user u")
+              ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
+              ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+              ->join('LEFT JOIN', 'departments d','u.id_departments = d.id')	
+              ->join('LEFT JOIN', 'kategori_user ku','ku.id_user = u.id')	
+              ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
+              ->where("r.code_name =".$code_name)
+              ->andWhere("kk.id =" .$payload['id_kategori'])
+              /* ->andWhere("d.id =" .$payload['id_instansi']) */
+              ->groupBy('nama_user');
             $command = $query->createCommand();
             $data = $command->queryAll();
 
-            if (!empty($data)) {
+            if (!empty($data)) 
+            {
                 return [
                     "status" => "ok",
                     "pesan" => "Record found",
                     "result" => $data
                 ];
-            } else {
+            } 
+            else 
+            {
                 return [
                     "status" => "not ok",
                     "pesan" => "Record not found",

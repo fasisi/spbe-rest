@@ -182,6 +182,37 @@ class ForumController extends \yii\rest\Controller
         return $res;
       }
 
+      // Membuat record-record yang tidak ada relasinya di
+      // database SPBE
+      //
+      private function SanitasiHasilPencarian($results)
+      {
+        $hasil = [];
+
+        foreach( $results as $item )
+        {
+          $test = ForumThread::find()
+            ->where([
+              "and",
+              "linked_id_question = :id",
+              "is_delete = 0",
+              ["in", "status", [1, 4, -3]]
+            ],
+            [
+              ":id" => $item['id'],
+            ]
+            )
+            ->one();
+
+          if( is_null($test) == false )
+          {
+            $hasil[] = $item;
+          }
+        }
+
+        return $hasil;
+      }
+
   // ==========================================================================
   // private helper functions
   // ==========================================================================
@@ -2132,6 +2163,7 @@ class ForumController extends \yii\rest\Controller
       $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
       $hasil["record"]["files"] = $files;
       $hasil["record"]["list_hak_baca"] = $list_hak_baca;
+      $hasil["record"]["status_info"] = ForumThread::GetStatusInfo($thread['id']);
       $hasil["jawaban"]["count"] = count($jawaban);
       $hasil["jawaban"]["records"] = $jawaban;
       $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
@@ -2468,6 +2500,14 @@ class ForumController extends \yii\rest\Controller
     {
       $jira_conf = Yii::$app->restconf->confs['confluence'];
       $client = $this->SetupGuzzleClient();
+      $query = [
+        'type' => 'question',
+        'query' => $payload["search_keyword"],
+        'limit' => 10000,
+        'start' => 0,
+        'spaceKey' => 'PS',
+      ];
+
 
       $res = $client->request(
         'GET',
@@ -2502,7 +2542,14 @@ class ForumController extends \yii\rest\Controller
           $response_payload = Json::decode($response_payload);
 
           $results = $response_payload["results"];
+          $results = $this->SanitasiHasilPencarian($results);
           $total_rows = count($results);
+
+          $pages = ceil($total_rows / $payload['items_per_page']);
+          if( $payload['page_no'] > $pages )
+          {
+            $payload['page_no'] = $pages;
+          }
 
           $start = $payload["items_per_page"] * ($payload["page_no"] - 1);
           $end = $start + $payload["items_per_page"] - 1;
@@ -2516,136 +2563,148 @@ class ForumController extends \yii\rest\Controller
           $fail_count = 0;
           $terus = true;
 
-          do
+          if($i <= $total_rows - 1)
           {
-            $result_item = $results[$i];
-
-            // ambil record confluence
-            $linked_id_question = $result_item["id"];
-            $response = $this->Conf_GetQuestion($client, $linked_id_question);
-
-            try
+            do
             {
-              $response_payload = $response->getBody();
-              $response_payload = Json::decode($response_payload);
+              $result_item = $results[$i];
 
-              $thread = ForumThread::find()
-                ->where([
-                  "and",
-                  "linked_id_question = :id",
-                  "is_delete = 0",
-                  ["in", "status", [1, 4, -3]]
-                ],
-                [
-                  ":id" => $linked_id_question,
-                ]
-                )
-                ->one();
-              
-              if( is_null($thread) == false)
+              // ambil record confluence
+              $linked_id_question = $result_item["id"];
+              $response = $this->Conf_GetQuestion($client, $linked_id_question);
+
+              try
               {
-                $user_actor = User::findOne($payload["id_user_actor"]);
+                $response_payload = $response->getBody();
+                $response_payload = Json::decode($response_payload);
 
-                // cek hak baca user terhadap thread. hak baca diperiksa 
-                // berdasarkan kesamaan id_kategori
+                $thread = ForumThread::find()
+                  ->where([
+                    "and",
+                    "linked_id_question = :id",
+                    "is_delete = 0",
+                    ["in", "status", [1, 4, -3]]
+                  ],
+                  [
+                    ":id" => $linked_id_question,
+                  ]
+                  )
+                  ->one();
 
-                if(ForumThread::CekHakBaca($thread["id"], $user_actor["id"]) == true)
+                if( is_null($thread) == false)
                 {
-                  // ambil record SPBE - begin
+                  $user_actor = User::findOne($payload["id_user_actor"]);
 
-                    $short_konten = "";
-                    if( strlen($response_payload["body"]["content"]) < 300 )
-                    {
-                      $short_konten = strip_tags(
-                        $response_payload["body"]["content"]
-                      );
+                  // cek hak baca user terhadap thread. hak baca diperiksa 
+                  // berdasarkan kesamaan id_kategori
+
+                  if(ForumThread::CekHakBaca($thread["id"], $user_actor["id"]) == true)
+                  {
+                    // ambil record SPBE - begin
+
+                      $short_konten = "";
+                      if( strlen($response_payload["body"]["content"]) < 300 )
+                      {
+                        $short_konten = strip_tags(
+                          $response_payload["body"]["content"]
+                        );
+                      }
+                      else
+                      {
+                        $short_konten = strip_tags(
+                          $response_payload["body"]["content"]
+                        );
+                        $short_konten = substr($short_konten, 0, 300);
+                      }
+
+                      $user_create = User::findOne($thread["id_user_create"]);
+
+                      $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
+                      $temp = [];
+                      $temp["forum_thread"] = $thread;
+                      $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+                      $temp["data_user"]["user_create"] = $user_create;
+                      $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+                      $temp["confluence"]["id"] = $response_payload["id"];
+                      $temp["confluence"]["judul"] = $response_payload["title"];
+                      $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+                      $temp["confluence"]["short_konten"] = $short_konten;
+
+                      if( $is_id_user_actor_valid == true )
+                      {
+                        /* // periksa hak akses kategori bagi user ini */
+                        /* $test = KategoriUser::find() */
+                        /*   ->where( */
+                        /*     [ */
+                        /*       "and", */
+                        /*       "id_user = :id_user", */
+                        /*       "id_kategori = :id_kategori" */
+                        /*     ], */
+                        /*     [ */
+                        /*       ":id_user" => $payload["id_user_actor"], */
+                        /*       ":id_kategori" => $thread["id_kategori"] */
+                        /*     ] */
+                        /*   ) */
+                        /*   ->one(); */
+
+                        /* if( is_null($test) == false ) */
+                        /* { */
+                        /* } */
+
+                        $hasil[] = $temp;
+                        $count++;
+                      }
+                      else
+                      {
+                        $hasil[] = $temp;
+                      }
                     }
                     else
                     {
-                      $short_konten = strip_tags(
-                        $response_payload["body"]["content"]
-                      );
-                      $short_konten = substr($short_konten, 0, 300);
+                      $gagal["can not read"][] = $linked_id_question;
+                      $fail_count++;
                     }
 
-                    $user_create = User::findOne($thread["id_user_create"]);
-
-                    $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
-
-                    $temp = [];
-                    $temp["forum_thread"] = $thread;
-                    $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
-                    $temp["data_user"]["user_create"] = $user_create;
-                    $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
-                    $temp["confluence"]["id"] = $response_payload["id"];
-                    $temp["confluence"]["judul"] = $response_payload["title"];
-                    $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
-                    $temp["confluence"]["short_konten"] = $short_konten;
-
-                    if( $is_id_user_actor_valid == true )
-                    {
-                      /* // periksa hak akses kategori bagi user ini */
-                      /* $test = KategoriUser::find() */
-                      /*   ->where( */
-                      /*     [ */
-                      /*       "and", */
-                      /*       "id_user = :id_user", */
-                      /*       "id_kategori = :id_kategori" */
-                      /*     ], */
-                      /*     [ */
-                      /*       ":id_user" => $payload["id_user_actor"], */
-                      /*       ":id_kategori" => $thread["id_kategori"] */
-                      /*     ] */
-                      /*   ) */
-                      /*   ->one(); */
-
-                      /* if( is_null($test) == false ) */
-                      /* { */
-                      /* } */
-
-                      $hasil[] = $temp;
-                      $count++;
-                    }
-                    else
-                    {
-                      $hasil[] = $temp;
-                    }
                   }
-
+                  else
+                  {
+                    $gagal["thread not found"][] = $linked_id_question;
+                    $fail_count++;
+                  }
                 }
-                else
+                catch(yii\base\InvalidArgumentException $e)
                 {
-                  $gagal["thread not found"][] = $linked_id_question;
-                  $fail_count++;
+                  $gagal["CQ failed"][] = $linked_id_question;
                 }
-              }
-              catch(yii\base\InvalidArgumentException $e)
+
+              // ambil record SPBE - end
+
+
+              if( $count == $payload["items_per_page"] || $i == $total_rows - 1 )
               {
-                $gagal["CQ failed"][] = $linked_id_question;
+                $terus = false;
+              }
+              else
+              {
+                $i++;
               }
 
-            // ambil record SPBE - end
-            
-            
-            if( $count == $payload["items_per_page"] || $i >= $end )
-            {
-              $terus = false;
-            }
-            else
-            {
-              $i++;
-            }
-
-          } while( $terus == true );
+            } while( $terus == true );
+          }
 
           // kembalikan hasilnya
           return [
             "status" => "ok",
             "pesan" => "Pencarian berhasil dilakukan",
+            "query" => $query,
             "result" => 
             [
               "total_rows" => $total_rows,
               "counts" => $count,
+              "start" => $start,
+              "end" => $end,
+              "i" => $i,
               "fail counts" => $fail_count,
               "page_no" => $payload["page_no"],
               "items_per_page" => $payload["items_per_page"],
@@ -2659,6 +2718,7 @@ class ForumController extends \yii\rest\Controller
           return [
             "status" => "not ok",
             "pesan" => "Pencarian tidak berhasil dilakukan",
+            "query" => $query,
             "payload" => $payload,
             "guzzle response" => $res
           ];
@@ -3845,6 +3905,25 @@ class ForumController extends \yii\rest\Controller
                 "pesan" => "id_parent tidak ditemukan",
               ];
             }
+            else
+            {
+              if(
+                $test['status'] == -3 ||  // telah selesai dirangkum
+                $test['status'] == -2 ||  // sedang dirangkum
+                $test['status'] == -1 ||  // draft
+                $test['status'] == 0  ||  // baru
+                $test['status'] == 2  ||  // un-publish
+                $test['status'] == 3  ||  // reject
+                $test['status'] == 4  ||  // freeze
+                $test['status'] == 6      // pengetahuan
+              )
+              {
+                return [
+                  "status" => "not ok",
+                  "pesan" => "Topik tidak dapat menerima komentar",
+                ];
+              }
+            }
           }
           else if( $payload["type"] == 2 ) // comment of jawaban
           {
@@ -3856,6 +3935,27 @@ class ForumController extends \yii\rest\Controller
                 "status" => "not ok",
                 "pesan" => "id_parent tidak ditemukan",
               ];
+            }
+            else
+            {
+              $thread = ForumThread::findOne($test['id_thread']);
+
+              if(
+                $thread['status'] == -3 ||  // telah selesai dirangkum
+                $thread['status'] == -2 ||  // sedang dirangkum
+                $thread['status'] == -1 ||  // draft
+                $thread['status'] == 0  ||  // baru
+                $thread['status'] == 2  ||  // un-publish
+                $thread['status'] == 3  ||  // reject
+                $thread['status'] == 4  ||  // freeze
+                $thread['status'] == 6      // pengetahuan
+              )
+              {
+                return [
+                  "status" => "not ok",
+                  "pesan" => "Topik tidak dapat menerima komentar",
+                ];
+              }
             }
           }
           else
@@ -4236,6 +4336,25 @@ class ForumController extends \yii\rest\Controller
               "status" => "not ok",
               "pesan" => "id_parent tidak ditemukan",
             ];
+          }
+          else
+          {
+            if(
+              $thread['status'] == -3 ||  // telah selesai dirangkum
+              $thread['status'] == -2 ||  // sedang dirangkum
+              $thread['status'] == -1 ||  // draft
+              $thread['status'] == 0  ||  // baru
+              $thread['status'] == 2  ||  // un-publish
+              $thread['status'] == 3  ||  // reject
+              $thread['status'] == 4  ||  // freeze
+              $thread['status'] == 6      // pengetahuan
+            )
+            {
+            return [
+              "status" => "not ok",
+              "pesan" => "Topik tidak dapat menerima jawaban.",
+            ];
+            }
           }
         }
         
@@ -5043,7 +5162,7 @@ class ForumController extends \yii\rest\Controller
     $test = ForumThreadDiscussion::findOne( $pauload["id_jawaban"] );
     $is_id_jawaban_valid = $is_id_jawaban_valid && is_null( $test );
 
-    if( $is_id_user_valid && $is_id_thread_valid && $is_value_valid )
+    if( $is_id_user_valid && $is_id_jawaban_valid && $is_value_valid )
     {
       // cek apakah sudah ada record forum_thread_user_action
       $test = ForumThreadDiscussionUserAction::find()
@@ -5079,10 +5198,10 @@ class ForumController extends \yii\rest\Controller
       $hasil = $q->select(" count(a.id_user) as jumlah ")
         ->from("forum_thread_discussion_user_action a")
         ->where(
-          "id_thread = :id_thread AND
+          "id_discussion = :id_jawaban AND
            action = 1
           ",
-          [":id_thread" => $payload["id_thread"]]
+          [":id_jawaban" => $payload["id_jawaban"]]
         )
         ->one();
       $like = $hasil["jumlah"];
@@ -5091,10 +5210,10 @@ class ForumController extends \yii\rest\Controller
       $hasil = $q->select(" count(a.id_user) as jumlah ")
         ->from("forum_thread_discussion_user_action a")
         ->where(
-          "id_thread = :id_thread AND
+          "id_discussion = :id_jawaban AND
            action = 2
           ",
-          [":id_thread" => $payload["id_thread"]]
+          [":id_jawaban" => $payload["id_jawaban"]]
         )
         ->one();
       $dislike = $hasil["jumlah"];
@@ -5115,7 +5234,7 @@ class ForumController extends \yii\rest\Controller
     {
       return [
         "status" => "not ok",
-        "pesan" => "Informasi like/dislike berhasil disimpan",
+        "pesan" => "Informasi like/dislike gagal disimpan",
         "payload" => $payload
       ];
     }

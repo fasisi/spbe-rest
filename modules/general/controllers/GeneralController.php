@@ -167,7 +167,6 @@ class GeneralController extends \yii\rest\Controller
             $is_max_child_depth_valid = $is_max_child_depth_valid && is_numeric($payload["max_child_depth"]);
 
             if(
-                $is_nomor_valid == true &&
                 $is_nama_valid == true &&
                 $is_deskripsi_valid == true &&
                 $is_id_parent_valid == true
@@ -185,6 +184,11 @@ class GeneralController extends \yii\rest\Controller
                 $new["time_create"] = date("Y-m-j H:i:s");
                 $new->save();
                 $id = $new->primaryKey;
+
+                // update field nomor
+                $kategori = KmsKategori::findOne($id);
+                $kategori['nomor'] = $id;
+                $kategori->save();
 
                 return [
                   "status" => "ok",

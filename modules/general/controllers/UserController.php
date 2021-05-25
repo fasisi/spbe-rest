@@ -496,7 +496,10 @@ class UserController extends \yii\rest\Controller
         ->groupBy(
           'id_user'
         );
-    } else if ($payload["params"] == 1) {
+    } 
+    else if ($payload["params"] == 1) 
+    {
+      // ambil daftar user yang status == banned
       $query->select([
         'user.id AS id_user',
         'user.nama AS nama_user',
@@ -542,30 +545,32 @@ class UserController extends \yii\rest\Controller
         ->groupBy(
           'id_user'
         );
-    } else if($payload["params"] == 2){
+    } 
+    else if($payload["params"] == 2)
+    {
+      // ambil daftar user is_deleted = 1
       $query->select([
-        'user.id AS id_user',
-        'user.nama AS nama_user',
-        'user.jenis_kelamin AS jk',
-        'user.is_deleted AS is_deleted',
-        'user.is_banned AS is_banned',
-        'user.nip AS nip',
-        'departments.name AS nama_departments',
-        'GROUP_CONCAT(roles.name) AS nama_roles',
-        '(
-          SELECT
-          GROUP_CONCAT(kms_kategori.nama)
-          FROM 
-            kategori_user
-          JOIN
-            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-          WHERE
-            id_user = user.id
-          AND
-            kms_kategori.is_delete = 0
-        ) as nama_kategori'
-        ]
-        )
+          'user.id AS id_user',
+          'user.nama AS nama_user',
+          'user.jenis_kelamin AS jk',
+          'user.is_deleted AS is_deleted',
+          'user.is_banned AS is_banned',
+          'user.nip AS nip',
+          'departments.name AS nama_departments',
+          'GROUP_CONCAT(roles.name) AS nama_roles',
+          '(
+            SELECT
+            GROUP_CONCAT(kms_kategori.nama)
+            FROM 
+              kategori_user
+            JOIN
+              kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+            WHERE
+              id_user = user.id
+            AND
+              kms_kategori.is_delete = 0
+          ) as nama_kategori'
+        ])
         ->from('user')
         ->join(
           'INNER JOIN',
@@ -595,6 +600,41 @@ class UserController extends \yii\rest\Controller
 
     if( !empty($record) )
     {
+      // sanitasi nama_kategori dari hasil query
+      foreach($record as $key => $item)
+      {
+        $user = User::findOne($item['id_user']);
+        $list_kategori = $user->getCategories();
+
+        $path = "";
+        foreach($list_kategori as $item2)
+        {
+          $temp_path = KmsKategori::CategoryPath($item2['id']);
+
+          $teks_path = "";
+          foreach( $temp_path as $item3 )
+          {
+            $teks_path .= (
+              $teks_path == "" ?
+              $item3['nama'] :
+              " >> " . $item3['nama']
+            );
+          }
+
+          $path .= "
+            <li>{$teks_path}</li>
+          ";
+        }
+
+        $path = "
+          <ul>
+            $path
+          </ul>
+        ";
+
+        /* $record[$key]['nama_kategori'] = $path; */
+      }
+
       return [
         "status" => "ok",
         "pesan" => "Record found",
