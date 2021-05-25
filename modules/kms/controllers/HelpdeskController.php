@@ -2055,7 +2055,7 @@ class HelpdeskController extends \yii\rest\Controller
               "and",
               "is_delete = 0",
               ["in", "id_kategori", $payload["idkategori"]],
-              "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
+              ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
               "id_user_create = :id_user"
             ],
             [
@@ -2072,7 +2072,7 @@ class HelpdeskController extends \yii\rest\Controller
               "and",
               "is_delete = 0",
               ["in", "id_kategori", $payload["idkategori"]],
-              "status = {$payload['status']}",   // 0=draft; 1=new; 2=un-assigned; 3=progress; 4=solved
+              ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
               "id_user_create = :id_user"
             ],
             [
@@ -2905,7 +2905,9 @@ class HelpdeskController extends \yii\rest\Controller
             $issue = HdIssue::find()
               ->where(
                 [
-                  "linked_id_issue" => $item["issueId"]
+		  "and",
+                  "linked_id_issue" => $item["issueId"],
+                  ["in", "status", $payload["status"]],
                 ]
               )
               ->one();
@@ -2914,7 +2916,7 @@ class HelpdeskController extends \yii\rest\Controller
             {
               $user = User::findOne($issue["id_user_create"]);
               $jawaban = HdIssueDiscussion::findAll([
-                "id_issue" => $issue["id"],
+	      	"id_issue" => $issue["id"],
                 "is_delete" => 0
               ]);
 
@@ -2934,13 +2936,8 @@ class HelpdeskController extends \yii\rest\Controller
               $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
               $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
-              if(
-                $payload['status'] == 0 || 
-                $payload['status'] == $issue['status'] 
-              )
-              {
-                $hasil[] = $temp;
-              }
+              $hasil[] = $temp;
+
             }
           }
 
