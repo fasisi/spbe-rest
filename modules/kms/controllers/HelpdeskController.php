@@ -2904,7 +2904,7 @@ class HelpdeskController extends \yii\rest\Controller
             $issue = HdIssue::find()
               ->where(
                 [
-		  "and",
+                  "and",
                   "linked_id_issue" => $item["issueId"],
                   ["in", "status", $payload["status"]],
                 ]
@@ -4363,19 +4363,11 @@ class HelpdeskController extends \yii\rest\Controller
             // simpan di SPBE
 
             // simpan attachment
-
-                HdIssueDiscussionFile::deleteAll(["id_discussion" => $payload["id_parent"]]);
-
-                foreach($payload["files"] as $item_file)
-                {
-                  $new = new HdIssueDiscussionFile();
-                  $new["id_discussion"] = $id_discussion;
-                  $new["id_file"] = $item_file;
-                  $new["time_create"] = date("Y-m-j H:i:s");
-                  $new["id_user_create"] = $payload["id_user"];
-                  $new->save();
-                }
-
+                HdIssueDiscussionFile::StoreAttachments(
+                  $id_discussion,
+                  $payload['id_user'],
+                  $payload['id_files']
+                );
             // simpan attachment
 
 
@@ -4464,24 +4456,66 @@ class HelpdeskController extends \yii\rest\Controller
     {
       // mengambil record jawaban
 
-      $is_type_valid = isset($payload["type"]);
       $is_id_valid = isset($payload["id"]);
+      $is_id_user_valid = isset($payload["id_user"]);
 
-      $test = HdIssueDiscussion::findOne($payload["id"]);
+      $test = HdIssueDiscussion::find()
+        ->where(
+          [
+            "and",
+            "id = :id",
+            "id_user_create = :id_user"
+          ],
+          [
+            ":id" => $payload["id"],
+            ":id_user" => $payload["id_user"],
+          ]
+        )
+        ->one();
 
       if( is_null($test) == false )
       {
+        // ambil record lampiran
+        //
+        $temp_files = HdIssueDiscussionFile::find()
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "id_discussion = :id",
+            ],
+            [
+              ":id" => $payload['id'],
+            ]
+          )
+          ->all();
+
+        $files = [];
+        foreach($temp_files as $item)
+        {
+          // generate URL for download
+          $file = $this->GetFileRespon($item['id_file']);
+
+          if( is_null($file) == false )
+          {
+            $files[] = $file;
+          }
+        }
+
         return [
           "status" => "ok",
           "pesan" => "Record jawaban ditemukan",
-          "result" => $test
+          "payload" => $payload,
+          "record" => $test,
+          "files" => $files,
         ];
       }
       else
       {
         return [
           "status" => "not ok",
-          "pesan" => "Record jawaban tidak ditemukan."
+          "pesan" => "Record jawaban tidak ditemukan.",
+          "payload" => $payload,
         ];
       }
 
@@ -4490,10 +4524,10 @@ class HelpdeskController extends \yii\rest\Controller
     {
       // mengupdate record jawaban
       $is_type_valid = isset($payload["type"]);
-      $is_id_valid = isset($payload["id"]);
+      $is_id_valid = isset($payload["id_jawaban"]);
       $is_konten_valid = isset($payload["konten"]);
 
-      $test = HdIssueDiscussion::findOne($payload["id"]);
+      $test = HdIssueDiscussion::findOne($payload["id_jawaban"]);
 
       if( is_null($test) == false )
       {
@@ -4503,9 +4537,18 @@ class HelpdeskController extends \yii\rest\Controller
         $test["time_update"] = date("Y-m-j H:i:s");
         $test->save();
 
+        // update lampiran jawaban - begin
+          HdIssueDiscussionFile::StoreAttachments(
+            $payload['id_jawaban'],
+            $payload['id_user'],
+            $payload['files']
+          );
+        // update lampiran jawaban - end
+
         return [
           "status" => "ok",
-          "pesan" => "Record jawaban ditemukan",
+          "pesan" => "Record jawaban telah di-update",
+          "payload" => $payload,
           "result" => $test
         ];
       }
@@ -4513,7 +4556,8 @@ class HelpdeskController extends \yii\rest\Controller
       {
         return [
           "status" => "not ok",
-          "pesan" => "Record jawaban tidak ditemukan."
+          "pesan" => "Record jawaban tidak ditemukan.",
+          "payload" => $payload,
         ];
       }
     }
@@ -5844,4 +5888,24 @@ class HelpdeskController extends \yii\rest\Controller
   // ==========================================================================
   // my issues
   // ==========================================================================
+
+
+
+
+  private function GetFileRespon($id_file)
+  {
+    $file = KmsFiles::findOne( $id_file );
+
+    if( is_null($file) == false )
+    {
+      return [
+        "KmsFiles" => $file,
+        "link" => BaseUrl::base(true) . "/files/" . $file["nama"]
+      ];
+    }
+    else
+    {
+      return null;
+    }
+  }
 }

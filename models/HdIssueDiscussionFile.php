@@ -60,4 +60,22 @@ class HdIssueDiscussionFile extends \yii\db\ActiveRecord
             'is_delete' => 'Is Delete',
         ];
     }
+
+
+    public static function StoreAttachments($id, $id_user, $files)
+    {
+      HdIssueDiscussionFile::deleteAll(["id_discussion" => $id]);
+
+      foreach($files as $item_file)
+      {
+        $new = new HdIssueDiscussionFile();
+        $new["id_discussion"] = $id;
+        $new["id_file"] = $item_file;
+        $new["time_create"] = date("Y-m-j H:i:s");
+        $new["id_user_create"] = $id_user;
+        $new['nama'] = '---';
+        $new['file_name'] = '---';
+        $new->save();
+      }
+    }
 }
