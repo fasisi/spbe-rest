@@ -130,4 +130,66 @@ class HdIssue extends \yii\db\ActiveRecord
         $daftar_gagal[] = $id_issue;
       }
     }
+
+
+    // Menghitung total jumlah tiket yang dapat diakses
+    // oleh si user. Jumlah tiket dihitung berdasarkan
+    // id_kategori dan mode.
+    //
+    // Mode = r : count sebagai penanya
+    // Mode = s : count sebagai solver
+    //
+    public static function CountByCategory($id_kategori, $id_user, $mode='r')
+    {
+      // ambil semua tiket yang memiliki relasi dengan user via tabel
+      // hd_issue_solver
+
+      if($mode == "r")
+      {
+        $q = new Query();
+        $hasil = $q
+          ->select("
+              count(t.id) as jumlah
+            ")
+            ->from("hd_issue t")
+            ->where(
+              [
+                "and",
+                "t.id_user_create = :id_user",
+                "t.is_delete = 0",
+                "t.id_kategori = :id_kategori"
+              ],
+              [
+                ":id_user" => $id_user,
+                ":id_kategori" => $id_kategori,
+              ]
+            )
+            ->one();
+      }
+      else
+      {
+        $q = new Query();
+        $hasil = $q
+          ->select("
+              count(t.id) as jumlah
+            ")
+            ->from("hd_issue t")
+            ->join("join", "hd_issue_solver s", "s.id_issue = t.id")
+            ->where(
+              [
+                "and",
+                "s.id_user = :id_user",
+                "t.is_delete = 0",
+                "t.id_kategori = :id_kategori"
+              ],
+              [
+                ":id_user" => $id_user,
+                ":id_kategori" => $id_kategori,
+              ]
+            )
+            ->one();
+      }
+
+      return $hasil['jumlah'];
+    }
 }

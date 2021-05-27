@@ -119,9 +119,16 @@ class GlobalController extends \yii\rest\Controller
         Yii::info("payload = $payload");
         $payload = Json::decode($payload);
 
-        if (isset($payload["table_name"]) == true) {
+        if (isset($payload["table_name"]) == true) 
+        {
             $query = new Query;
-            $query->select('kk.id, kk.id_parent as parent, kk.nama as text')->from($payload["table_name"]);
+            $query->select(
+                'kk.id, 
+                kk.id_parent as parent, 
+                kk.nama as text'
+              )
+              ->from($payload["table_name"])
+              ->where("is_delete = 0");
             $command = $query->createCommand();
             $data = $command->queryAll();
 
@@ -138,6 +145,15 @@ class GlobalController extends \yii\rest\Controller
 
                     case 2: // topik
                       $jumlah = ForumThread::RecentCountByCategory($a_data["id"]);
+                      break;
+
+
+                    case 3: // service desk
+                      $jumlah = HdIssue::CountByCategory(
+                        $a_data["id"], 
+                        $payload['id_user'], 
+                        $payload['mode']
+                      );
                       break;
 
                   }

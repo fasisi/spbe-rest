@@ -587,6 +587,8 @@ class HelpdeskController extends \yii\rest\Controller
 
     if( is_array($test) == true )
     {
+      $tiket = HdIssue::findOne($id_issue);
+
       $daftar_email = [];
       foreach($test as $item)
       {
@@ -623,6 +625,8 @@ class HelpdeskController extends \yii\rest\Controller
 
     if( is_array($test) == true )
     {
+      $tiket = HdIssue::findOne($id_issue);
+
       $daftar_email = [];
       foreach($test as $item)
       {
@@ -4436,6 +4440,7 @@ class HelpdeskController extends \yii\rest\Controller
         return [
           "status" => "ok",
           "pesan" => "Record jawaban berhasil dibikin",
+          "payload" => $payload,
           "result" => 
           [
             "discussion" => $discussion,
@@ -4448,6 +4453,7 @@ class HelpdeskController extends \yii\rest\Controller
       {
         return [
           "status" => "not ok",
+          "payload" => $payload,
           "pesan" => "Parameter yang diperlukan tidak valid: id_user, id_issue, konten",
         ];
       }
