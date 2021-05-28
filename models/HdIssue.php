@@ -144,7 +144,9 @@ class HdIssue extends \yii\db\ActiveRecord
       // ambil semua tiket yang memiliki relasi dengan user via tabel
       // hd_issue_solver
 
-      if($mode == "r")
+      $hasil['jumlah'] = -1;
+
+      if($mode == "r") // reporter
       {
         $q = new Query();
         $hasil = $q
@@ -166,7 +168,7 @@ class HdIssue extends \yii\db\ActiveRecord
             )
             ->one();
       }
-      else
+      else // solver
       {
         $q = new Query();
         $hasil = $q
