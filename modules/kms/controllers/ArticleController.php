@@ -1841,6 +1841,7 @@ class ArticleController extends \yii\rest\Controller
 
             $temp = [];
             $temp["kms_artikel"] = $artikel;
+            $temp["files"] = KmsArtikelFile::GetFiles($artikel['id']);
             $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
             $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
@@ -2137,7 +2138,7 @@ class ArticleController extends \yii\rest\Controller
             $hasil = [];
             $hasil["kms_artikel"] = $artikel;
             $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
-            $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
+            $hasil["files"] = KmsArtikelFile::GetFiles($artikel['id']);
             $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $hasil["user_create"] = $user;
             $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
@@ -2160,7 +2161,7 @@ class ArticleController extends \yii\rest\Controller
             $hasil["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
             $hasil["user_create"] = $user;
             $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
-            $hasil["files"] = KmsArtikelFile::GetFiles($artikel);
+            $hasil["files"] = KmsArtikelFile::GetFiles($artikel['id']);
             $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
             $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
             $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
@@ -3010,7 +3011,7 @@ class ArticleController extends \yii\rest\Controller
 
 
         $user = User::findOne($artikel["id_user_create"]);
-	$file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
+        $file_cover = KmsFiles::findOne($artikel["id_file_cover"]);
 
         $temp = [];
         $temp["kms_artikel"] = $artikel;
@@ -3651,10 +3652,21 @@ class ArticleController extends \yii\rest\Controller
         "
           kt.id AS idtags,
           kt.nama AS namatags,
-          count(kt.nama) AS count
+          count(a.id) AS count
         ")
-      ->from("kms_artikel_tag kat")
-      ->join('LEFT JOIN', 'kms_tags kt', 'kt.id = kat.id_tag')
+      ->from("kms_tags kt")
+      ->join('JOIN', 'kms_artikel_tag kat', 'kt.id = kat.id_tag')
+      ->join('JOIN', 'kms_artikel a', 'a.id = kat.id_artikel')
+      ->join("join", "kategori_user ku", "ku.id_kategori = a.id_kategori")
+      ->where(
+        [
+          "and",
+          "ku.id_user = :id_user"
+        ],
+        [
+          ":id_user" => $payload['id_user'],
+        ]
+      )
       ->groupBy('kt.nama')
       ->orderBy('count desc')
       ->limit(5);

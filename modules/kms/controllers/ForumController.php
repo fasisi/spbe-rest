@@ -60,6 +60,7 @@ class ForumController extends \yii\rest\Controller
         'search'                => ['GET'],
         'status'                => ['PUT'],
         'otheritems'            => ['GET'],
+        'unfinisheditems'       => ['GET'],
         'othercategories'       => ['GET'],
         'dailystats'            => ['GET'],
         'currentstats'          => ['GET'],
@@ -2945,14 +2946,16 @@ class ForumController extends \yii\rest\Controller
   }
 
   /*
-   *  Mengambil daftar thread berdasarkan kesamaan tags yang berasal dari
-   *  kategori selain id_kategori yang dikirim.
+   *  Mengambil daftar thread berdasarkan kesamaan tags dan kategori.
+   *  Kesamaan tags diukur dari tags yang menempel pada suatu topik.
+   *  Kesamaan kategori diukur dari kategori yang melekat pada user
+   *  yang sedang login.
    *
    *  Method: GET
    *  Request type: JSON
    *  Request format:
    *  {
-   *    "id_kategori": [123, 124, ...],
+   *    "id_topik": 123,
    *    "id_user": 12
    *  }
    *  Response type: JSON
@@ -2980,11 +2983,9 @@ class ForumController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
-    $is_id_kategori_valid = isset($payload["id_kategori"]);
-    $is_id_kategori_valid = $is_id_kategori_valid && is_array($payload["id_kategori"]);
+    $is_id_topik_valid = isset($payload["id_thread"]);
 
-
-    if( $is_id_kategori_valid == true )
+    if( $is_id_topik_valid == true )
     {
       // ambil daftar tags yang berasal dari id_kategori
       $q  = new Query();
@@ -2992,8 +2993,15 @@ class ForumController extends \yii\rest\Controller
         $q->select("t.*")
           ->from("kms_tags t")
           ->join("JOIN", "forum_thread_tag atag", "atag.id_tag = t.id")
-          ->join("JOIN", "forum_thread f", "f.id = atag.id_thread")
-          ->where(["in", "f.id_kategori", $payload["id_kategori"]])
+          ->where(
+            [
+              "and",
+              "atag.id_thread = :id_topik"
+            ],
+            [
+              ":id_topik" => $payload["id_thread"],
+            ]
+          )
           ->distinct()
           ->all();
 
@@ -3030,7 +3038,7 @@ class ForumController extends \yii\rest\Controller
       $where[] = ["in", "atag.id_tag", $daftar_tag];
       $where[] = "t.is_delete = 0";
       $where[] = "t.status = 1";
-      $where[] = ["not", ["in", "t.id_kategori", $payload["id_kategori"]]];
+      $where[] = ["<>", "t.id", $payload["id_thread"]];
 
       if( count($temp_where) > 0 )
       {
@@ -3052,6 +3060,162 @@ class ForumController extends \yii\rest\Controller
       foreach($daftar_thread as $record)
       {
         $user = User::findOne($record["id_user_create"]);
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $client = $this->SetupGuzzleClient();
+
+        $res = $client->request(
+          'GET',
+          "/rest/questions/1.0/question/{$record["linked_id_question"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "Media-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+
+        $temp = [];
+
+        $record["konten"] = html_entity_decode($record["konten"], ENT_QUOTES);
+
+        try
+        {
+          $response_payload = Json::decode($response_payload);
+
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        }
+        catch(yii\base\InvalidArgumentException $e)
+        {
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["status"] = "not ok";
+          $temp["confluence"]["response"] = $response_payload;
+        }
+
+        $hasil[] = $temp;
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "payload" => $payload,
+        "records" => $hasil,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "payload" => $payload,
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_kategori (array)",
+      ];
+
+    }
+  }
+
+
+  /*
+   *  Mengambil daftar thread yang belum puas berdasarkan kesamaan
+   *  kategori dengan kategori-kategori yang menempel pada si user.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_user": 12
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "": "",
+   *    "": "",
+   *    "records" :
+   *    [
+   *      {
+   *        "forum_thread":
+   *        {
+   *          <object dari record forum_thread>
+   *        },
+   *        "confluence":
+   *        {
+   *          <object dari record Confluence>
+   *        }
+   *      },
+   *      ...
+   *    ]
+   *  }
+    * */
+  public function actionUnfinishedItems()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset($payload["id_user"]);
+
+
+    if( $is_id_user_valid == true )
+    {
+      // ambil daftar tags yang berasal dari id_kategori
+      $s_q = (new Query())
+        ->select("
+          t.id,
+          count(c.id) as jumlah
+        ")
+        ->from("forum_thread t")
+        ->join("left join", "forum_thread_discussion c", "c.id_thread = t.id")
+        ->join("inner join", "kategori_user ku", "ku.id_kategori = t.id_kategori")
+        ->where(
+          [
+            "and",
+            "t.linked_id_question <> -1",
+            "t.is_delete = 0",
+            "t.is_puas = 0",
+            "ku.id_user = :id_user"
+          ],
+          [
+            ":id_user" => $payload['id_user'],
+          ]
+        )
+        ->groupBy("t.id")
+        ->orderBy("t.time_create asc");
+
+      $m_q = (new Query())
+        ->select("a.*")
+        ->from(
+          [
+            "a" => $s_q
+          ]
+        )
+        ->limit(5);
+
+      $temp_daftar_thread = $m_q->all();
+
+      // ambil informasi dari confluence
+      $hasil = [];
+      foreach($temp_daftar_thread as $item)
+      {
+        $record = ForumThread::findOne($item['id']);
 
         //  lakukan query dari Confluence
         $jira_conf = Yii::$app->restconf->confs['confluence'];

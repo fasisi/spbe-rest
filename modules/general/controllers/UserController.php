@@ -16,6 +16,7 @@ use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\HakAksesRoles;
 use app\models\KmsFiles;
+use app\models\Departments;
 
 
 use Carbon\Carbon;
@@ -212,7 +213,17 @@ class UserController extends \yii\rest\Controller
           $profile = BaseUrl::base(true) . "/files/" . $kf["thumbnail"];
         }
 
-        $roles = $record->getRoles()->all();
+        $dept = Departments::findOne($record['id_departments']);
+
+        $roles = [];
+        $temp_roles = $record->getRoles()->all();
+        foreach($temp_roles as $key => $item)
+        {
+          $role = Roles::findOne( $item['id_roles'] );
+
+          $roles[] = $role;
+        }
+
         $list_kategori_user = KategoriUser::find()
           ->where(["and", "id_user = :id_user"], [":id_user" => $record["id"]])
           ->all();
@@ -234,6 +245,7 @@ class UserController extends \yii\rest\Controller
           [
             "record" => $record,
             "roles" => $roles,
+            "departments" => $dept,
             "categories" => $categories,
             "profile" => $profile,
           ]
@@ -458,6 +470,7 @@ class UserController extends \yii\rest\Controller
         'user.is_deleted AS is_deleted',
         'user.is_banned AS is_banned',
         'user.nip AS nip',
+        'user.id_departments',
         'departments.name AS nama_departments',
         'GROUP_CONCAT(roles.name) AS nama_roles',
         '(
@@ -507,6 +520,7 @@ class UserController extends \yii\rest\Controller
         'user.is_deleted AS is_deleted',
         'user.is_banned AS is_banned',
         'user.nip AS nip',
+        'user.id_departments',
         'departments.name AS nama_departments',
         'GROUP_CONCAT(roles.name) AS nama_roles',
         '(
@@ -556,6 +570,7 @@ class UserController extends \yii\rest\Controller
           'user.is_deleted AS is_deleted',
           'user.is_banned AS is_banned',
           'user.nip AS nip',
+          'user.id_departments',
           'departments.name AS nama_departments',
           'GROUP_CONCAT(roles.name) AS nama_roles',
           '(
