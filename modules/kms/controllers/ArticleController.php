@@ -1762,6 +1762,8 @@ class ArticleController extends \yii\rest\Controller
         /* $is_id_user_valid == true */
       )
     {
+      $filter_info = [];
+
       //  lakukan query dari tabel kms_artikel
       $where = [];
       $where[] = "and";
@@ -1771,11 +1773,29 @@ class ArticleController extends \yii\rest\Controller
       if( count($payload["id_kategori"]) > 0)
       {
         $where[] = ["in", "id_kategori", $payload["id_kategori"]];
+
+        // membuat informasi filter
+        $filter_info['by_kategori'] = [];
+        foreach( $payload['id_kategori'] as $id_kategori)
+        {
+          $kategori = KmsKategori::findOne($id_kategori);
+
+          $filter_info['by_kategori'][] = $kategori;
+        }
       }
 
       if( count($payload["id_tag"]) > 0 )
       {
         $where[] = ["in", "kat.id_tag", $payload["id_tag"]];
+
+        // membuat informasi filter
+        $filter_info['by_tag'] = [];
+        foreach( $payload['id_tag'] as $id_tag)
+        {
+          $tag = KmsTags::findOne($id_tag);
+
+          $filter_info['by_tag'][] = $tag;
+        }
       }
 
       $test = KmsArtikel::find()
@@ -1886,6 +1906,7 @@ class ArticleController extends \yii\rest\Controller
           "page_no" => $payload["page_no"],
           "items_per_page" => $payload["items_per_page"],
           "count" => count($list_artikel),
+          "filter_info" => $filter_info,
           "records" => $hasil
         ]
       ];
