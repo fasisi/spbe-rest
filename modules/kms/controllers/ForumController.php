@@ -2897,6 +2897,266 @@ class ForumController extends \yii\rest\Controller
 
                 // tulis log
                 $this->ThreadLog($id_thread, $payload["id_user"], 1, $payload["status"]);
+
+                // kirim notifikasi
+                  switch(true)
+                  {
+                    case $payload['status'] == 0 : // baru
+                      $creator = User::findOne($thread['id_user_create']);
+
+                      $q = new Query();
+                      $daftar_manager = 
+                        $q->select("u.*")
+                          ->from("user u")
+                          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                          ->join("join", "user_roles ur", "ur.id_user = u.id")
+                          ->where(
+                            [
+                              "and",
+                              "u.id_departments = :id_instansi",
+                              "ku.id_kategori = :id_kategori",
+                              "ur.id_roles = :id_role"
+                            ],
+                            [
+                              ":id_instansi" => $creator["id_departments"],
+                              ":id_kategori" => $thread["id_kategori"],
+                              ":id_role" => Roles::IdByCodeName("manager_konten")
+                            ]
+                          )
+                          ->all();
+
+                      $daftar_email = [];
+                      foreach($daftar_manager as $manager)
+                      {
+                        if( $manager["email"] != "" )
+                        {
+                          $temp = [];
+                          $temp["email"] = $manager["email"];
+                          $temp["nama"] = $manager["nama"];
+
+                          $daftar_email[] = $temp;
+                        }
+                      }
+
+                      Notifikasi::Kirim(
+                        [
+                          "type" => topik"_baru",
+                          "daftar_email" => $daftar_email,
+                          "thread" => $thread,
+                        ]
+                      );
+                      break;
+
+                    case $payload['status'] == 1 : // publish
+                      $creator = User::findOne($thread['id_user_create']);
+
+                      $q = new Query();
+                      $daftar_manager = 
+                        $q->select("u.*")
+                          ->from("user u")
+                          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                          ->join("join", "user_roles ur", "ur.id_user = u.id")
+                          ->where(
+                            [
+                              "and",
+                              "u.id_departments = :id_instansi",
+                              "ku.id_kategori = :id_kategori",
+                              "ur.id_roles = :id_role"
+                            ],
+                            [
+                              ":id_instansi" => $creator["id_departments"],
+                              ":id_kategori" => $thread["id_kategori"],
+                              ":id_role" => Roles::IdByCodeName("manager_konten")
+                            ]
+                          )
+                          ->all();
+
+                      $daftar_email = [];
+                      foreach($daftar_manager as $manager)
+                      {
+                        if( $manager["email"] != "" )
+                        {
+                          $temp = [];
+                          $temp["email"] = $manager["email"];
+                          $temp["nama"] = $manager["nama"];
+
+                          $daftar_email[] = $temp;
+                        }
+                      }
+
+                      // kirim notifikasi ke si pembuat artikel
+                      $daftar_email[] = [
+                        "email" => $creator['email'],
+                        "nama" => $creator['nama'],
+                      ];
+
+                      Notifikasi::Kirim(
+                        [
+                          "type" => "topik_publish",
+                          "daftar_email" => $daftar_email,
+                          "thread" => $thread,
+                        ]
+                      );
+                      break;
+
+                    case $payload['status'] == 2 : // un-publish
+                      $creator = User::findOne($thread['id_user_create']);
+
+                      $q = new Query();
+                      $daftar_manager = 
+                        $q->select("u.*")
+                          ->from("user u")
+                          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                          ->join("join", "user_roles ur", "ur.id_user = u.id")
+                          ->where(
+                            [
+                              "and",
+                              "u.id_departments = :id_instansi",
+                              "ku.id_kategori = :id_kategori",
+                              "ur.id_roles = :id_role"
+                            ],
+                            [
+                              ":id_instansi" => $creator["id_departments"],
+                              ":id_kategori" => $thread["id_kategori"],
+                              ":id_role" => Roles::IdByCodeName("manager_konten")
+                            ]
+                          )
+                          ->all();
+
+                      $daftar_email = [];
+                      foreach($daftar_manager as $manager)
+                      {
+                        if( $manager["email"] != "" )
+                        {
+                          $temp = [];
+                          $temp["email"] = $manager["email"];
+                          $temp["nama"] = $manager["nama"];
+
+                          $daftar_email[] = $temp;
+                        }
+                      }
+
+                      // kirim notifikasi ke si pembuat artikel
+                      $daftar_email[] = [
+                        "email" => $creator['email'],
+                        "nama" => $creator['nama'],
+                      ];
+
+                      Notifikasi::Kirim(
+                        [
+                          "type" => "topik_unpublish",
+                          "daftar_email" => $daftar_email,
+                          "thread" => $thread,
+                        ]
+                      );
+                      break;
+
+                    case $payload['status'] == 3 : // reject
+                      $creator = User::findOne($thread['id_user_create']);
+
+                      $q = new Query();
+                      $daftar_manager = 
+                        $q->select("u.*")
+                          ->from("user u")
+                          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                          ->join("join", "user_roles ur", "ur.id_user = u.id")
+                          ->where(
+                            [
+                              "and",
+                              "u.id_departments = :id_instansi",
+                              "ku.id_kategori = :id_kategori",
+                              "ur.id_roles = :id_role"
+                            ],
+                            [
+                              ":id_instansi" => $creator["id_departments"],
+                              ":id_kategori" => $thread["id_kategori"],
+                              ":id_role" => Roles::IdByCodeName("manager_konten")
+                            ]
+                          )
+                          ->all();
+
+                      $daftar_email = [];
+                      foreach($daftar_manager as $manager)
+                      {
+                        if( $manager["email"] != "" )
+                        {
+                          $temp = [];
+                          $temp["email"] = $manager["email"];
+                          $temp["nama"] = $manager["nama"];
+
+                          $daftar_email[] = $temp;
+                        }
+                      }
+
+                      // kirim notifikasi ke si pembuat artikel
+                      $daftar_email[] = [
+                        "email" => $creator['email'],
+                        "nama" => $creator['nama'],
+                      ];
+
+                      Notifikasi::Kirim(
+                        [
+                          "type" => "topik_reject",
+                          "daftar_email" => $daftar_email,
+                          "thread" => $thread,
+                        ]
+                      );
+                      break;
+
+                    case $payload['status'] == 4 : // freeze
+                      $creator = User::findOne($thread['id_user_create']);
+
+                      $q = new Query();
+                      $daftar_manager = 
+                        $q->select("u.*")
+                          ->from("user u")
+                          ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                          ->join("join", "user_roles ur", "ur.id_user = u.id")
+                          ->where(
+                            [
+                              "and",
+                              "u.id_departments = :id_instansi",
+                              "ku.id_kategori = :id_kategori",
+                              "ur.id_roles = :id_role"
+                            ],
+                            [
+                              ":id_instansi" => $creator["id_departments"],
+                              ":id_kategori" => $thread["id_kategori"],
+                              ":id_role" => Roles::IdByCodeName("manager_konten")
+                            ]
+                          )
+                          ->all();
+
+                      $daftar_email = [];
+                      foreach($daftar_manager as $manager)
+                      {
+                        if( $manager["email"] != "" )
+                        {
+                          $temp = [];
+                          $temp["email"] = $manager["email"];
+                          $temp["nama"] = $manager["nama"];
+
+                          $daftar_email[] = $temp;
+                        }
+                      }
+
+                      // kirim notifikasi ke si pembuat artikel
+                      $daftar_email[] = [
+                        "email" => $creator['email'],
+                        "nama" => $creator['nama'],
+                      ];
+
+                      Notifikasi::Kirim(
+                        [
+                          "type" => "topik_freeze",
+                          "daftar_email" => $daftar_email,
+                          "thread" => $thread,
+                        ]
+                      );
+                      break;
+
+                  }
+                // kirim notifikasi
               }
               else
               {

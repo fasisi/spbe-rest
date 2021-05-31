@@ -55,6 +55,249 @@
 
         switch(true)
         {
+          case $params["type"] == "artikel_baru":
+            $mail->Subject = 'Notifikasi Artikel Baru';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/artikel_baru",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "artikel_publish":
+            $mail->Subject = 'Notifikasi Artikel Diterbitkan';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/artikel_publish",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "artikel_unpublish":
+            $mail->Subject = 'Notifikasi Artikel Tidak Terbit';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/artikel_unpublish",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "artikel_reject":
+            $mail->Subject = 'Notifikasi Artikel Telah Ditolak';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/artikel_reject",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "topik_baru":
+            $mail->Subject = 'Notifikasi Topik Baru';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_baru",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "topik_publish":
+            $mail->Subject = 'Notifikasi Topik Diterbitkan';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_publish",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "topik_unpublish":
+            $mail->Subject = 'Notifikasi Topik Tidak Diterbitkan';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_unpublish",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "topik_reject":
+            $mail->Subject = 'Notifikasi Topik Ditolak';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_reject",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "topik_freeze":
+            $mail->Subject = 'Notifikasi Topik Telah Freeze';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/topik_freeze",
+              [
+                "artikel" => $params["artikel"],
+              ]
+            );
+
+            break;
+
           case $params["type"] == "topik_puas" :
 
             $mail->Subject = 'Notifikasi topik puas : ';
@@ -72,6 +315,10 @@
               "Frans Indroyono"
             );
 
+            $mail->addAddress(
+              "frans.indroyono@gmail.com",
+              "Frans Indroyono"
+            );
 
             // Content
             $html = Yii::$app->controller->renderPartial(
