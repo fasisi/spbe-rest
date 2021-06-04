@@ -1728,6 +1728,9 @@ class ForumController extends \yii\rest\Controller
     * */
   public function actionItems()
   {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+
     $payload = $this->GetPayload();
 
     //  cek parameter
@@ -1748,6 +1751,8 @@ class ForumController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
+      $filter_info = [];
+
       //  lakukan query dari tabel forum_thread
       $active_query = ForumThread::find();
 
@@ -1758,6 +1763,16 @@ class ForumController extends \yii\rest\Controller
       $where[] = ["in", "status", [-3, -2, 1, 4]];
       $where[] = ["in", "id_kategori", $payload["id_kategori"]];
 
+      // membuat informasi filter
+      $filter_info['by_kategori'] = [];
+      foreach( $payload['id_kategori'] as $id_kategori)
+      {
+        $kategori = KmsKategori::findOne($id_kategori);
+
+        $filter_info['by_kategori'][] = $kategori;
+      }
+
+
       if( count($payload["id_tag"]) > 0 )
       {
         $where[] = ["in", "ftt.id_tag", $payload["id_tag"]];
@@ -1767,6 +1782,15 @@ class ForumController extends \yii\rest\Controller
             "forum_thread_tag ftt", 
             "ftt.id_thread = forum_thread.id"
           );
+
+        // membuat informasi filter
+        $filter_info['by_tag'] = [];
+        foreach( $payload['id_tag'] as $id_tag)
+        {
+          $tag = KmsTags::findOne($id_tag);
+
+          $filter_info['by_tag'][] = $tag;
+        }
       }
 
       $test = $active_query
@@ -1857,11 +1881,12 @@ class ForumController extends \yii\rest\Controller
 
               $temp = [];
               $temp["forum_thread"] = $thread;
+              $temp["files"] = ForumThreadFile::GetFiles($thread['id']);
               $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
               $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
               $temp["user_create"] = $user;
               $temp['data_user']['user_create'] = $user;
-              $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user_actor"]);
+              $temp["user_actor_status"] = ForumThreadUserAction::GetUserAction($thread["id"], $payload["id_user"]);
               $temp["jawaban"]["count"] = count($jawaban);
               $temp["confluence"]["status"] = "ok";
               $temp["confluence"]["linked_id_question"] = $response_payload["id"];
@@ -1916,6 +1941,7 @@ class ForumController extends \yii\rest\Controller
           "page_no" => $payload["page_no"],
           "items_per_page" => $payload["items_per_page"],
           "count" => count($list_thread),
+          "filter_info" => $filter_info,
           "records" => $hasil
         ]
       ];
@@ -2624,6 +2650,7 @@ class ForumController extends \yii\rest\Controller
 
                       $temp = [];
                       $temp["forum_thread"] = $thread;
+                      $temp["files"] = ForumThreadFile::GetFiles($thread['id']);
                       $temp["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
                       $temp["data_user"]["user_create"] = $user_create;
                       $temp["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
@@ -2940,7 +2967,7 @@ class ForumController extends \yii\rest\Controller
 
                       Notifikasi::Kirim(
                         [
-                          "type" => topik"_baru",
+                          "type" => "topik_baru",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
                         ]

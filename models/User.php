@@ -86,7 +86,7 @@ class User extends \yii\db\ActiveRecord
       return $this->hasMany(KategoriUser::className(), ["id_user" => "id"]);
     }
 
-    public function getImage($id_file)
+    public static function getImage($id_file)
     {
       $roles = KmsFiles::find()
         ->where(
@@ -100,7 +100,15 @@ class User extends \yii\db\ActiveRecord
         )
         ->one();
 
-      return $roles["thumbnail"];
+      if( is_null($roles) == false )
+      {
+        return $roles["thumbnail"];
+      }
+      else
+      {
+        return "";
+      }
+
     }
 
 

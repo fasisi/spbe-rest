@@ -378,7 +378,7 @@ class GlobalController extends \yii\rest\Controller
             $query = new Query;
             $query->select('kms_kategori.*')
             ->from("kms_kategori")
-            ->where('id in (select id_kategori from kategori_user where id_user ='.$payload['id_user'].')')
+            ->where('is_delete = 0 AND id in (select id_kategori from kategori_user where id_user ='.$payload['id_user'].')')
             ->orderBy('nama asc');
 
             $command = $query->createCommand();

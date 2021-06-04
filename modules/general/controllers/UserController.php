@@ -133,6 +133,7 @@ class UserController extends \yii\rest\Controller
       $new["hp"]                = $payload["hp"];
       $new["email"]             = $payload["email"];
       $new["id_file_profile"]   = $payload["id_file_profile"];
+      $new["status_kepegawaian"]   = $payload["status_kepegawaian"];
       $new->save();
 
       // Mencari record terakhir
@@ -309,6 +310,7 @@ class UserController extends \yii\rest\Controller
         $user["id_departments"]   = $payload["id_departments"];
         $user["jenis_kelamin"]    = $payload["jenis_kelamin"];
         $user["id_file_profile"]  = $payload["id_file_profile"];
+        $user["status_kepegawaian"]  = $payload["status_kepegawaian"];
         $user->save();
 
         if( $user->hasErrors() == false )
@@ -461,7 +463,7 @@ class UserController extends \yii\rest\Controller
 
     $query = new Query();
     
-    if($payload["params"] == 0) {
+    if($payload["type"] == 0) {
       $query->select([
         'user.id AS id_user',
         'user.nama AS nama_user',
@@ -510,7 +512,7 @@ class UserController extends \yii\rest\Controller
           'id_user'
         );
     } 
-    else if ($payload["params"] == 1) 
+    else if ($payload["type"] == 1) 
     {
       // ambil daftar user yang status == banned
       $query->select([
@@ -560,7 +562,7 @@ class UserController extends \yii\rest\Controller
           'id_user'
         );
     } 
-    else if($payload["params"] == 2)
+    else if($payload["type"] == 2)
     {
       // ambil daftar user is_deleted = 1
       $query->select([

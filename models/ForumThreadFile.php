@@ -56,4 +56,22 @@ class ForumThreadFile extends \yii\db\ActiveRecord
             'is_delete' => 'Is Delete',
         ];
     }
+
+    public static function GetFiles($id_thread)
+    {
+      $temp_list = ForumThreadFile::findAll(["id_thread" => $id_thread]);
+
+      $hasil = [];
+      foreach($temp_list as $item)
+      {
+        $file = KmsFiles::findOne($item["id_file"]);
+
+        $hasil[] = [
+          "KmsFiles" => $file,
+          "link" => Yii::$app->urlManager->baseUrl . "/files/" . $file["nama"]
+        ];
+      }
+
+      return $hasil;
+    }
 }
