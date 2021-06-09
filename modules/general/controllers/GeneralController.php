@@ -1135,6 +1135,445 @@ class GeneralController extends \yii\rest\Controller
 
 
 
+
+  // ==========================================================================
+  // Unit kerja management
+  // ==========================================================================
+
+      /*
+       *  Fungsi untuk melakukan management Unit kerja
+       *
+       *  --===== Create Unit kerja =====----
+       *  Method: POST
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "nama": "abc",
+       *    "id_parent": "-1/123",
+       *    "id_department": 123,
+       *    "deskripsi": "abc"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Unitkerja> }
+       *  }
+       *
+       *  --===== Get Unit kerja =====----
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_unitkerja> }
+       *  }
+       *
+       *  --===== Update Unit kerja =====----
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *    "id_parent": 123,
+       *    "id_department": 123,
+       *    "nama": "asdfasdf",
+       *    "deskripsi": "asdfasd"
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Unitkerja> }
+       *  }
+       *
+       *  --===== DELETE Unit kerja =====----
+       *  Method: DELETE
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_Unitkerja> }
+       *  }
+        * */
+      public function actionUnitkerja()
+      {
+        $payload = $this->GetPayload();
+        $method = Yii::$app->request->method;
+
+        switch(true)
+        {
+          case $method == 'POST':
+
+            $is_nama_valid = isset($payload["nama"]);
+            $is_id_user_valid = isset($payload["id_user"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_department_valid = isset($payload["id_departments"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+            if(
+                $is_nama_valid == true &&
+                $is_id_user_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true &&
+                $is_id_department_valid == true
+              )
+            {
+              $new = new UnitKerja();
+              $new["id_parent"] = $payload["id_parent"];
+              $new["id_departments"] = $payload["id_departments"];
+              $new["name"] = $payload["nama"];
+              $new["description"] = $payload["deskripsi"];
+              $new["id_user_create"] = $payload['id_user'];
+              $new["time_create"] = date("Y-m-j H:i:s");
+              $new->save();
+              $id = $new->primaryKey;
+
+              return [
+                "status" => "ok",
+                "pesan" => "Unit Kerja telah disimpan",
+                "result" => $new
+              ];
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id_parent, id_departments, id_user",
+                "payload" => $payload
+              ];
+            }
+
+            break;
+          case $method == 'GET':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = UnitKerja::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Unit Kerja ditemukan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Unit Kerja tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
+          case $method == 'PUT':
+            $is_nama_valid = isset($payload["nama"]);
+            $is_deskripsi_valid = isset($payload["deskripsi"]);
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+            $is_id_parent_valid = isset($payload["id_parent"]);
+            $is_id_parent_valid = $is_id_parent_valid && is_numeric($payload["id_parent"]);
+
+            if(
+                $is_nama_valid == true &&
+                $is_deskripsi_valid == true &&
+                $is_id_parent_valid == true &&
+                $is_id_valid == true
+              )
+            {
+              $record = UnitKerja::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["id_parent"] = $payload["id_parent"];
+                $record["nomor"] = $payload["nomor"];
+                $record["name"] = $payload["nama"];
+                $record["description"] = $payload["deskripsi"];
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Unit Kerja telah disimpan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Unit Kerja tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: nama, deskripsi, id, id_parent",
+              ];
+            }
+            break;
+          case $method == 'DELETE':
+            $is_id_user_valid = isset($payload["id_user"]);
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true &&
+                $is_id_user_valid == true
+              )
+            {
+              $record = UnitKerja::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["is_delete"] = 1;
+                $record["id_user_delete"] = $payload['id_user'];
+                $record["time_delete"] = date("Y-m-j H:i:s");
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Unit Kerja telah dihapus",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Unit Kerja tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id, id_user",
+              ];
+            }
+            break;
+        }
+      }
+
+      /*
+       *  Mengembalikan semua record Unit Kerja
+       *
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format: 
+       *  {
+       *  },
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": 
+       *    [
+       *      {
+       *        "id": 123,
+       *        "id_parent": 123,
+       *        "id_department": 123,
+       *      }, ...
+       *    ]
+       *  }
+        * */
+      public function actionUnitkerjalist()
+      {
+        $list = UnitKerja::GetList();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Daftar Unit Kerja berhasil diambil",
+          "result" => $list,
+        ];
+      }
+
+
+      /*
+       *  Mengupdate parent suatu Unit Kerja
+       *
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    id: 123,
+       *    id_parent: 123
+       *  }
+       *  Reponse type: JSON
+       *  Response format:
+       *  {
+       *    status: ok,
+       *    result:
+       *    {
+       *      object of record
+       *    }
+       *  }
+        * */
+      public function actionUnitkerjaparent()
+      {
+        $payload = $this->GetPayload();
+
+        $is_id_valid = isset($payload["id"]);
+        $is_id_parent_valid = isset($payload["id_parent"]);
+
+        // LOGIC mengupdate parent dan urutan Unit Kerja
+        //
+        // 1. load children dari parent = id_parent
+        // 2. set value A = nomor dari node child pada urutan = new_position
+        // 3. update nomor = nomor + 1 dari semua child, dimulai dari child dengan nomor = A
+        // 4. update set id_parent dan set nomor = A, pada node = id_Instansi
+        // 5. selesai
+
+
+        $current_node = UnitKerja::findOne($payload["id"]);
+        if( is_null($current_node) == true )
+        {
+          return [
+            "status" => "not ok",
+            "pesan" => "id tidak dikenal"
+          ];
+        }
+
+        if( $payload["id_parent"] != -1 )
+        {
+          $test = UnitKerja::findOne($payload["id_parent"]);
+          if( is_null($test) == true )
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "id_parent tidak dikenal"
+            ];
+          }
+        }
+
+        if( $is_id_valid == true && $is_id_parent_valid == true )
+        {
+          // lakukan update
+          // 1.
+          $children = UnitKerja::find()
+            ->where(
+              [
+                "id_parent" => $payload["id_parent"]
+              ]
+            )
+            ->orderBy("nomor asc")
+            ->all();
+
+          // 2.
+          $temp = $children[ intval($payload["new_position"]) ];
+          $target = $temp["nomor"];
+          /* Yii::info("new_position = " . $payload["new_position"] ); */
+          /* Yii::info("children = " . Json::encode($children) ); */
+          /* Yii::info("target = " . Json::encode($temp) ); */
+          /* Yii::info("target = " . $target); */
+
+          // 3.
+          $children = UnitKerja::find()
+            ->where(
+              [
+                "AND",
+                "id_parent = :id_parent",
+              ],
+              [
+                ":id_parent" => $payload["id_parent"],
+              ]
+            )
+            ->orderBy("nomor asc")
+            ->all();
+
+          foreach( $children as $child )
+          {
+            if( intval($payload["old_position"]) < intval($payload["new_position"]) )
+            {
+              if( $child["nomor"] <= $target )
+              {
+                $child["nomor"] = $child["nomor"] - 1;
+                $child->save();
+              }
+            }
+            else if( intval($payload["old_position"]) > intval($payload["new_position"]) )
+            {
+              if( $child["nomor"] >= $target )
+              {
+                $child["nomor"] = $child["nomor"] + 1;
+                $child->save();
+              }
+            }
+
+
+          }
+
+          // 4.
+          $current_node = UnitKerja::findOne($payload["id"]);
+          $current_node["id_parent"] = $payload["id_parent"];
+          $current_node["nomor"] = $target;
+          $current_node->save();
+
+          return [
+            "status" => "ok",
+            "pesan" => "Record berhasil di-update",
+            "result" => $current_node
+          ];
+
+
+        }
+        else
+        {
+
+          return [
+            "status" => "not ok",
+            "pesan" => "Parameter yang dibutuhkan tidak valid: id (integer), id_parent (integer)",
+            "payload" => $payload
+          ];
+        }
+
+      }
+
+
+  // ==========================================================================
+  // Unit kerja management
+  // ==========================================================================
+
+
+
+
+
+
+
   // ==========================================================================
   // Tag management
   // ==========================================================================
