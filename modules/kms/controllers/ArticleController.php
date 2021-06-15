@@ -3918,19 +3918,13 @@ class ArticleController extends \yii\rest\Controller
 
   public function actionArtikelterpopuler()
   {
-    $payload = $this->GetPayload();
+    $payload = Yii::$app->request->rawBody;
+    $payload = Json::decode($payload);
 
-    //  cek parameter
-    $is_page_no_valid = isset($payload["page_no"]);
-    $is_items_per_page_valid = isset($payload["items_per_page"]);
+    $is_id_user_valid = isset($payload['id_user']);
 
-    $is_page_no_valid = $is_page_no_valid && is_numeric($payload["page_no"]);
-    $is_items_per_page_valid = $is_items_per_page_valid && is_numeric($payload["items_per_page"]);
-
-    if (
-      $is_page_no_valid == true &&
-      $is_items_per_page_valid == true
-    ) {
+    if( $is_id_user_valid == true )
+    {
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
       $query
@@ -3942,10 +3936,15 @@ class ArticleController extends \yii\rest\Controller
         ->where(
             [
               "and",
-              "kl.action = 1",
-              "ka.status = 1"
+              "ka.id_user_create = :id_user_create",  // id_user yang membuat artikel
+              "kl.action = -1",                       // menerima action 'view'
+              "ka.status = 1",                        // artikel dalam status 'publikasi'
+              "kl.time_action >= :start_from"         // limit waktu aktifitas terhadap artikel
             ],
-            []
+            [
+              ":start_from" => date("Y-m-j H:i:s", strtotime("-90 days")),
+              ":id_user_create" => $payload["id_user"],
+            ]
           )
         ->distinct()
         ->orderBy("ka.view desc")
@@ -4029,20 +4028,24 @@ class ArticleController extends \yii\rest\Controller
         "pesan" => "Query finished",
         "result" =>
         [
-          "page_no" => $payload["page_no"],
-          "items_per_page" => $payload["items_per_page"],
-          "count" => count($list_artikel),
+          "count" => count($hasil),
           "records" => $hasil
         ]
       ];
-    } 
-    else 
+    }
+    else
     {
       return [
         "status" => "not ok",
-        "pesan" => "Parameter yang diperlukan tidak valid.",
+        "pesan" => "Query failed",
+        "payload" =>
+        [
+          "payload" => $payload
+        ]
       ];
     }
+
+
   }
 
   /*

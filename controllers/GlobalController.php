@@ -10,6 +10,7 @@ use yii\db\Query;
 use app\models\KmsKategori;
 use app\models\KmsArtikel;
 use app\models\ForumThread;
+use app\models\HdIssue;
 use app\models\Roles;
 use app\models\User;
 
@@ -123,9 +124,11 @@ class GlobalController extends \yii\rest\Controller
         {
             $query = new Query;
             $query->select(
-                'kk.id, 
-                kk.id_parent as parent, 
-                kk.nama as text'
+                'id, 
+                id_parent,
+                id_parent as parent, 
+                nama, 
+                nama as text'
               )
               ->from($payload["table_name"])
               ->where("is_delete = 0");
@@ -158,7 +161,7 @@ class GlobalController extends \yii\rest\Controller
 
                   }
 
-                  $data[$key]["text"] = $a_data["text"] . " ($jumlah)";
+                  $data[$key]["nama"] = $a_data["nama"] . " ($jumlah)";
                 }
                 
                 Yii::info("data = " . Json::encode($data));
