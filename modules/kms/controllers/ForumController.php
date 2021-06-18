@@ -67,6 +67,7 @@ class ForumController extends \yii\rest\Controller
         'comment'               => ['POST', 'GET', 'DELETE', 'PUT'],
         'answer'                => ['POST', 'GET', 'PUT', 'DELETE'],
         'myitems'               => ['GET'],
+        'stats'                 => ['GET'],
 
         'attachments'           => ['POST'],
         'logsbytags'            => ['GET'],
@@ -6078,12 +6079,11 @@ class ForumController extends \yii\rest\Controller
               [
                 "and",
                 "id_user_create = :id_user",
-                "status = :status",
+                ["in", "status", $payload['status']],
                 "is_delete = 0"
               ],
               [
                 ":id_user" => $payload["id_user"],
-                ":status" => $payload["status"],
               ]
             )
             ->orderBy("time_create desc")
@@ -6141,6 +6141,46 @@ class ForumController extends \yii\rest\Controller
           return [
             "status" => "not ok",
             "pesan" => "Parameter yang dibutuhkan tidak valid.",
+            "payload" => $payload,
+          ];
+        }
+      }
+
+      // Menghitung jumlah topik per status berdasarkan iduser.
+      public function actionStats()
+      {
+        $payload = $this->GetPayload();
+
+        $is_id_user_valid = isset( $payload['id_user'] );
+
+        if($is_id_user_valid)
+        {
+          $q = new Query();
+          $hasil = $q
+            ->select("t.status, count(t.status) as jumlah")
+            ->from("forum_thread t")
+            ->where(
+              [
+                "and",
+                "id_user_create = :id_user"
+              ],
+              [
+                ":id_user" => $payload['id_user']
+              ]
+            )
+            ->distinct()
+            ->groupBy("t.status")
+            ->all();
+
+          return [
+            "status" => "ok",
+            "hasil" => $hasil,
+          ];
+        }
+        else
+        {
+          return [
+            "status" => "not ok",
             "payload" => $payload,
           ];
         }
