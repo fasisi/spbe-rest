@@ -60,6 +60,7 @@ class ForumController extends \yii\rest\Controller
         'search'                => ['GET'],
         'status'                => ['PUT'],
         'otheritems'            => ['GET'],
+        'popularitems'          => ['GET'],
         'unfinisheditems'       => ['GET'],
         'othercategories'       => ['GET'],
         'dailystats'            => ['GET'],
@@ -3234,6 +3235,143 @@ class ForumController extends \yii\rest\Controller
   }
 
   /*
+   *  Mengambil daftar thread berdasarkan popularitasnya.
+   *
+   *  Method: GET
+   *  Request type: JSON
+   *  Request format:
+   *  {
+   *    "id_user": 12
+   *  }
+   *  Response type: JSON
+   *  Response format:
+   *  {
+   *    "": "",
+   *    "": "",
+   *    "records" :
+   *    [
+   *      {
+   *        "forum_thread":
+   *        {
+   *          <object dari record forum_thread>
+   *        },
+   *        "confluence":
+   *        {
+   *          <object dari record Confluence>
+   *        }
+   *      },
+   *      ...
+   *    ]
+   *  }
+    * */
+  public function actionPopularitems()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset($payload["id_user"]);
+
+    if( $is_id_user_valid == true )
+    {
+      $q = new Query();
+
+      $daftar_thread = 
+        $q->select("t.*")
+          ->from("forum_thread t")
+          ->where(
+            [
+              "and",
+              "is_delete = 0",
+              "id_user_create = :id_user"
+            ],
+            [
+              ":id_user" => $payload['id_user'],
+            ]
+          )
+          ->orderBy("t.view desc")
+          ->limit(5)
+          ->all();
+
+      // ambil informasi dari confluence
+      $hasil = [];
+      foreach($daftar_thread as $record)
+      {
+        $user = User::findOne($record["id_user_create"]);
+
+        //  lakukan query dari Confluence
+        $jira_conf = Yii::$app->restconf->confs['confluence'];
+        $client = $this->SetupGuzzleClient();
+
+        $res = $client->request(
+          'GET',
+          "/rest/questions/1.0/question/{$record["linked_id_question"]}",
+          [
+            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+            /* 'debug' => true, */
+            'http_errors' => false,
+            'headers' => [
+              "Content-Type" => "application/json",
+              "Media-Type" => "application/json",
+              "accept" => "application/json",
+            ],
+            'auth' => [
+              $jira_conf["user"],
+              $jira_conf["password"]
+            ],
+            'query' => [
+              'spaceKey' => 'PS',
+              'expand' => 'history,body.view'
+            ],
+          ]
+        );
+
+        $response_payload = $res->getBody();
+
+        $temp = [];
+
+        $record["konten"] = html_entity_decode($record["konten"], ENT_QUOTES);
+
+        try
+        {
+          $response_payload = Json::decode($response_payload);
+
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        }
+        catch(yii\base\InvalidArgumentException $e)
+        {
+          $temp["forum_thread"] = $record;
+          $temp["user_create"] = $user;
+          $temp["category_path"] = KmsKategori::CategoryPath($record["id_kategori"]);
+          $temp["confluence"]["status"] = "not ok";
+          $temp["confluence"]["response"] = $response_payload;
+        }
+
+        $hasil[] = $temp;
+      }
+
+      return [
+        "status" => "ok",
+        "pesan" => "Berhasil mengambil records",
+        "payload" => $payload,
+        "records" => $hasil,
+      ];
+
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "payload" => $payload,
+        "pesan" => "Parameter yang diperlukan tidak lengkap: id_kategori (array)",
+      ];
+
+    }
+  }
+
+  /*
    *  Mengambil daftar thread berdasarkan kesamaan tags dan kategori.
    *  Kesamaan tags diukur dari tags yang menempel pada suatu topik.
    *  Kesamaan kategori diukur dari kategori yang melekat pada user
@@ -5480,6 +5618,8 @@ class ForumController extends \yii\rest\Controller
       $thread->save();
 
       $article = KmsArtikel::findOne($payload["linked_id_article"]);
+      $article['linked_id_thread'] = $thread['id'];
+      $article->save();
 
       return [
         "status" => "ok",
@@ -6162,7 +6302,8 @@ class ForumController extends \yii\rest\Controller
             ->where(
               [
                 "and",
-                "id_user_create = :id_user"
+                "id_user_create = :id_user",
+                "is_delete = 0"
               ],
               [
                 ":id_user" => $payload['id_user']

@@ -17,10 +17,12 @@ use app\models\KmsArtikelFile;
 use app\models\KmsTags;
 use app\models\KategoriUser;
 use app\models\User;
+use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\KmsFiles;
 use app\models\ForumThread;
 
+use app\helpers\Notifikasi;
 
 use Carbon\Carbon;
 use WideImage\WideImage;
@@ -1870,6 +1872,7 @@ class ArticleController extends \yii\rest\Controller
             $temp["confluence"]["judul"] = $response_payload["title"];
             $temp["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
             $temp['data_user']['user_create'] = $user->nama;
+            $temp['data_user']['nip'] = $user->nip;
             $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
             $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $temp['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
