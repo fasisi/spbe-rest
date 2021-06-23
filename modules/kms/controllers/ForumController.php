@@ -2053,6 +2053,7 @@ class ForumController extends \yii\rest\Controller
           [
             "and",
             "id_thread = :id_thread",
+            "is_delete = 0"
           ],
           [":id_thread" => $thread["id"]]
         )
@@ -2067,7 +2068,7 @@ class ForumController extends \yii\rest\Controller
 
           $list_komentar_jawaban = ForumThreadDiscussionComment::find()
             ->where(
-              "id_discussion = :id ", 
+              "id_discussion = :id AND is_delete = 0", 
               [":id" => $item_jawaban["id"]]
             )
             ->orderBy("time_create asc")

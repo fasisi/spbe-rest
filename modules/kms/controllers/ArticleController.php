@@ -2490,6 +2490,8 @@ class ArticleController extends \yii\rest\Controller
         $is_id_kategori_valid == true
       )
     {
+      $filter_info = [];
+
       // pecah keyword berdasarkan kata
       $daftar_keyword = explode(" ", $payload["search_keyword"]);
       $keywords = "";
@@ -2501,6 +2503,13 @@ class ArticleController extends \yii\rest\Controller
         }
 
         $keywords .= "(text ~ '$keyword*')";
+
+        $filter_info["by_keyword"] .=
+          (
+            $filter_info['by_keyword'] == "" ?
+            $keyword :
+            ", $keyword"
+          );
       }
       $keywords = "($keywords)";
 
@@ -2618,6 +2627,7 @@ class ArticleController extends \yii\rest\Controller
                   $temp["kms_artikel"] = $artikel;
                   $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
                   $temp["data_user"]["user_create"] = $user->nama;
+                  $temp["data_user"]["nip"] = $user->nip;
                   $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
                   $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
                   $temp['data_user']['user_image'] = User::getImage($user->id_file_profile);
@@ -2645,6 +2655,7 @@ class ArticleController extends \yii\rest\Controller
             "cql" => "$keywords ",
             "result" => 
             [
+              "filter_info" => $filter_info,
               "total_rows" => $total_rows,
               "page_no" => $payload["page_no"],
               "Items_per_page" => $payload["items_per_page"],
@@ -3250,6 +3261,7 @@ class ArticleController extends \yii\rest\Controller
         $temp["cover"] = ( $artikel["id_file_cover"] == -1 ? "" : BaseUrl::base(true) . "/files/" . $file_cover["thumbnail"]);
         $temp["user_create"] = $user;
         $temp["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+        $temp["data_user"]["nip"] = $user->nip;
         $tags = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $temp["tags"] = $tags;
         $temp["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
@@ -3521,6 +3533,49 @@ class ArticleController extends \yii\rest\Controller
     }
 
   }
+
+  // Menghitung jumlah artikel per status berdasarkan iduser.
+  //
+  public function actionStats()
+  {
+    $payload = $this->GetPayload();
+
+    $is_id_user_valid = isset( $payload['id_user'] );
+
+    if($is_id_user_valid)
+    {
+      $q = new Query();
+      $hasil = $q
+        ->select("a.status, count(a.status) as jumlah")
+        ->from("kms_artikel a")
+        ->where(
+          [
+            "and",
+            "id_user_create = :id_user",
+            "is_delete = 0"
+          ],
+          [
+            ":id_user" => $payload['id_user']
+          ]
+        )
+        ->distinct()
+        ->groupBy("a.status")
+        ->all();
+
+      return [
+        "status" => "ok",
+        "hasil" => $hasil,
+      ];
+    }
+    else
+    {
+      return [
+        "status" => "not ok",
+        "payload" => $payload,
+      ];
+    }
+  }
+
 
   /*
    *  Mengembalikan total jumlah kejadian yang terjadi dalam rentang waktu tertentu.
@@ -3926,7 +3981,9 @@ class ArticleController extends \yii\rest\Controller
 
     $is_id_user_valid = isset($payload['id_user']);
 
-    if( $is_id_user_valid == true )
+    $query = null;
+
+    if( isset($payload['id_user']) == true )
     {
       //  lakukan query dari tabel kms_artikel
       $query = new Query;
@@ -3952,103 +4009,115 @@ class ArticleController extends \yii\rest\Controller
         ->distinct()
         ->orderBy("ka.view desc")
         ->limit(5);
-
-      $command = $query->createCommand();
-      $list_artikel = $command->queryAll();
-
-    
-      $jira_conf = Yii::$app->restconf->confs['confluence'];
-      $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
-      Yii::info("base_url = $base_url");
-      $client = new \GuzzleHttp\Client([
-        'base_uri' => $base_url
-      ]);
-
-      $hasil = [];
-      foreach ($list_artikel as $artikel) 
-      {
-        $user = User::findOne($artikel["id_user_create"]);
-
-        $res = $client->request(
-          'GET',
-          "/rest/api/content/{$artikel["linked_id_content"]}",
-          [
-            /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
-            /* 'debug' => true, */
-            'http_errors' => false,
-            'headers' => [
-              "Content-Type" => "application/json",
-              "accept" => "application/json",
-            ],
-            'auth' => [
-              $jira_conf["user"],
-              $jira_conf["password"]
-            ],
-            'query' => [
-              'spaceKey' => 'PS',
-              'expand' => 'history,body.view'
-            ],
-          ]
-        );
-
-        //  kembalikan hasilnya
-        switch ($res->getStatusCode()) 
-        {
-          case 200:
-            // ambil id dari result
-            $response_payload = $res->getBody();
-            $response_payload = Json::decode($response_payload);
-
-            $temp = [];
-            $temp["kms_artikel"] = $artikel;
-            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-            $temp["confluence"]["status"] = "ok";
-            $temp["confluence"]["linked_id_content"] = $response_payload["id"];
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
-            $temp['data_user']['user_create'] = $user->nama;
-
-            $hasil[] = $temp;
-            break;
-
-          default:
-            // kembalikan response
-            $temp = [];
-            $temp["kms_artikel"] = $artikel;
-            $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
-            $temp["confluence"]["status"] = "not ok";
-            $temp["confluence"]["judul"] = $response_payload["title"];
-            $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
-            $temp['data_user']['user_create'] = $user->nama;
-
-            $hasil[] = $temp;
-            break;
-        }
-      }
-
-      return [
-        "status" => "ok",
-        "pesan" => "Query finished",
-        "result" =>
-        [
-          "count" => count($hasil),
-          "records" => $hasil
-        ]
-      ];
     }
     else
     {
-      return [
-        "status" => "not ok",
-        "pesan" => "Query failed",
-        "payload" =>
-        [
-          "payload" => $payload
-        ]
-      ];
+      //  lakukan query dari tabel kms_artikel
+      $query = new Query;
+      $query
+        ->select("
+            ka.*
+          ")
+        ->from("kms_artikel ka")
+        ->join("JOIN", "kms_artikel_activity_log kl", "ka.id = kl.id_artikel")
+        ->where(
+            [
+              "and",
+              "kl.action = -1",                       // menerima action 'view'
+              "ka.status = 1",                        // artikel dalam status 'publikasi'
+              "kl.time_action >= :start_from"         // limit waktu aktifitas terhadap artikel
+            ],
+            [
+              ":start_from" => date("Y-m-j H:i:s", strtotime("-90 days")),
+            ]
+          )
+        ->distinct()
+        ->orderBy("ka.view desc")
+        ->limit(5);
     }
 
+    $command = $query->createCommand();
+    $list_artikel = $command->queryAll();
 
+  
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+    $base_url = "HTTP://{$jira_conf["ip"]}:{$jira_conf["port"]}/";
+    Yii::info("base_url = $base_url");
+    $client = new \GuzzleHttp\Client([
+      'base_uri' => $base_url
+    ]);
+
+    $hasil = [];
+    foreach ($list_artikel as $artikel) 
+    {
+      $user = User::findOne($artikel["id_user_create"]);
+
+      $res = $client->request(
+        'GET',
+        "/rest/api/content/{$artikel["linked_id_content"]}",
+        [
+          /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+          /* 'debug' => true, */
+          'http_errors' => false,
+          'headers' => [
+            "Content-Type" => "application/json",
+            "accept" => "application/json",
+          ],
+          'auth' => [
+            $jira_conf["user"],
+            $jira_conf["password"]
+          ],
+          'query' => [
+            'spaceKey' => 'PS',
+            'expand' => 'history,body.view'
+          ],
+        ]
+      );
+
+      //  kembalikan hasilnya
+      switch ($res->getStatusCode()) 
+      {
+        case 200:
+          // ambil id dari result
+          $response_payload = $res->getBody();
+          $response_payload = Json::decode($response_payload);
+
+          $temp = [];
+          $temp["kms_artikel"] = $artikel;
+          $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+          $temp["confluence"]["status"] = "ok";
+          $temp["confluence"]["linked_id_content"] = $response_payload["id"];
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+          $temp['data_user']['user_create'] = $user->nama;
+
+          $hasil[] = $temp;
+          break;
+
+        default:
+          // kembalikan response
+          $temp = [];
+          $temp["kms_artikel"] = $artikel;
+          $temp["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+          $temp["confluence"]["status"] = "not ok";
+          $temp["confluence"]["judul"] = $response_payload["title"];
+          $temp["confluence"]["konten"] = $response_payload["body"]["view"]["value"];
+          $temp['data_user']['user_create'] = $user->nama;
+
+          $hasil[] = $temp;
+          break;
+      }
+    }
+
+    return [
+      "status" => "ok",
+      "pesan" => "Query finished",
+      "result" =>
+      [
+        "count" => count($hasil),
+        "records" => $hasil
+      ]
+    ];
   }
 
   /*
