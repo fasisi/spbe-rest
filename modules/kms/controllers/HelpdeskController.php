@@ -2839,6 +2839,10 @@ class HelpdeskController extends \yii\rest\Controller
   {
     $payload = $this->GetPayload();
 
+    Yii::info(
+      "payload = " . Json::encode($payload)
+    );
+
     $is_keyword_valid = isset($payload["search_keyword"]);
     $is_start_valid = is_numeric($payload["page_no"]);
     $is_limit_valid = is_numeric($payload["items_per_page"]);
@@ -2909,8 +2913,14 @@ class HelpdeskController extends \yii\rest\Controller
               ->where(
                 [
                   "and",
-                  "linked_id_issue" => $item["issueId"],
+                  "id_user_create = :id_user_create",
+                  "linked_id_issue = :id_issue",
                   ["in", "status", $payload["status"]],
+                  ["in", "id_kategori", $payload["id_kategori"]],
+                ],
+                [
+                  ":id_user_create" => $payload['id_user_actor'],
+                  ":id_issue" => $item['issueId'],
                 ]
               )
               ->one();
@@ -2919,7 +2929,7 @@ class HelpdeskController extends \yii\rest\Controller
             {
               $user = User::findOne($issue["id_user_create"]);
               $jawaban = HdIssueDiscussion::findAll([
-	      	"id_issue" => $issue["id"],
+                "id_issue" => $issue["id"],
                 "is_delete" => 0
               ]);
 

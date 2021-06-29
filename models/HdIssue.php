@@ -139,14 +139,15 @@ class HdIssue extends \yii\db\ActiveRecord
     // Mode = r : count sebagai penanya
     // Mode = s : count sebagai solver
     //
-    public static function CountByCategory($id_kategori, $id_user, $mode='r')
+    public static function CountByCategory($id_kategori, $id_user, $mode)
     {
       // ambil semua tiket yang memiliki relasi dengan user via tabel
       // hd_issue_solver
 
+      // default value for invalid access.
       $hasil['jumlah'] = -1;
 
-      if($mode == "r") // reporter
+      if( Roles::CheckRoleByCodeName($mode, "mk") ) // reporter
       {
         $q = new Query();
         $hasil = $q
@@ -168,7 +169,7 @@ class HdIssue extends \yii\db\ActiveRecord
             )
             ->one();
       }
-      else // solver
+      else if( Roles::CheckRoleByCodeName($mode, "sme") ) // solver
       {
         $q = new Query();
         $hasil = $q

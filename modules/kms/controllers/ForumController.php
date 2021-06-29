@@ -3676,7 +3676,7 @@ class ForumController extends \yii\rest\Controller
         $temp = [];
 
         $record["konten"] = html_entity_decode($record["konten"], ENT_QUOTES);
-
+        $user = User::findOne( $record['id_user_create'] );
 
         try
         {

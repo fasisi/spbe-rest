@@ -13,6 +13,7 @@ use app\models\ForumThread;
 use app\models\HdIssue;
 use app\models\Roles;
 use app\models\User;
+use app\models\Preferensi;
 
 /**
  * Default controller for the `general` module
@@ -233,7 +234,8 @@ class GlobalController extends \yii\rest\Controller
         Yii::info("payload = $payload");
         $payload = Json::decode($payload);
 
-        if (isset($payload["id_user"]) == true) {
+        if (isset($payload["id_user"]) == true) 
+        {
 
             // hanya role "user terdaftar" yang tidak dibatasi hak akses kategorinya
             $id_role = $payload["id_role"];
@@ -246,7 +248,11 @@ class GlobalController extends \yii\rest\Controller
             $command = $query->createCommand();
             $data = $command->queryAll();
 
-
+            $test = Preferensi::find()->one();
+            if( $test['akses_semua_kategori'] == 1 )
+            {
+              $data = [];
+            }
 
             // kategori pertama yang menjadi hak si user
             $query1 = new Query;
@@ -263,7 +269,7 @@ class GlobalController extends \yii\rest\Controller
                   "status" => "ok",
                   "pesan" => "Record found",
                   "result" => [
-                      "all_kategori" => [],      // tanpa limitasi
+                      "all_kategori" => $data,   // tanpa limitasi
                       "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
                   ]
               ];
@@ -376,13 +382,70 @@ class GlobalController extends \yii\rest\Controller
         Yii::info("payload = $payload");
         $payload = Json::decode($payload);
 
-        if (isset($payload["id_user"]) == true) {
+        if (isset($payload["id_user"]) == true) 
+        {
+            // Check flag "akses_semua_kategori" pada tabel preferensi
+            //
+            $test = Preferensi::find()->one();
 
             $query = new Query;
-            $query->select('kms_kategori.*')
-            ->from("kms_kategori")
-            ->where('is_delete = 0 AND id in (select id_kategori from kategori_user where id_user ='.$payload['id_user'].')')
-            ->orderBy('nama asc');
+            if( $test['akses_semua_kategori'] == 1 )
+            {
+              // ambil daftar kategori, tanpa batasan.
+              //
+              $query->select('kms_kategori.*')
+              ->from("kms_kategori")
+              ->where(
+                " is_delete = 0 "
+              )
+              ->orderBy('nama asc');
+            }
+            else
+            {
+              // ambil daftar kategori yang dibatasi hak akses
+              //
+              $query->select('kms_kategori.*')
+              ->from("kms_kategori")
+              ->where(
+                "
+                  is_delete = 0 AND 
+                  id in 
+                  (
+                    select 
+                      id_kategori 
+                    from 
+                      kategori_user 
+                    where 
+                      id_user = :id_user
+                  )
+                ",
+                [
+                  ":id_user" => $payload['id_user']
+                ]
+              )
+              ->orderBy('nama asc');
+            }
+
+            /* $query->select('kms_kategori.*') */
+            /* ->from("kms_kategori") */
+            /* ->where( */
+            /*   " */
+            /*     is_delete = 0 AND */ 
+            /*     id in */ 
+            /*     ( */
+            /*       select */ 
+            /*         id_kategori */ 
+            /*       from */ 
+            /*         kategori_user */ 
+            /*       where */ 
+            /*         id_user = :id_user */
+            /*     ) */
+            /*   ", */
+            /*   [ */
+            /*     ":id_user" => $payload['id_user'] */
+            /*   ] */
+            /* ) */
+            /* ->orderBy('nama asc'); */
 
             $command = $query->createCommand();
             $data = $command->queryAll();
