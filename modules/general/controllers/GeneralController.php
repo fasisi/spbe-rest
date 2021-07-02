@@ -11,6 +11,7 @@ use app\models\KmsKategori;
 use app\models\Departments;
 use app\models\KategoriUser;
 use app\models\User;
+use app\models\Preferensi;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -398,19 +399,40 @@ class GeneralController extends \yii\rest\Controller
         $iduser = ($payload["iduser"]);
 
         $q = new Query();
-        $q->select("c.*")
-          ->from("kms_kategori c")
-          ->join("JOIN", "kategori_user ku", "ku.id_kategori = c.id")
-          ->where(
-            [
-              "and",
-              "ku.id_user = :iduser"
-            ],
-            [
-              ":iduser" => $iduser,
-            ]
-          )
-          ->orderBy("c.nama asc");
+
+        $test = Preferensi::find()->one();
+
+        if( $test['akses_semua_kategori'] == 1)
+        {
+          $q->select("c.*")
+            ->from("kms_kategori c")
+            ->where(
+              "
+                is_delete = 0
+              "
+            )
+            ->groupBy("c.nama")
+            ->orderBy("c.nama asc");
+        }
+        else
+        {
+          $q->select("c.*")
+            ->from("kms_kategori c")
+            ->join("JOIN", "kategori_user ku", "ku.id_kategori = c.id")
+            ->where(
+              [
+                "and",
+                "c.is_delete = 0",
+                "ku.id_user = :iduser"
+              ],
+              [
+                ":iduser" => $iduser,
+              ]
+            )
+            ->groupBy("c.nama")
+            ->orderBy("c.nama asc");
+        }
+
         $categories = $q->all();
 
         $hasil = [];
@@ -1972,7 +1994,7 @@ class GeneralController extends \yii\rest\Controller
           try 
           {
               //Server settings
-              $mail->SMTPDebug = SMTP::DEBUG_OFF;
+              $mail->SMTPDebug = 0;
               $mail->isSMTP();                                  // Send using SMTP
               $mail->Host       = 'smtp.gmail.com';             // Set the SMTP server to send through
               $mail->SMTPAuth   = true;                         // Enable SMTP authentication

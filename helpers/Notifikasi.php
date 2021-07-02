@@ -77,6 +77,7 @@
               "@app/modules/general/views/general/emails/notifikasi/artikel_baru",
               [
                 "artikel" => $params["artikel"],
+                "detail_artikel" => $params["detail_artikel"],
               ]
             );
 
@@ -104,6 +105,7 @@
               "@app/modules/general/views/general/emails/notifikasi/artikel_publish",
               [
                 "artikel" => $params["artikel"],
+                "detail_artikel" => $params["detail_artikel"],
               ]
             );
 
@@ -131,6 +133,7 @@
               "@app/modules/general/views/general/emails/notifikasi/artikel_unpublish",
               [
                 "artikel" => $params["artikel"],
+                "detail_artikel" => $params["detail_artikel"],
               ]
             );
 
@@ -158,6 +161,7 @@
               "@app/modules/general/views/general/emails/notifikasi/artikel_reject",
               [
                 "artikel" => $params["artikel"],
+                "detail_artikel" => $params["detail_artikel"],
               ]
             );
 
@@ -184,7 +188,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_baru",
               [
-                "artikel" => $params["artikel"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -211,7 +216,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_publish",
               [
-                "artikel" => $params["artikel"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -238,7 +244,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_unpublish",
               [
-                "artikel" => $params["artikel"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -265,7 +272,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_reject",
               [
-                "artikel" => $params["artikel"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -292,7 +300,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_freeze",
               [
-                "artikel" => $params["artikel"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -325,6 +334,7 @@
               "@app/modules/general/views/general/emails/notifikasi/topik_puas",
               [
                 "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 
@@ -351,7 +361,8 @@
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/pic_topik_baru",
               [
-                "tiket" => $params["tiket"],
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
               ]
             );
 

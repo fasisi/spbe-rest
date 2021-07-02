@@ -289,7 +289,7 @@
 <div style="line-height: 1.5; font-size: 12px; font-family: Montserrat, Trebuchet MS, Lucida Grande, Lucida Sans Unicode, Lucida Sans, Tahoma, sans-serif; color: #555555; mso-line-height-alt: 18px;">
 <p style="font-size: 15px; line-height: 1.5; text-align: center; word-break: break-word; font-family: Montserrat, Trebuchet MS, Lucida Grande, Lucida Sans Unicode, Lucida Sans, Tahoma, sans-serif; mso-line-height-alt: 23px; margin: 0;">
   <span style="color: #808389; font-size: 15px;">
-    Topik dengan judul "<?php echo $thread["judul"]; ?>" telah dinyatakan PUAS oleh penulisnya. Silakan ganti status topik tersebut menjadi "FREEZE" agar dapat dibikin menjadi "RANGKUMAN".
+    Topik dengan judul "<?php echo $detail_thread["judul"]; ?>" telah dinyatakan PUAS oleh penulisnya. Silakan ganti status topik tersebut menjadi "FREEZE" agar dapat dibikin menjadi "RANGKUMAN".
   </span>
 </p>
 </div>

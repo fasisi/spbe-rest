@@ -2066,51 +2066,9 @@ class ForumController extends \yii\rest\Controller
         {
           $item_jawaban["konten"] = html_entity_decode($item_jawaban["konten"], ENT_QUOTES);
 
-          $list_komentar_jawaban = ForumThreadDiscussionComment::find()
-            ->where(
-              "id_discussion = :id AND is_delete = 0", 
-              [":id" => $item_jawaban["id"]]
-            )
-            ->orderBy("time_create asc")
-            ->all();
+          $temp = $this->Get_Jawaban_Komentar($item_jawaban['id']);
 
-          $temp = [];
-          foreach($list_komentar_jawaban as $item_komentar)
-          {
-            $temp_user = User::findOne($item_komentar["id_user_create"]);
-
-            $temp[] = [
-              "komentar" => $item_komentar,
-              "user_create" => $temp_user,
-            ];
-          }
-
-          $files = [];
-          $temp_files = ForumThreadDiscussionFiles::findAll(["id_thread_discussion" => $item_jawaban["id"]]);
-          foreach($temp_files as $a_file)
-          {
-            $file = ForumFiles::findOne($a_file["id_thread_file"]);
-
-            $is_image = true;
-            if( preg_match_all("/(jpg|jpeg)/i", $file["nama"]) == true )
-            {
-            }
-            else
-            {
-              $is_image = false;
-            }
-
-            $temp2 = [
-              "ForumFiles" => $file,
-              "thumbnail" => 
-                $is_image == true ? 
-                  BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
-                  BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
-              "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
-            ];  
-
-            $files[] = $temp2;
-          }
+          $files = $this->Get_Jawaban_Lampiran($item_jawaban['id']);
 
           $temp_user = User::findOne($item_jawaban["id_user_create"]);
           $jawaban[] = [
@@ -2376,8 +2334,6 @@ class ForumController extends \yii\rest\Controller
         "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_thread, id_user, action",
       ];
     }
-
-
   }
 
   /*
@@ -2474,9 +2430,6 @@ class ForumController extends \yii\rest\Controller
         "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_thread, id_kategori, id_user",
       ];
     }
-
-
-
   }
 
   /*
@@ -2918,6 +2871,8 @@ class ForumController extends \yii\rest\Controller
             if( is_null($test) == false )
             {
               $thread = ForumThread::findOne($id_thread);
+              $detail_thread = $this->GetDetail($thread);
+
               if( is_null($thread) == false )
               {
                 $thread["status"] = $payload["status"];
@@ -2973,6 +2928,7 @@ class ForumController extends \yii\rest\Controller
                           "type" => "topik_baru",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
+                          "detail_thread" => $detail_thread,
                         ]
                       );
                       break;
@@ -3025,6 +2981,7 @@ class ForumController extends \yii\rest\Controller
                           "type" => "topik_publish",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
+                          "detail_thread" => $detail_thread,
                         ]
                       );
                       break;
@@ -3077,6 +3034,7 @@ class ForumController extends \yii\rest\Controller
                           "type" => "topik_unpublish",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
+                          "detail_thread" => $detail_thread,
                         ]
                       );
                       break;
@@ -3129,6 +3087,7 @@ class ForumController extends \yii\rest\Controller
                           "type" => "topik_reject",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
+                          "detail_thread" => $detail_thread,
                         ]
                       );
                       break;
@@ -3181,6 +3140,7 @@ class ForumController extends \yii\rest\Controller
                           "type" => "topik_freeze",
                           "daftar_email" => $daftar_email,
                           "thread" => $thread,
+                          "detail_thread" => $detail_thread,
                         ]
                       );
                       break;
@@ -5136,12 +5096,42 @@ class ForumController extends \yii\rest\Controller
       $test = ForumThreadDiscussion::findOne($payload["id"]);
       $test["konten"] = html_entity_decode($test["konten"], ENT_QUOTES);
 
+      $user = User::findOne($test["id_user_create"]);
+
       if( is_null($test) == false )
       {
+        $ForumThread = ForumThread::findOne($test['id_thread']);
+
+        // ambil daftar komentar - begin
+          $daftar_komentar = $this->Get_Jawaban_Komentar($test['id']);
+        // ambil daftar komentar - begin
+
+
+        // ambil daftar lampiran jawaban - begin
+          $files = $this->Get_Jawaban_Lampiran($payload['id']);
+        // ambil daftar lampiran jawaban - end
+
+
+        // hitung jawaban_index dan jawaban_count - begin
+          $info = $this->Get_JawabanCount_Index($jawaban['id_thread']);
+          $jawaban_count = $info['count'];
+          $jawaban_index = $info['index'];
+        // hitung jawaban_index dan jawaban_count - end
+
+
         return [
           "status" => "ok",
           "pesan" => "Record jawaban ditemukan",
-          "result" => $test
+          "result" => [
+            'ForumThread' => $ForumThread,
+            'jawaban_count' => $jawaban_count,
+            'jawaban_index' => $jawaban_index,
+            'jawaban' => $test,
+            'files' => $files,
+            "user_create" => $temp_user,
+            "user" => $user,
+            "list_komentar" => $daftar_komentar,
+          ]
         ];
       }
       else
@@ -5170,10 +5160,70 @@ class ForumController extends \yii\rest\Controller
         $test["time_update"] = date("Y-m-j H:i:s");
         $test->save();
 
+        //jika ada array id_files, maka pasangkan file-file dengan jawaban
+        if( isset($payload["id_files"]) == true )
+        {
+          if( is_array($payload["id_files"]) == true )
+          {
+            // reset relasi antara record forum_thread dengan forum_thread_files
+            //
+            ForumThreadDiscussionFiles::deleteAll(
+              "id_thread_discussion = :id",
+              [
+                ":id" => $test['id'],
+              ]
+            );
+
+            foreach($payload["id_files"] as $id_file)
+            {
+              $df = new ForumThreadDiscussionFiles();
+              $df["id_thread_discussion"] = $test['id'];
+              $df["id_thread_file"] = $id_file;
+
+              $df->save();
+
+              if( $df->hasErrors() )
+              {
+                Yii::info(
+                  "errors = " . Json::encode($df->getErrors())
+                );
+              }
+
+            }
+          }
+        }
+
+        // menyusun response
+        // ==========================
+
+        $jawaban = ForumThreadDiscussion::findOne($payload['id']);
+
+        // hitung jawaban_index dan jawaban_count - begin
+          $info = $this->Get_JawabanCount_Index($jawaban['id_thread']);
+          $jawaban_count = $info['count'];
+          $jawaban_index = $info['index'];
+        // hitung jawaban_index dan jawaban_count - end
+
+        // ambil daftar lampiran jawaban
+        //
+        $files = $this->Get_Jawaban_Lampiran($payload['id']);
+
+        $thread = ForumThread::findOne($jawaban['id_thread']);
+
+        $user = User::findOne($payload["id_user"]);
+
         return [
           "status" => "ok",
-          "pesan" => "Record jawaban ditemukan",
-          "result" => $test
+          "pesan" => "Record jawaban telah disimpan",
+          "payload" => $payload,
+          "result" => [
+            "ForumThread" => $thread,
+            "record" => $jawaban,
+            "jawaban_count" => $jawaban_count,
+            "jawaban_index" => $jawaban_index,
+            "files" => $files,
+            "user" => $user,
+          ]
         ];
       }
       else
@@ -5212,7 +5262,98 @@ class ForumController extends \yii\rest\Controller
       }
     }
   }
-  ///
+  
+  private function Get_Jawaban_Komentar($id_jawaban)
+  {
+    $list_komentar_jawaban = ForumThreadDiscussionComment::find()
+      ->where(
+        "id_discussion = :id AND is_delete = 0", 
+        [":id" => $id_jawaban]
+      )
+      ->orderBy("time_create asc")
+      ->all();
+
+    $daftar_komentar = [];
+    foreach($list_komentar_jawaban as $item_komentar)
+    {
+      $temp_user = User::findOne($item_komentar["id_user_create"]);
+
+      $daftar_komentar[] = [
+        "komentar" => $item_komentar,
+        "user_create" => $temp_user,
+      ];
+    }
+
+    return $daftar_komentar;
+  }
+
+  private function Get_Jawaban_Lampiran($id_jawaban)
+  {
+    $files = [];
+    $temp_files = ForumThreadDiscussionFiles::findAll(
+      ["id_thread_discussion" => $id_jawaban]
+    );
+    foreach($temp_files as $a_file)
+    {
+      $file = ForumFiles::findOne($a_file["id_thread_file"]);
+
+      $is_image = true;
+      if( preg_match_all("/(jpg|jpeg)/i", $file["nama"]) == true )
+      {
+      }
+      else
+      {
+        $is_image = false;
+      }
+
+      $temp = [
+        "ForumFiles" => $file,
+        "thumbnail" => 
+          $is_image == true ? 
+            BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
+            BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+        "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
+      ];  
+
+      $files[] = $temp;
+    }
+
+    return $files;
+  }
+  
+  private function Get_JawabanCount_Index($id_thread)
+  {
+    $list = ForumThreadDiscussion::find()
+      ->where(
+        "id_thread = :id_thread AND
+        is_delete = 0",
+        [
+          ":id_thread" => $id_thread
+        ]
+      )
+      ->orderBy('time_create asc')
+      ->all();
+    $jawaban_count = count($list);
+
+    $jawaban_index = -1;
+    foreach($list as $item)
+    {
+      if( $item['id'] == $jawaban['id'] )
+      {
+        break;
+      }
+      else
+      {
+        $jawaban_index++;
+      }
+    }
+
+    return [
+      'count' => $jawaban_count,
+      'index' => $jawaban_index,
+    ];
+  }
+
 
   /*
    * Membuat, mengupdate, menghapus attachment dari thread
@@ -6077,6 +6218,8 @@ class ForumController extends \yii\rest\Controller
 
     if( $is_id_thread_valid && $is_id_user_valid == true )
     {
+      $detail_thread = $this->GetDetail($test_thread);
+
       // pastikan si user adalah penerbit topik
       if( $test_thread["id_user_create"] == $test_user["id"] )
       {
@@ -6124,7 +6267,8 @@ class ForumController extends \yii\rest\Controller
           [
             "type" => "topik_puas",
             "thread" => $test_thread,
-            "daftar_email" => $daftar_email
+            "daftar_email" => $daftar_email,
+            "detail_thread" => $detail_thread,
           ]
         );
 
@@ -6581,4 +6725,76 @@ class ForumController extends \yii\rest\Controller
   // ==========================================================================
   // my threads
   // ==========================================================================
+
+
+  // Mengambil informasi detail terkait record thread.
+  //
+  private function GetDetail($thread)
+  {
+    $user = User::findOne($thread["id_user_create"]);
+
+    //  lakukan query dari Confluence
+    $client = $this->SetupGuzzleClient();
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+    $hasil = [];
+    $res = $client->request(
+      'GET',
+      "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+        'query' => [
+          'spaceKey' => 'PS',
+          'expand' => 'history,body.view'
+        ],
+      ]
+    );
+
+    //  kembalikan hasilnya
+
+    $thread["konten"] = html_entity_decode($thread["konten"], ENT_QUOTES);
+
+    $hasil = [];
+    $hasil["record"]["forum_thread"] = $thread;
+    $hasil["record"]["category_path"] = KmsKategori::CategoryPath($thread["id_kategori"]);
+    $hasil["record"]["user_create"] = $user;
+    $hasil["record"]["tags"] = ForumThreadTag::GetThreadTags($thread["id"]);
+    $hasil["record"]["status_info"] = ForumThread::GetStatusInfo($thread['id']);
+    $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+    $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+    $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+
+    switch( $res->getStatusCode() )
+    {
+      case 200:
+        // ambil id dari result
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $hasil["record"]["confluence"]["status"] = "ok";
+        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
+        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+        $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        break;
+
+      default:
+        // kembalikan response
+        $hasil["record"]["confluence"]["status"] = "not ok";
+        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
+        $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        break;
+    }
+
+    return $hasil;
+  }
 }

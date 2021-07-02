@@ -2749,6 +2749,8 @@ class ArticleController extends \yii\rest\Controller
             if( is_null($test) == false )
             {
               $artikel = KmsArtikel::findOne($id_artikel);
+              $detail_artikel = $this->GetDetail($artikel);
+
               if( is_null($artikel) == false )
               {
                 $artikel["status"] = $payload["status"];
@@ -2804,6 +2806,7 @@ class ArticleController extends \yii\rest\Controller
                           "type" => "artikel_baru",
                           "daftar_email" => $daftar_email,
                           "artikel" => $artikel,
+                          "detail_artikel" => $detail_artikel,
                         ]
                       );
                       break;
@@ -2856,6 +2859,7 @@ class ArticleController extends \yii\rest\Controller
                           "type" => "artikel_publish",
                           "daftar_email" => $daftar_email,
                           "artikel" => $artikel,
+                          "detail_artikel" => $detail_artikel,
                         ]
                       );
                       break;
@@ -2908,6 +2912,7 @@ class ArticleController extends \yii\rest\Controller
                           "type" => "artikel_unpublish",
                           "daftar_email" => $daftar_email,
                           "artikel" => $artikel,
+                          "detail_artikel" => $detail_artikel,
                         ]
                       );
                       break;
@@ -2960,6 +2965,7 @@ class ArticleController extends \yii\rest\Controller
                           "type" => "artikel_reject",
                           "daftar_email" => $daftar_email,
                           "artikel" => $artikel,
+                          "detail_artikel" => $detail_artikel,
                         ]
                       );
                       break;
@@ -4489,6 +4495,83 @@ class ArticleController extends \yii\rest\Controller
         "payload" => $payload
       ];
     }
+  }
+
+  // Mengambil informasi detail terkait suatu record artikel.
+  //
+  private function GetDetail($artikel)
+  {
+    $user = User::findOne($artikel["id_user_create"]);
+
+    $client = $this->SetupGuzzleClient();
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+    $hasil = [];
+    $res = $client->request(
+      'GET',
+      "/rest/api/content/{$artikel["linked_id_content"]}",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+        'query' => [
+          'spaceKey' => 'PS',
+          'expand' => 'history,body.view'
+        ],
+      ]
+    );
+
+    //  kembalikan hasilnya
+    switch( $res->getStatusCode() )
+    {
+      case 200:
+        // ambil id dari result
+        $response_payload = $res->getBody();
+        $response_payload = Json::decode($response_payload);
+
+        $hasil = [];
+        $hasil["kms_artikel"] = $artikel;
+        $hasil["files"] = KmsArtikelFile::GetFiles($artikel['id']);
+        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $hasil["user_create"] = $user;
+        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+        $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
+        $hasil["confluence"]["status"] = "ok";
+        $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
+        $hasil["confluence"]["judul"] = $response_payload["title"];
+        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+        break;
+
+      default:
+        // kembalikan response
+        $hasil = [];
+        $hasil["kms_artikel"] = $artikel;
+        $hasil["user_create"] = $user;
+        $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
+        $hasil["files"] = KmsArtikelFile::GetFiles($artikel['id']);
+        $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
+        $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
+        $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
+        $hasil["confluence"]["status"] = "not ok";
+        $hasil["confluence"]["judul"] = $response_payload["title"];
+        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
+        $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
+        break;
+    }
+
+    return $hasil;
   }
 
 }
