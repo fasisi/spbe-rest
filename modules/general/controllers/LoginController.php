@@ -69,6 +69,7 @@ class LoginController extends \yii\rest\Controller
                 'user.time_last_login AS last_login',
                 'GROUP_CONCAT(roles.id) AS id_roles',
                 'GROUP_CONCAT(roles.name) AS nama_roles',
+		'GROUP_CONCAT(roles.code_name) AS code_name',
                 'user.id_departments AS id_departments',
                 'is_deleted AS is_deleted',
                 'is_banned AS is_banned',
