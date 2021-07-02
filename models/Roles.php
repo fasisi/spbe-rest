@@ -47,7 +47,6 @@ class Roles extends \yii\db\ActiveRecord
         ];
     }
 
-
     public static function IdByCodeName($code_name)
     {
       $roles = Roles::find()
@@ -64,7 +63,6 @@ class Roles extends \yii\db\ActiveRecord
 
       return $roles["id"];
     }
-
 
     /*
      * Memeriksa apakah id_role dan code_name adalah hal yang sama

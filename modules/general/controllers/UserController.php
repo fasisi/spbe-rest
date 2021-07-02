@@ -462,312 +462,392 @@ class UserController extends \yii\rest\Controller
     $payload = Json::decode($payload);
 
     $id_instansi = $payload['id_instansi'];
-    $is_superadmin = $payload['is_superadmin'];
+    $is_superadmin = 
+      (int) $payload['id_role'] == Roles::IdByCodeName("super_admin") ?
+      true :
+      false;
 
     $query = new Query();
+    $where = [];
+    $params = [];
+
+    $where[] = "AND";
+    switch($payload['type'])
+    {
+      case 0 ://
+        $where[] = "is_deleted = 0";
+        $where[] = "is_banned = 0";
+        break;
+
+      case 1 ://
+        $where[] = "is_deleted = 0";
+        $where[] = "is_banned = 1";
+        break;
+
+      case 2 ://
+        $where[] = "is_deleted = 1";
+        $where[] = "is_banned = 0";
+        break;
+
+    }
     
     if($is_superadmin == TRUE){
       if($payload["params"] == 0) {
-        $query->select([
-          'user.id AS id_user',
-          'user.nama AS nama_user',
-          'user.username AS username',
-          'user.jenis_kelamin AS jk',
-          'user.is_deleted AS is_deleted',
-          'user.is_banned AS is_banned',
-          'user.nip AS nip',
-          'user.id_departments',
-          'departments.name AS nama_departments',
-          'GROUP_CONCAT(roles.name) AS nama_roles',
-          '(
-            SELECT
-            GROUP_CONCAT(kms_kategori.nama)
-            FROM 
-              kategori_user
-            JOIN
-              kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-            WHERE
-              id_user = user.id
-            AND
-              kms_kategori.is_delete = 0
-          ) as nama_kategori'
-          ]
-          )
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_deleted = 0 AND is_banned = 0'
-          )
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*     'user.id AS id_user', */
+        /*     'user.nama AS nama_user', */
+        /*     'user.username AS username', */
+        /*     'user.jenis_kelamin AS jk', */
+        /*     'user.is_deleted AS is_deleted', */
+        /*     'user.is_banned AS is_banned', */
+        /*     'user.nip AS nip', */
+        /*     'user.id_departments', */
+        /*     'departments.name AS nama_departments', */
+        /*     'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*     '( */
+        /*       SELECT */
+        /*         GROUP_CONCAT(kms_kategori.nama) */
+        /*       FROM */ 
+        /*         kategori_user */
+        /*       JOIN */
+        /*         kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*       WHERE */
+        /*         id_user = user.id */
+        /*       AND */
+        /*         kms_kategori.is_delete = 0 */
+        /*     ) as nama_kategori' */
+        /*   ] */
+        /*   ) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_deleted = 0 AND is_banned = 0' */
+        /*   ) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       } 
       else if ($payload["params"] == 1) 
       {
         // ambil daftar user yang status == banned
-        $query->select([
-          'user.id AS id_user',
-          'user.nama AS nama_user',
-          'user.jenis_kelamin AS jk',
-          'user.is_deleted AS is_deleted',
-          'user.is_banned AS is_banned',
-          'user.nip AS nip',
-          'user.id_departments',
-          'departments.name AS nama_departments',
-          'GROUP_CONCAT(roles.name) AS nama_roles',
-          '(
-            SELECT
-            GROUP_CONCAT(kms_kategori.nama)
-            FROM 
-              kategori_user
-            JOIN
-              kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-            WHERE
-              id_user = user.id
-            AND
-              kms_kategori.is_delete = 0
-          ) as nama_kategori'
-          ]
-          )
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_banned = 1 AND is_deleted = 0'
-          )
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*   'user.id AS id_user', */
+        /*   'user.nama AS nama_user', */
+        /*   'user.jenis_kelamin AS jk', */
+        /*   'user.is_deleted AS is_deleted', */
+        /*   'user.is_banned AS is_banned', */
+        /*   'user.nip AS nip', */
+        /*   'user.id_departments', */
+        /*   'departments.name AS nama_departments', */
+        /*   'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*   '( */
+        /*     SELECT */
+        /*     GROUP_CONCAT(kms_kategori.nama) */
+        /*     FROM */ 
+        /*       kategori_user */
+        /*     JOIN */
+        /*       kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*     WHERE */
+        /*       id_user = user.id */
+        /*     AND */
+        /*       kms_kategori.is_delete = 0 */
+        /*   ) as nama_kategori' */
+        /*   ] */
+        /*   ) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_banned = 1 AND is_deleted = 0' */
+        /*   ) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       } 
       else if($payload["params"] == 2)
       {
         // ambil daftar user is_deleted = 1
-        $query->select([
-            'user.id AS id_user',
-            'user.nama AS nama_user',
-            'user.jenis_kelamin AS jk',
-            'user.is_deleted AS is_deleted',
-            'user.is_banned AS is_banned',
-            'user.nip AS nip',
-            'user.id_departments',
-            'departments.name AS nama_departments',
-            'GROUP_CONCAT(roles.name) AS nama_roles',
-            '(
-              SELECT
-              GROUP_CONCAT(kms_kategori.nama)
-              FROM 
-                kategori_user
-              JOIN
-                kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-              WHERE
-                id_user = user.id
-              AND
-                kms_kategori.is_delete = 0
-            ) as nama_kategori'
-          ])
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_deleted = 1 AND is_banned = 0'
-          )
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*     'user.id AS id_user', */
+        /*     'user.nama AS nama_user', */
+        /*     'user.jenis_kelamin AS jk', */
+        /*     'user.is_deleted AS is_deleted', */
+        /*     'user.is_banned AS is_banned', */
+        /*     'user.nip AS nip', */
+        /*     'user.id_departments', */
+        /*     'departments.name AS nama_departments', */
+        /*     'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*     '( */
+        /*       SELECT */
+        /*       GROUP_CONCAT(kms_kategori.nama) */
+        /*       FROM */ 
+        /*         kategori_user */
+        /*       JOIN */
+        /*         kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*       WHERE */
+        /*         id_user = user.id */
+        /*       AND */
+        /*         kms_kategori.is_delete = 0 */
+        /*     ) as nama_kategori' */
+        /*   ]) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_deleted = 1 AND is_banned = 0' */
+        /*   ) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       }
-    } else {
+    } 
+    else 
+    {
       if($payload["type"] == 0) {
-        $query->select([
-          'user.id AS id_user',
-          'user.nama AS nama_user',
-          'user.username AS username',
-          'user.jenis_kelamin AS jk',
-          'user.is_deleted AS is_deleted',
-          'user.is_banned AS is_banned',
-          'user.nip AS nip',
-          'user.id_departments',
-          'departments.name AS nama_departments',
-          'GROUP_CONCAT(roles.name) AS nama_roles',
-          '(
-            SELECT
-            GROUP_CONCAT(kms_kategori.nama)
-            FROM 
-              kategori_user
-            JOIN
-              kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-            WHERE
-              id_user = user.id
-            AND
-              kms_kategori.is_delete = 0
-          ) as nama_kategori'
-          ]
-          )
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_deleted = 0 AND is_banned = 0'
-          )
-          ->where('departments.id', $id_instansi)
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*       'user.id AS id_user', */
+        /*       'user.nama AS nama_user', */
+        /*       'user.username AS username', */
+        /*       'user.jenis_kelamin AS jk', */
+        /*       'user.is_deleted AS is_deleted', */
+        /*       'user.is_banned AS is_banned', */
+        /*       'user.nip AS nip', */
+        /*       'user.id_departments', */
+        /*       'departments.name AS nama_departments', */
+        /*       'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*       '( */
+        /*         SELECT */
+        /*         GROUP_CONCAT(kms_kategori.nama) */
+        /*         FROM */ 
+        /*           kategori_user */
+        /*         JOIN */
+        /*           kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*         WHERE */
+        /*           id_user = user.id */
+        /*         AND */
+        /*           kms_kategori.is_delete = 0 */
+        /*       ) as nama_kategori' */
+        /*     ] */
+        /*   ) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_deleted = 0 AND is_banned = 0' */
+        /*   ) */
+        /*   ->where('departments.id = :id', [':id' => $id_instansi]) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       } 
       else if ($payload["type"] == 1) 
       {
         // ambil daftar user yang status == banned
-        $query->select([
-          'user.id AS id_user',
-          'user.nama AS nama_user',
-          'user.jenis_kelamin AS jk',
-          'user.is_deleted AS is_deleted',
-          'user.is_banned AS is_banned',
-          'user.nip AS nip',
-          'user.id_departments',
-          'departments.name AS nama_departments',
-          'GROUP_CONCAT(roles.name) AS nama_roles',
-          '(
-            SELECT
-            GROUP_CONCAT(kms_kategori.nama)
-            FROM 
-              kategori_user
-            JOIN
-              kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-            WHERE
-              id_user = user.id
-            AND
-              kms_kategori.is_delete = 0
-          ) as nama_kategori'
-          ]
-          )
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_banned = 1 AND is_deleted = 0'
-          )
-          ->where('departments.id', $id_instansi)
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*       'user.id AS id_user', */
+        /*       'user.nama AS nama_user', */
+        /*       'user.jenis_kelamin AS jk', */
+        /*       'user.is_deleted AS is_deleted', */
+        /*       'user.is_banned AS is_banned', */
+        /*       'user.nip AS nip', */
+        /*       'user.id_departments', */
+        /*       'departments.name AS nama_departments', */
+        /*       'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*       '( */
+        /*         SELECT */
+        /*         GROUP_CONCAT(kms_kategori.nama) */
+        /*         FROM */ 
+        /*           kategori_user */
+        /*         JOIN */
+        /*           kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*         WHERE */
+        /*           id_user = user.id */
+        /*         AND */
+        /*           kms_kategori.is_delete = 0 */
+        /*       ) as nama_kategori' */
+        /*     ] */
+        /*   ) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_banned = 1 AND */ 
+        /*     is_deleted = 0' */
+        /*   ) */
+        /*   ->where('departments.id = :id', [':id' => $id_instansi]) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       } 
       else if($payload["type"] == 2)
       {
         // ambil daftar user is_deleted = 1
-        $query->select([
-            'user.id AS id_user',
-            'user.nama AS nama_user',
-            'user.jenis_kelamin AS jk',
-            'user.is_deleted AS is_deleted',
-            'user.is_banned AS is_banned',
-            'user.nip AS nip',
-            'user.id_departments',
-            'departments.name AS nama_departments',
-            'GROUP_CONCAT(roles.name) AS nama_roles',
-            '(
-              SELECT
-              GROUP_CONCAT(kms_kategori.nama)
-              FROM 
-                kategori_user
-              JOIN
-                kms_kategori ON kms_kategori.id = kategori_user.id_kategori
-              WHERE
-                id_user = user.id
-              AND
-                kms_kategori.is_delete = 0
-            ) as nama_kategori'
-          ])
-          ->from('user')
-          ->join(
-            'INNER JOIN',
-            'user_roles',
-            'user_roles.id_user =user.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'departments',
-            'user.id_departments =departments.id'
-          )
-          ->join(
-            'INNER JOIN',
-            'roles',
-            'roles.id =user_roles.id_roles'
-          )
-          ->where(
-            'is_deleted = 1 AND is_banned = 0'
-          )
-          ->where('departments.id', $id_instansi)
-          ->groupBy(
-            'id_user'
-          );
+        /* $query->select([ */
+        /*     'user.id AS id_user', */
+        /*     'user.nama AS nama_user', */
+        /*     'user.jenis_kelamin AS jk', */
+        /*     'user.is_deleted AS is_deleted', */
+        /*     'user.is_banned AS is_banned', */
+        /*     'user.nip AS nip', */
+        /*     'user.id_departments', */
+        /*     'departments.name AS nama_departments', */
+        /*     'GROUP_CONCAT(roles.name) AS nama_roles', */
+        /*     '( */
+        /*       SELECT */
+        /*       GROUP_CONCAT(kms_kategori.nama) */
+        /*       FROM */ 
+        /*         kategori_user */
+        /*       JOIN */
+        /*         kms_kategori ON kms_kategori.id = kategori_user.id_kategori */
+        /*       WHERE */
+        /*         id_user = user.id */
+        /*       AND */
+        /*         kms_kategori.is_delete = 0 */
+        /*     ) as nama_kategori' */
+        /*   ]) */
+        /*   ->from('user') */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'user_roles', */
+        /*     'user_roles.id_user =user.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'departments', */
+        /*     'user.id_departments =departments.id' */
+        /*   ) */
+        /*   ->join( */
+        /*     'INNER JOIN', */
+        /*     'roles', */
+        /*     'roles.id =user_roles.id_roles' */
+        /*   ) */
+        /*   ->where( */
+        /*     'is_deleted = 1 AND */ 
+        /*     is_banned = 0' */
+        /*   ) */
+        /*   ->where('departments.id = :id', [':id' => $id_instansi]) */
+        /*   ->groupBy( */
+        /*     'id_user' */
+        /*   ); */
       }
+
+      $where[] = "departments.id = :id";
+      $params[":id"] = $id_instansi;
     }
+
+    $query->select([
+        'user.id AS id_user',
+        'user.nama AS nama_user',
+        'user.username AS username',
+        'user.jenis_kelamin AS jk',
+        'user.is_deleted AS is_deleted',
+        'user.is_banned AS is_banned',
+        'user.nip AS nip',
+        'user.id_departments',
+        'departments.name AS nama_departments',
+        'GROUP_CONCAT(roles.name) AS nama_roles',
+        '(
+          SELECT
+            GROUP_CONCAT(kms_kategori.nama)
+          FROM 
+            kategori_user
+          JOIN
+            kms_kategori ON kms_kategori.id = kategori_user.id_kategori
+          WHERE
+            id_user = user.id
+            AND
+            kms_kategori.is_delete = 0
+        ) as nama_kategori'
+      ])
+      ->from('user')
+      ->join(
+        'INNER JOIN',
+        'user_roles',
+        'user_roles.id_user =user.id'
+      )
+      ->join(
+        'INNER JOIN',
+        'departments',
+        'user.id_departments =departments.id'
+      )
+      ->join(
+        'INNER JOIN',
+        'roles',
+        'roles.id =user_roles.id_roles'
+      )
+      ->where(
+        $where,
+        $params
+      )
+      ->groupBy(
+        'id_user'
+      );
 
     $command = $query->createCommand();
     $record = $command->queryAll();
