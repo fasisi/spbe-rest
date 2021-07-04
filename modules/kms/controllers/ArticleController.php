@@ -17,6 +17,7 @@ use app\models\KmsArtikelFile;
 use app\models\KmsTags;
 use app\models\KategoriUser;
 use app\models\User;
+use app\models\Preferensi;
 use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\KmsFiles;
@@ -3939,6 +3940,23 @@ class ArticleController extends \yii\rest\Controller
     Yii::info("payload = $payload");
     $payload = Json::decode($payload);
 
+
+    $test = Preferensi::find()->one();
+    $where = null;
+    $params = "";
+
+    if( $test['akses_semua_kategori'] == 0 )
+    {
+      $where = [
+        "and",
+        "ku.id_user = :id_user"
+      ];
+
+      $params = [
+        ":id_user" => $payload['id_user']
+      ];
+    }
+
     $query = new Query;
     $query
       ->select(
@@ -3952,13 +3970,15 @@ class ArticleController extends \yii\rest\Controller
       ->join('JOIN', 'kms_artikel a', 'a.id = kat.id_artikel')
       ->join("join", "kategori_user ku", "ku.id_kategori = a.id_kategori")
       ->where(
-        [
-          "and",
-          "ku.id_user = :id_user"
-        ],
-        [
-          ":id_user" => $payload['id_user'],
-        ]
+        $where,
+        $params
+        /* [ */
+        /*   "and", */
+        /*   "ku.id_user = :id_user" */
+        /* ], */
+        /* [ */
+        /*   ":id_user" => $payload['id_user'], */
+        /* ] */
       )
       ->groupBy('kt.nama')
       ->orderBy('count desc')

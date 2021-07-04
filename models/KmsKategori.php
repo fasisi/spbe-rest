@@ -124,14 +124,16 @@ class KmsKategori extends \yii\db\ActiveRecord
       {
         foreach($children as $child)
         {
-          $hasil = array_merge($hasil, KmsKategori::GetList($child["id"], $level + 1));
+          $hasil = array_merge(
+            $hasil, 
+            KmsKategori::GetList($child["id"], $level + 1)
+          );
         }
       }
     }
 
     return $hasil;
   }
-
 
     /*
      * Memeriksa validitas max_child_depth jika suatu node ditambahkan

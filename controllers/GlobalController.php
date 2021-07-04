@@ -186,8 +186,6 @@ class GlobalController extends \yii\rest\Controller
         }
     }
     
-    
-
     public function actionKategoriwithname()
     {
         $payload = Yii::$app->request->rawBody;
@@ -246,12 +244,12 @@ class GlobalController extends \yii\rest\Controller
                 ->from("kms_kategori")
                 ->where('id not in (select id_kategori from kategori_user where id_user ='.$payload['id_user'].')');
             $command = $query->createCommand();
-            $data = $command->queryAll();
+            $not_mine = $command->queryAll();
 
             $test = Preferensi::find()->one();
             if( $test['akses_semua_kategori'] == 1 )
             {
-              $data = [];
+              $not_mine = [];
             }
 
             // kategori pertama yang menjadi hak si user
@@ -263,38 +261,47 @@ class GlobalController extends \yii\rest\Controller
             $command1 = $query1->createCommand();
             $data1 = $command1->queryAll();
 
-            if(Roles::CheckRoleByCodeName($id_role, "user_terdaftar"))
-            {
-              return [
-                  "status" => "ok",
-                  "pesan" => "Record found",
-                  "result" => [
-                      "all_kategori" => $data,   // tanpa limitasi
-                      "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
-                  ]
-              ];
-            }
-            else
-            {
-              if (!empty($data)) 
-              {
-                  return [
-                      "status" => "ok",
-                      "pesan" => "Record found",
-                      "result" => [
-                          "all_kategori" => $data,   // kategori yang bukan jadi hak si user
-                          "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
-                      ]
-                  ];
-              } 
-              else 
-              {
-                  return [
-                      "status" => "not ok",
-                      "pesan" => "Record not found",
-                  ];
-              }
-            }
+            return [
+                "status" => "ok",
+                "pesan" => "Record found",
+                "result" => [
+                    "all_kategori" => $not_mine,   // tanpa limitasi
+                    "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user
+                ]
+            ];
+
+            /* if(Roles::CheckRoleByCodeName($id_role, "user_terdaftar")) */
+            /* { */
+            /*   return [ */
+            /*       "status" => "ok", */
+            /*       "pesan" => "Record found", */
+            /*       "result" => [ */
+            /*           "all_kategori" => $not_mine,   // tanpa limitasi */
+            /*           "hak_kategori" => $data1   // kategori pertama yang menjadi hak si user */
+            /*       ] */
+            /*   ]; */
+            /* } */
+            /* else */
+            /* { */
+            /*   if (!empty($not_mine)) */ 
+            /*   { */
+            /*       return [ */
+            /*           "status" => "ok", */
+            /*           "pesan" => "Record found", */
+            /*           "result" => [ */
+            /*               "all_kategori" => $not_mine,   // kategori yang bukan jadi hak si user */
+            /*               "hak_kategori" => $data1       // kategori pertama yang menjadi hak si user */
+            /*           ] */
+            /*       ]; */
+            /*   } */ 
+            /*   else */ 
+            /*   { */
+            /*       return [ */
+            /*           "status" => "not ok", */
+            /*           "pesan" => "Record not found", */
+            /*       ]; */
+            /*   } */
+            /* } */
 
 
         } 

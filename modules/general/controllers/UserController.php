@@ -43,7 +43,6 @@ class UserController extends \yii\rest\Controller
     return $behaviors;
   }
 
-
   private function GetPayload()
   {
 
@@ -63,7 +62,6 @@ class UserController extends \yii\rest\Controller
       ];
     }
   }
-
 
   // Membuat record user
   //
@@ -302,79 +300,142 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($user) == false )
       {
-        $user["nama"]             = $payload["nama"];
-        $user["username"]         = $payload["username"];
-        $user["email"]            = $payload["email"];
-        $user["hp"]               = $payload["hp"];
-        $user["nip"]              = $payload["nip"];
-        $user["id_departments"]   = $payload["id_departments"];
-        $user["jenis_kelamin"]    = $payload["jenis_kelamin"];
-        $user["id_file_profile"]  = $payload["id_file_profile"];
-        $user["status_kepegawaian"]  = $payload["status_kepegawaian"];
-        $user->save();
+        // ==========================================
+        // validasi keunikan email dan hp - begin
 
-        if( $user->hasErrors() == false )
-        {
-          // update roles
-          UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
-          foreach($payload["id_roles"] as $id_role)
+          $test_email = User::find()
+            ->where(
+              [
+                "and",
+                "email = :email",
+                "id <> :id"
+              ],
+              [
+                ":email" => $payload['email'],
+                ":id" => $user['id'],
+              ]
+            )
+            ->one();
+
+          $test_hp = User::find()
+            ->where(
+              [
+                "and",
+                "hp = :hp",
+                "id <> :id"
+              ],
+              [
+                ":hp" => $payload['hp'],
+                ":id" => $user['id'],
+              ]
+            )
+            ->one();
+
+          $good_to_save = true;
+
+          if(
+            is_null($test_email) == false ||
+            is_null($test_hp) == false
+          )
           {
-            //periksa validitas id_role
-            $test = Roles::findOne($id_role);
-
-            if( is_null($test) == false )
-            {
-              $new = new UserRoles();
-              $new["id_user"] = $payload["id"];
-              $new["id_roles"] = $id_role;
-              $new["id_system"] = null;
-              $new->save();
-            }
+            $good_to_save = $good_to_save && false;
           }
 
-          $roles = $user->getRoles()->all();
-          // update roles
+        // validasi keunikan email dan hp - end
+        // ==========================================
+
+        if($good_to_save == true)
+        {
+          $user["nama"]                = $payload["nama"];
+          $user["username"]            = $payload["username"];
+          $user["email"]               = $payload["email"];
+          $user["hp"]                  = $payload["hp"];
+          $user["nip"]                 = $payload["nip"];
+          $user["id_departments"]      = $payload["id_departments"];
+          $user["jenis_kelamin"]       = $payload["jenis_kelamin"];
+          $user["id_file_profile"]     = $payload["id_file_profile"];
+          $user["status_kepegawaian"]  = $payload["status_kepegawaian"];
+          $user->save();
+
+          if( $user->hasErrors() == false )
+          {
+            // update roles
+            Yii::info(
+              "Reset user's roles"
+            );
+            UserRoles::deleteAll("id_user = :id", [":id" => $payload["id"]]);
+
+            foreach($payload["id_roles"] as $id_role)
+            {
+              //periksa validitas id_role
+              $test = Roles::findOne($id_role);
+
+              if( is_null($test) == false )
+              {
+                $new = new UserRoles();
+                $new["id_user"] = $payload["id"];
+                $new["id_roles"] = $id_role;
+                $new["id_system"] = null;
+                $new->save();
+
+                Yii::info("insert user's role");
+              }
+            }
+
+            $roles = $user->getRoles()->all();
+            // update roles
 
 
 
-          // update kategori
-          KategoriUser::Reset($payload["id"], $payload["id_kategori"]);
+            // update kategori
+            KategoriUser::Reset($payload["id"], $payload["id_kategori"]);
 
-          /* KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]); */
-          /* foreach($payload["id_kategori"] as $id_kategori) */
-          /* { */
-          /*   //periksa validitas id_role */
-          /*   $test = KmsKategori::findOne($id_kategori); */
+            /* KategoriUser::deleteAll("id_user = :id", [":id" => $payload["id"]]); */
+            /* foreach($payload["id_kategori"] as $id_kategori) */
+            /* { */
+            /*   //periksa validitas id_role */
+            /*   $test = KmsKategori::findOne($id_kategori); */
 
-          /*   if( is_null($test) == false ) */
-          /*   { */
-          /*     $new = new KategoriUser(); */
-          /*     $new["id_user"] = $payload["id"]; */
-          /*     $new["id_kategori"] = $id_kategori; */
-          /*     $new->save(); */
-          /*   } */
-          /* } */
+            /*   if( is_null($test) == false ) */
+            /*   { */
+            /*     $new = new KategoriUser(); */
+            /*     $new["id_user"] = $payload["id"]; */
+            /*     $new["id_kategori"] = $id_kategori; */
+            /*     $new->save(); */
+            /*   } */
+            /* } */
 
-          $categories = $user->getCategories()->all();
-          // update kategori
+            $categories = $user->getCategories()->all();
+            // update kategori
 
-          return [
-            "status" => "ok",
-            "pesan" => "Record updated",
-            "result" => 
-            [
-              "record" => $user,
-              "roles" => $roles,
-              "categories" => $categories,
+            return [
+              "status" => "ok",
+              "pesan" => "Record updated",
+              "result" => 
+              [
+                "record" => $user,
+                "roles" => $roles,
+                "categories" => $categories,
 
-            ]
-          ];
+              ]
+            ];
+          }
+          else
+          {
+            return [
+              "status" => "not ok",
+              "pesan" => "Fail on update record",
+              "result" => $user->getErrors(),
+            ];
+          }
         }
         else
         {
+          // not good_to_save
+
           return [
             "status" => "not ok",
-            "pesan" => "Fail on update record",
+            "pesan" => "Email atau HP telah terdaftar atas akun yang lain.",
             "result" => $user->getErrors(),
           ];
         }
@@ -929,7 +990,7 @@ class UserController extends \yii\rest\Controller
 
       if( is_null($user) == false )
       {
-        $user["password"]           = $payload["password"];
+        $user["password"] = $payload["password"];
         $user->save();
 
         if( $user->hasErrors() == false )
@@ -1420,7 +1481,6 @@ class UserController extends \yii\rest\Controller
       ];
     }
   }
-
 
   // menerima file yang menjadi foto profile suatu user.
   // file akan di-standarisasi sehingga ukurannya menjadi 3x4

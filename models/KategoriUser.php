@@ -2,7 +2,10 @@
 
 namespace app\models;
 
+
 use Yii;
+
+use yii\helpers\Json;
 
 /**
  * This is the model class for table "kategori_user".
@@ -49,17 +52,22 @@ class KategoriUser extends \yii\db\ActiveRecord
       * */
     public static function Reset($id_user, $daftar_kategori)
     {
+      Yii::info("hapus semua kategori atas user : $id_user");
+      Yii::info("daftar kategori : ", Json::encode($daftar_kategori) );
+
       KategoriUser::deleteAll("id_user = :id", [":id" => $id_user]);
 
       foreach($daftar_kategori as $id_kategori)
       {
         $temp = [];
-        $temp["id"] = $id_kategori;
+        /* $temp["id"] = $id_kategori; */
 
         // ambil daftar children dari id_kategori ini
         $children = [];
         $children = KmsKategori::GetList($id_kategori);
         $all_nodes = array_merge($temp, $children);
+
+        Yii::info("all nodes : " . Json::encode($all_nodes) );
 
         foreach($all_nodes as $a_node)
         {
@@ -79,10 +87,29 @@ class KategoriUser extends \yii\db\ActiveRecord
 
           if( is_null($test) == false )
           {
-            $new = new KategoriUser();
-            $new["id_user"] = $id_user;
-            $new["id_kategori"] = $a_node["id"];
-            $new->save();
+            $test2 = KategoriUser::find()
+              ->where(
+                "id_user = :id_user AND
+                id_kategori = :id_kategori",
+                [
+                  ':id_user' => $id_user,
+                  ':id_kategori' => $a_node['id']
+                ]
+              )
+              ->all();
+
+            Yii::info("record count : " . count($test2) );
+
+            if( count($test2) == 0 )
+            {
+              Yii::info("insert KategoriUser : " . Json::encode($a_node));
+
+              $new = new KategoriUser();
+              $new["id_user"] = $id_user;
+              $new["id_kategori"] = $a_node["id"];
+              $new->save();
+            }
+
           }
         }
       }

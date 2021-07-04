@@ -5131,6 +5131,7 @@ class ForumController extends \yii\rest\Controller
             "user_create" => $temp_user,
             "user" => $user,
             "list_komentar" => $daftar_komentar,
+            "payload" => $payload,
           ]
         ];
       }
