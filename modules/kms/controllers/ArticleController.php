@@ -4571,10 +4571,10 @@ class ArticleController extends \yii\rest\Controller
         $hasil["data_user"]["departments"] = Departments::NameById($user["id_departments"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
-        $hasil["confluence"]["status"] = "ok";
-        $hasil["confluence"]["linked_id_content"] = $response_payload["id"];
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil["status"] = "ok";
+        $hasil["linked_id_content"] = $response_payload["id"];
+        $hasil["judul"] = $response_payload["title"];
+        $hasil["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
         $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
         $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
         break;
@@ -4589,9 +4589,9 @@ class ArticleController extends \yii\rest\Controller
         $hasil["category_path"] = KmsKategori::CategoryPath($artikel["id_kategori"]);
         $hasil["tags"] = KmsArtikelTag::GetArtikelTags($artikel["id"]);
         $hasil["kontributor"] = ForumThread::GetKontributor($artikel["linked_id_thread"]);
-        $hasil["confluence"]["status"] = "not ok";
-        $hasil["confluence"]["judul"] = $response_payload["title"];
-        $hasil["confluence"]["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
+        $hasil["status"] = "not ok";
+        $hasil["judul"] = $response_payload["title"];
+        $hasil["konten"] = html_entity_decode($response_payload["body"]["view"]["value"], ENT_QUOTES);
         $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
         $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
         break;

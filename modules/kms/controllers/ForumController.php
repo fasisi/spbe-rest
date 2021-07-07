@@ -552,6 +552,57 @@ class ForumController extends \yii\rest\Controller
             //$this->ActivityLog($id_artikel, 123, 1);
             $this->ThreadLog($id_thread, $payload["id_user_actor"], 1, 0);
 
+            // kirim notifikasi - begin
+
+              $detail_thread = $this->GetDetail($thread);
+              $user = User::findOne($payload["id_user_actor"]);
+
+              $q = new Query();
+              $daftar_manager = 
+                $q->select("u.*")
+                  ->from("user u")
+                  ->join("join", "kategori_user ku", "ku.id_user = u.id")
+                  ->join("join", "user_roles ur", "ur.id_user = u.id")
+                  ->where(
+                    [
+                      "and",
+                      "u.id_departments = :id_instansi",
+                      "ku.id_kategori = :id_kategori",
+                      "ur.id_roles = :id_role"
+                    ],
+                    [
+                      ":id_instansi" => $user["id_departments"],
+                      ":id_kategori" => $thread["id_kategori"],
+                      ":id_role" => Roles::IdByCodeName("manager_konten")
+                    ]
+                  )
+                  ->all();
+
+              // kirim notifikasi
+              $daftar_email = [];
+              foreach($daftar_manager as $manager)
+              {
+                if( $manager["email"] != "" )
+                {
+                  $temp = [];
+                  $temp["email"] = $manager["email"];
+                  $temp["nama"] = $manager["nama"];
+
+                  $daftar_email[] = $temp;
+                }
+              }
+
+              $test = Notifikasi::Kirim(
+                [
+                  "type" => "topik_baru",
+                  "thread" => $thread,
+                  "daftar_email" => $daftar_email,
+                  "detail_thread" => $detail_thread,
+                ]
+              );
+
+            // kirim notifikasi - end
+
             // kembalikan response
             return 
             [
@@ -1979,14 +2030,14 @@ class ForumController extends \yii\rest\Controller
    *    "pesan": "",
    *    "result":
    *    {
- *        "jawaban":
- *        {
- *          count: 123,
- *          records:
- *          [
- *            { object_jawaban }, ...
- *          ]
- *        },
+   *        "jawaban":
+   *        {
+   *          count: 123,
+   *          records:
+   *          [
+   *            { object_jawaban }, ...
+   *          ]
+   *        },
    *      "record":
    *      {
    *        "forum_thread":
@@ -6785,17 +6836,17 @@ class ForumController extends \yii\rest\Controller
         $response_payload = $res->getBody();
         $response_payload = Json::decode($response_payload);
 
-        $hasil["record"]["confluence"]["status"] = "ok";
-        $hasil["record"]["confluence"]["linked_id_question"] = $response_payload["id"];
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        $hasil["status"] = "ok";
+        $hasil["linked_id_question"] = $response_payload["id"];
+        $hasil["judul"] = $response_payload["title"];
+        $hasil["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
         break;
 
       default:
         // kembalikan response
-        $hasil["record"]["confluence"]["status"] = "not ok";
-        $hasil["record"]["confluence"]["judul"] = $response_payload["title"];
-        $hasil["record"]["confluence"]["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+        $hasil["status"] = "not ok";
+        $hasil["judul"] = $response_payload["title"];
+        $hasil["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
         break;
     }
 
