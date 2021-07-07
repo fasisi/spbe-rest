@@ -12,6 +12,7 @@ use app\models\Departments;
 use app\models\KategoriUser;
 use app\models\User;
 use app\models\Preferensi;
+use app\models\PenanggungjawabKategori;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -2285,7 +2286,7 @@ class GeneralController extends \yii\rest\Controller
                 $is_id_kategori_valid == true
               )
             {
-              $new = new PenanggungJawab();
+              $new = new PenanggungjawabKategori();
               $new["id_kategori"] = $payload["id_kategori"];
               $new["id_instansi"] = $payload["id_instansi"];
               $new["id_user_create"] = $payload['id_user'];
@@ -2316,7 +2317,7 @@ class GeneralController extends \yii\rest\Controller
                 $is_id_valid == true
               )
             {
-              $record = PenanggungJawab::findOne($payload["id"]);
+              $record = PenanggungjawabKategori::findOne($payload["id"]);
 
               if( is_null($record) == false )
               {
@@ -2354,7 +2355,7 @@ class GeneralController extends \yii\rest\Controller
                 $is_id_kategori_valid == true
               )
             {
-              $record = PenanggungJawab::findOne($payload["id"]);
+              $record = PenanggungjawabKategori::findOne($payload["id"]);
 
               if( is_null($record) == false )
               {
@@ -2394,7 +2395,7 @@ class GeneralController extends \yii\rest\Controller
                 $is_id_valid == true
               )
             {
-              $record = PenanggungJawab::findOne($payload["id"]);
+              $record = PenanggungjawabKategori::findOne($payload["id"]);
 
               if( is_null($record) == false )
               {
@@ -2468,7 +2469,7 @@ class GeneralController extends \yii\rest\Controller
       {
         $payload = $this->GetPayload();
 
-        $hasil = PenanggungJawab::find()
+        $hasil = PenanggungjawabKategori::find()
           ->where(
             "
               id_instansi = :id
