@@ -32,6 +32,7 @@ use app\models\User;
 use app\models\Roles;
 use app\models\KmsKategori;
 use app\models\KategoriUser;
+use app\models\Preferensi;
 
 use app\helpers\Notifikasi;
 
@@ -1841,7 +1842,9 @@ class ForumController extends \yii\rest\Controller
         // ====================================================================
 
         
-        if(ForumThread::CekHakBaca($thread["id"], $payload["id_user"]) == true)
+        /* if(ForumThread::CekHakBaca($thread["id"], $payload["id_user"]) == true) */
+        /* if(Preferensi::CekFlag('akses_semua_kategori', 1)) */
+        if( Preferensi::CanAksesKategori($payload['id_user'], $thread['id_kategori']) )
         {
 
           $user = User::findOne($thread["id_user_create"]);

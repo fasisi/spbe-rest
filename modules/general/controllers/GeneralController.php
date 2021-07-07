@@ -1173,6 +1173,7 @@ class GeneralController extends \yii\rest\Controller
        *    "nama": "abc",
        *    "id_parent": "-1/123",
        *    "id_department": 123,
+       *    "id_user": 123,
        *    "deskripsi": "abc"
        *  }
        *  Response type: JSON
@@ -1206,6 +1207,7 @@ class GeneralController extends \yii\rest\Controller
        *    "id": 123,
        *    "id_parent": 123,
        *    "id_department": 123,
+       *    "id_user": 123,
        *    "nama": "asdfasdf",
        *    "deskripsi": "asdfasd"
        *  }
@@ -1223,6 +1225,7 @@ class GeneralController extends \yii\rest\Controller
        *  Request format:
        *  {
        *    "id": 123,
+       *    "id_user": 123,
        *  }
        *  Response type: JSON
        *  Response format:
@@ -1265,6 +1268,11 @@ class GeneralController extends \yii\rest\Controller
               $new["time_create"] = date("Y-m-j H:i:s");
               $new->save();
               $id = $new->primaryKey;
+
+              // update field nomor
+              $unitkerja = UnitKerja::findOne($id);
+              $unitkerja['nomor'] = $id;
+              $unitkerja->save();
 
               return [
                 "status" => "ok",
@@ -2180,4 +2188,311 @@ class GeneralController extends \yii\rest\Controller
   // ==========================================================================
   // reset password
   // ==========================================================================
+
+
+
+
+
+
+  // ==========================================================================
+  // Penanggung jawaban kategori management
+  // ==========================================================================
+
+      /*
+       *  Fungsi untuk melakukan management penanggung jawab karegoti.
+       *
+       *  --===== Create penanggung jawab =====----
+       *  Method: POST
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id_user": "abc",
+       *    "id_instansi": "abc",
+       *    "id_kategori": 123
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_penanggung_jawab> }
+       *  }
+       *
+       *  --===== Get penanggung jawab =====----
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_penanggung_jawab> }
+       *  }
+       *
+       *  --===== Update penanggung jawab =====----
+       *  Method: PUT
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id_kategori": 123,
+       *    "id_instansi": 123
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_penanggung_jawab> }
+       *  }
+       *
+       *  --===== DELETE penanggung jawab =====----
+       *  Method: DELETE
+       *  Request type: JSON
+       *  Request format:
+       *  {
+       *    "id": 123,
+       *  }
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": { <object_record_penanggung jawab> }
+       *  }
+        * */
+      public function actionPenanggungjawab()
+      {
+        $payload = $this->GetPayload();
+        $method = Yii::$app->request->method;
+
+        switch(true)
+        {
+          case $method == 'POST':
+
+            $is_id_instansi_valid = isset($payload["id_instansi"]);
+            $is_id_instansi_valid = $is_id_instansi_valid && is_numeric($payload["id_instansi"]);
+            $is_id_kategori_valid = isset($payload["id_kategori"]);
+            $is_id_kategori_valid = $is_id_kategori_valid && is_numeric($payload["id_kategori"]);
+            $is_id_user_valid = isset($payload["id_user"]);
+
+            if(
+                $is_id_user_valid == true &&
+                $is_id_instansi_valid == true &&
+                $is_id_kategori_valid == true
+              )
+            {
+              $new = new PenanggungJawab();
+              $new["id_kategori"] = $payload["id_kategori"];
+              $new["id_instansi"] = $payload["id_instansi"];
+              $new["id_user_create"] = $payload['id_user'];
+              $new["time_create"] = date("Y-m-j H:i:s");
+              $new->save();
+
+              return [
+                "status" => "ok",
+                "pesan" => "Kategori telah disimpan",
+                "result" => $new
+              ];
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id_instansi, id_kategori, id_user",
+              ];
+            }
+
+            break;
+          case $method == 'GET':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = PenanggungJawab::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Penanggung Jawab ditemukan",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Penanggung Jawab tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
+          case $method == 'PUT':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+            $is_id_kategori_valid = isset($payload["id_kategori"]);
+            $is_id_instansi_valid = isset($payload["id_instansi"]);
+
+            if(
+                $is_id_instansi_valid == true &&
+                $is_id_kategori_valid == true
+              )
+            {
+              $record = PenanggungJawab::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["id_kategori"] = $payload["id_kategori"];
+                $record["id_instansi"] = $payload["id_instansi"];
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Penanggung Jawab telah disimpan",
+                  "result" => $record
+                ];
+
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Penanggung Jawab tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id, id_kategori, id_instansi",
+              ];
+            }
+            break;
+          case $method == 'DELETE':
+            $is_id_valid = isset($payload["id"]);
+            $is_id_valid = $is_id_valid && is_numeric($payload["id"]);
+
+            if(
+                $is_id_valid == true
+              )
+            {
+              $record = PenanggungJawab::findOne($payload["id"]);
+
+              if( is_null($record) == false )
+              {
+                $record["is_delete"] = 1;
+                $record["id_user_delete"] = $payload['id_user'];
+                $record["time_delete"] = date("Y-m-j H:i:s");
+                $record->save();
+
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Penanggung Jawab telah dihapus",
+                  "result" => $record
+                ];
+              }
+              else
+              {
+                return [
+                  "status" => "ok",
+                  "pesan" => "Record Penanggung Jawab tidak ditemukan",
+                ];
+              }
+
+            }
+            else
+            {
+              return [
+                "status" => "not ok",
+                "pesan" => "Parameter yang dibutuhkan tidak lengkap: id",
+              ];
+            }
+            break;
+        }
+      }
+
+      /*
+       *  Mengembalikan semua record penanggung jawab
+       *
+       *  Method: GET
+       *  Request type: JSON
+       *  Request format: 
+       *  {
+       *  },
+       *  Response type: JSON
+       *  Response format:
+       *  {
+       *    "status": "ok/not ok",
+       *    "pesan": "",
+       *    "result": 
+       *    [
+       *      {
+       *        "id": 123,
+       *        "id_parent": 123,
+       *        "status": "abc",
+       *        "level": 123
+       *      }, ...
+       *    ]
+       *  }
+        * */
+      public function actionPenanggungjawablist()
+      {
+        $list = KmsKategori::GetList();
+
+        return [
+          "status" => "ok",
+          "pesan" => "Daftar kategori berhasil diambil",
+          "result" => $list,
+        ];
+      }
+
+      public function actionPenanggungJawabByInstansi()
+      {
+        $payload = $this->GetPayload();
+
+        $hasil = PenanggungJawab::find()
+          ->where(
+            "
+              id_instansi = :id
+            ",
+            [
+              ":id" => $payload['id']
+            ]
+          )
+          ->one();
+
+        return [
+          "record" => $hasil,
+        ];
+          
+      }
+
+
+
+  // ==========================================================================
+  // Penanggung jawaban management
+  // ==========================================================================
+
+
+
+
+
 }

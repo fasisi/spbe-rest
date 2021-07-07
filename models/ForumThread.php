@@ -197,7 +197,6 @@ class ForumThread extends \yii\db\ActiveRecord
       return $hasil;
     }
 
-
     // Mengembalikan array berisi informasi status terakhir dari suatu
     // thread.
     //
@@ -225,7 +224,6 @@ class ForumThread extends \yii\db\ActiveRecord
         "user" => $user,
       ];
     }
-
 
     /*
      *  Menghitung jumlah kejadian suatu status atas suatu thread, dalam rentang waktu tertentu
@@ -342,7 +340,6 @@ class ForumThread extends \yii\db\ActiveRecord
 
       return $jumlah;
     }
-
 
     /*
      * Menghitung jumlah artikel

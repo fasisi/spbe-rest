@@ -2176,7 +2176,11 @@ class ArticleController extends \yii\rest\Controller
             $hasil['data_user']['user_image'] = User::getImage($user->id_file_profile);
             $hasil['data_user']['thumb_image'] = BaseUrl::base(true) . "/files/" .User::getImage($user->id_file_profile);
 
-            $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
+            if( isset($payload['is_admin']) == false )
+            {
+              $this->ArtikelLog($payload["id_artikel"], -1, 2, -1);
+            }
+
             break;
 
           default:
@@ -2610,7 +2614,9 @@ class ArticleController extends \yii\rest\Controller
             $artikel = KmsArtikel::find()
               ->where(
                 [
-                  "linked_id_content" => $item["id"]
+                  "and",
+                  "linked_id_content" => $item["id"],
+                  ["in", "status", [1]],
                 ]
               )
               ->one();
