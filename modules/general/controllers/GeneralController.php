@@ -12,6 +12,7 @@ use app\models\Departments;
 use app\models\KategoriUser;
 use app\models\User;
 use app\models\Preferensi;
+use app\models\UnitKerja;
 use app\models\PenanggungjawabKategori;
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -35,6 +36,10 @@ class GeneralController extends \yii\rest\Controller
         'kategori'           => ['POST', 'GET', 'PUT', 'DELETE'],
         'kategorilist'       => ['GET'],
         'kategoriparent'     => ['PUT'],
+
+        'unitkerja'           => ['POST', 'GET', 'PUT', 'DELETE'],
+        'unitkerjalist'       => ['GET'],
+        'unitkerjaparent'     => ['PUT'],
 
         'instansi'           => ['POST', 'GET', 'PUT', 'DELETE'],
         'instansilist'       => ['GET'],
@@ -1263,8 +1268,8 @@ class GeneralController extends \yii\rest\Controller
               $new = new UnitKerja();
               $new["id_parent"] = $payload["id_parent"];
               $new["id_departments"] = $payload["id_departments"];
-              $new["name"] = $payload["nama"];
-              $new["description"] = $payload["deskripsi"];
+              $new["nama"] = $payload["nama"];
+              $new["deskripsi"] = $payload["deskripsi"];
               $new["id_user_create"] = $payload['id_user'];
               $new["time_create"] = date("Y-m-j H:i:s");
               $new->save();
@@ -1347,8 +1352,8 @@ class GeneralController extends \yii\rest\Controller
               {
                 $record["id_parent"] = $payload["id_parent"];
                 $record["nomor"] = $payload["nomor"];
-                $record["name"] = $payload["nama"];
-                $record["description"] = $payload["deskripsi"];
+                $record["nama"] = $payload["nama"];
+                $record["deskripsi"] = $payload["deskripsi"];
                 $record->save();
 
                 return [
@@ -1525,8 +1530,12 @@ class GeneralController extends \yii\rest\Controller
             ->all();
 
           // 2.
-          $temp = $children[ intval($payload["new_position"]) ];
-          $target = $temp["nomor"];
+          $target = 1;
+          if( count($children) > 0 )
+          {
+            $temp = $children[ intval($payload["new_position"]) ];
+            $target = $temp["nomor"];
+          }
           /* Yii::info("new_position = " . $payload["new_position"] ); */
           /* Yii::info("children = " . Json::encode($children) ); */
           /* Yii::info("target = " . Json::encode($temp) ); */
@@ -2288,7 +2297,7 @@ class GeneralController extends \yii\rest\Controller
             {
               $new = new PenanggungjawabKategori();
               $new["id_kategori"] = $payload["id_kategori"];
-              $new["id_instansi"] = $payload["id_instansi"];
+              $new["id_departments"] = $payload["id_instansi"];
               $new["id_user_create"] = $payload['id_user'];
               $new["time_create"] = date("Y-m-j H:i:s");
               $new->save();
@@ -2360,7 +2369,7 @@ class GeneralController extends \yii\rest\Controller
               if( is_null($record) == false )
               {
                 $record["id_kategori"] = $payload["id_kategori"];
-                $record["id_instansi"] = $payload["id_instansi"];
+                $record["id_departments"] = $payload["id_instansi"];
                 $record->save();
 
                 return [
@@ -2456,7 +2465,7 @@ class GeneralController extends \yii\rest\Controller
         * */
       public function actionPenanggungjawablist()
       {
-        $list = KmsKategori::GetList();
+        $list = PenanggungjawabKategori::GetList();
 
         return [
           "status" => "ok",
@@ -2465,6 +2474,9 @@ class GeneralController extends \yii\rest\Controller
         ];
       }
 
+      // Mengambil daftar kategori yang berada dalam
+      // tanggung jawab suatu instansi.
+      //
       public function actionPenanggungJawabByInstansi()
       {
         $payload = $this->GetPayload();
