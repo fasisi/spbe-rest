@@ -59,6 +59,38 @@ class GlobalController extends \yii\rest\Controller
         }
     }
 
+    public function actionDropdownUnitKerjaByInstansi()
+    {
+        $payload = Yii::$app->request->rawBody;
+        Yii::info("payload = $payload");
+        $payload = Json::decode($payload);
+        if (isset($payload["id_instansi"]) == true) {
+            $query = new Query;
+            $query->select('*')->from('unit_kerja')->where("is_delete = 0 AND id_departments = " . $payload['id_instansi']);
+            $command = $query->createCommand();
+            
+            $data = $command->queryAll();
+
+            if (!empty($data)) {
+                return [
+                    "status" => "ok",
+                    "pesan" => "Record found",
+                    "result" => $data
+                ];
+            } else {
+                return [
+                    "status" => "not ok",
+                    "pesan" => "Record not found",
+                ];
+            }
+        } else {
+            return [
+                "status" => "not ok",
+                "pesan" => "Required parameter: id",
+            ];
+        }
+    }
+
     public function actionDropdownkategoriwithcount()
     {
         $payload = Yii::$app->request->rawBody;
@@ -199,6 +231,9 @@ class GlobalController extends \yii\rest\Controller
 		(
 			select group_concat(nama) from user join hd_kategori_pic on hd_kategori_pic.id_user = user.id where hd_kategori_pic.id_kategori = a.id
 		) as nama_pic,
+        ( SELECT name FROM departments JOIN penanggungjawab_kategori ON departments.id = penanggungjawab_kategori.id_departments JOIN kms_kategori ON kms_kategori.id = penanggungjawab_kategori.id_kategori WHERE penanggungjawab_kategori.id_kategori = a.id AND penanggungjawab_kategori.is_delete = 0 LIMIT 1) AS instansi_penanggung_jawab,
+        ( SELECT departments.id FROM departments JOIN penanggungjawab_kategori ON departments.id = penanggungjawab_kategori.id_departments JOIN kms_kategori ON kms_kategori.id = penanggungjawab_kategori.id_kategori WHERE penanggungjawab_kategori.id_kategori = a.id AND penanggungjawab_kategori.is_delete = 0 LIMIT 1) AS id_instansi,
+        ( SELECT penanggungjawab_kategori.id FROM departments JOIN penanggungjawab_kategori ON departments.id = penanggungjawab_kategori.id_departments JOIN kms_kategori ON kms_kategori.id = penanggungjawab_kategori.id_kategori WHERE penanggungjawab_kategori.id_kategori = a.id AND penanggungjawab_kategori.is_delete = 0 LIMIT 1) AS id_penanggungjawab_kategori,
 		(
 			select group_concat(user.id) from user join hd_kategori_pic on hd_kategori_pic.id_user = user.id where hd_kategori_pic.id_kategori = a.id
 		) as id_pic
@@ -590,7 +625,7 @@ class GlobalController extends \yii\rest\Controller
                 $query->select('u.id AS id_user,u.nama AS nama_user')
                   ->from("user u")
                   ->join('LEFT JOIN', 'user_roles ur','u.id = ur.id_user')
-                  ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')	
+                  ->join('LEFT JOIN', 'roles r','r.id = ur.id_roles')
                   ->where("r.code_name =".$code_name);
                 $command = $query->createCommand();
                 $data = $command->queryAll();
@@ -662,7 +697,7 @@ class GlobalController extends \yii\rest\Controller
               ->join('LEFT JOIN', 'kms_kategori kk','kk.id = ku.id_kategori')	
               ->where("r.code_name =".$code_name)
               ->andWhere("kk.id =" .$payload['id_kategori'])
-              /* ->andWhere("d.id =" .$payload['id_instansi']) */
+              ->andWhere("d.id =" .$payload['id_instansi'])
               ->groupBy('nama_user');
             $command = $query->createCommand();
             $data = $command->queryAll();
