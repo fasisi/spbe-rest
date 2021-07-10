@@ -1,0 +1,3 @@
+let l:bm_file_version = 1
+let l:bm_sessions = {'default': {'D:\frans\projects\php\freelance\06bppt\spbe\rest\modules\kms\controllers\ArticleController.php': [{'sign_idx': 9505, 'line_nr': 75, 'content': '    if( $judul_valid == true && $body_valid == true && '},{'sign_idx': 9506, 'line_nr': 69, 'content': '    if( isset($payload["id_kategori"]) == false )'},{'sign_idx': 9503, 'line_nr': 80, 'content': '      $client = new GuzzleHttp\Client();'},],}}
+let l:bm_current_session = 'default'
