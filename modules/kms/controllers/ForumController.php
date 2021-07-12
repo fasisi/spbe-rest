@@ -5348,29 +5348,27 @@ class ForumController extends \yii\rest\Controller
     $temp_files = ForumThreadDiscussionFiles::findAll(
       ["id_thread_discussion" => $id_jawaban]
     );
+
     foreach($temp_files as $a_file)
     {
       $file = ForumFiles::findOne($a_file["id_thread_file"]);
 
-      $is_image = true;
-      if( preg_match_all("/(jpg|jpeg)/i", $file["nama"]) == true )
+      if( is_null($file) == false )
       {
-      }
-      else
-      {
-        $is_image = false;
-      }
+        $is_image = preg_match_all("/(jpg|jpeg)/i", $file["nama"]);
 
-      $temp = [
-        "ForumFiles" => $file,
-        "thumbnail" => 
+        $temp = [
+          "ForumFiles" => $file,
+          "thumbnail" => 
           $is_image == true ? 
-            BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
-            BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
-        "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
-      ];  
+          BaseUrl::base(true) . "/files/" . $file["thumbnail"] : 
+          BaseUrl::base(true) . "/files/" . "logo_pdf.png", 
+          "link" => BaseUrl::base(true) . "/files/" . $file["nama"], 
+        ];  
 
-      $files[] = $temp;
+        $files[] = $temp;
+      }
+
     }
 
     return $files;
