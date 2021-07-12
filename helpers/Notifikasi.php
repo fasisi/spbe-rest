@@ -329,7 +329,7 @@
 
           case $params["type"] == "rangkum_create" :
 
-            $mail->Subject = 'Notifikasi rangkuman sedang dibuat : ';
+            $mail->Subject = 'Notifikasi topik sedang dirangkum : ';
 
             foreach($params["daftar_email"] as $send_item)
             {
@@ -347,6 +347,35 @@
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/rangkum_create",
+              [
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
+                "detail_artikel" => $params["detail_artikel"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "rangkum_selesai" :
+
+            $mail->Subject = 'Notifikasi topik telah selesai dirangkum : ';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/rangkum_selesai",
               [
                 "thread" => $params["thread"],
                 "detail_thread" => $params["detail_thread"],

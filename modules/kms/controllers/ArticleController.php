@@ -501,8 +501,6 @@ class ArticleController extends \yii\rest\Controller
     }
   }
 
-
-
   //  Menghapus (soft delete) suatu artikel
   //  Hanya dilakukan pada database SPBE
   //
@@ -843,7 +841,6 @@ class ArticleController extends \yii\rest\Controller
     }
       return $this->render('update');
   }
-
 
   private function DeleteTags($client, $jira_conf, $linked_id_content)
   {
@@ -2840,14 +2837,51 @@ class ArticleController extends \yii\rest\Controller
                         }
                       }
 
-                      Notifikasi::Kirim(
-                        [
-                          "type" => "artikel_baru",
-                          "daftar_email" => $daftar_email,
-                          "artikel" => $artikel,
-                          "detail_artikel" => $detail_artikel,
-                        ]
-                      );
+                      // Periksa apakah artikel merupakan artikel biasa atau 
+                      // merupakan rangkuman
+
+                      if( $artikel['linked_id_thread'] > -1 )
+                      {
+                        // ===================
+                        // Notifikasi artikel sebagai rangkuman
+                        // ===================
+
+                        $creator = User::findOne($artikel['id_user_create']);
+
+                        // reset daftar_email
+                        $daftar_email = [];
+
+                        $temp = [];
+                        $temp['email'] = $creator['email'];
+                        $temp['nama'] = $creator['nama'];
+                        $daftar_email[] = $temp;
+
+                        $detail_artikel = $this->GetDetail($artikel);
+                        $detail_thread = $this->GetParentThread($artikel['linked_id_thread']);
+
+                        Notifikasi::Kirim(
+                          [
+                            "type" => "rangkum_selesai",
+                            "daftar_email" => $daftar_email,
+                            "artikel" => $artikel,
+                            "detail_artikel" => $detail_artikel,
+                            "detail_thread" => $detail_thread,
+                          ]
+                        );
+                      }
+                      else
+                      {
+                        Notifikasi::Kirim(
+                          [
+                            "type" => "artikel_baru",
+                            "daftar_email" => $daftar_email,
+                            "artikel" => $artikel,
+                            "detail_artikel" => $detail_artikel,
+                          ]
+                        );
+                      }
+
+
                       break;
 
                     case $payload['status'] == 1 : // publish
