@@ -5487,8 +5487,8 @@ class ForumController extends \yii\rest\Controller
           $time_hash = date("YmdHis");
           $file_name = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "." . $file->extension;
 
-          ini_set("display_errors", 1);
-          error_reporting(E_ALL);
+          //ini_set("display_errors", 1);
+          //error_reporting(E_ALL);
 
           if($file->saveAs($path . $file_name) == true)
           {

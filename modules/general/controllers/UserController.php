@@ -32,7 +32,7 @@ class UserController extends \yii\rest\Controller
       'class' => \yii\filters\VerbFilter::className(),
       'actions' => [
         'create'    => ['POST'],
-        'retrieve'  => ['GET'],
+        'retrieve'  => ['GET', 'POST'],
         'update'    => ['PUT'],
         'delete'    => ['DELETE'],
         'getdata'   => ['GET'],

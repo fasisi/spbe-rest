@@ -2049,6 +2049,7 @@ class HelpdeskController extends \yii\rest\Controller
         $is_items_per_page_valid == true
       )
     {
+      // r = reporter (MK)
       if( $payload["list_mode"] == "r" )
       {
 
@@ -5904,9 +5905,6 @@ class HelpdeskController extends \yii\rest\Controller
   // ==========================================================================
   // my issues
   // ==========================================================================
-
-
-
 
   private function GetFileRespon($id_file)
   {

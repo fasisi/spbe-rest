@@ -1,5 +1,4 @@
 <?php
-
 namespace app\modules\kms\controllers;
 
 use Yii;
@@ -282,8 +281,7 @@ class ArticleController extends \yii\rest\Controller
             $response_payload = Json::decode($response_payload);
 
             $linked_id_artikel = $response_payload['id'];
-            /* $linked_id_thread = $payload['linked_id_thread']; */
-
+            $linked_id_thread = $payload['linked_id_thread'];
 
             // bikin record kms_artikel
             $artikel = new KmsArtikel();
@@ -384,7 +382,41 @@ class ArticleController extends \yii\rest\Controller
             } // hanya jika tags terdefinisi
 
 
-            $this->ArtikelLog($id_artikel, $payload["id_user"], 1, $payload["status"]);
+            $this->ArtikelLog(
+              $id_artikel, 
+              $payload["id_user"], 
+              1, 
+              $payload["status"]
+            );
+
+            // =================
+            // Notifikasi pembuatan rangkuman - begin
+            // =================
+              if( $linked_id_thread > -1 )
+              {
+                $daftar_email = [];
+                $detail_artikel = $this->GetDetail($artikel);
+                $detail_thread = $this->GetParentThread($linked_id_thread);
+
+                $creator = User::findOne($artikel['id_user_create']);
+                $temp = [];
+                $temp['email'] = $creator['email'];
+                $temp['nama'] = $creator['nama'];
+                $daftar_email[] = $temp;
+
+                Notifikasi::Kirim(
+                  [
+                    "type" => "rangkum_create",
+                    "daftar_email" => $daftar_email,
+                    "artikel" => $artikel,
+                    "detail_artikel" => $detail_artikel,
+                    "detail_thread" => $detail_thread,
+                  ]
+                );
+              }
+            // =================
+            // Notifikasi pembuatan rangkuman - end
+            // =================
 
             // kembalikan response
             return 
@@ -4229,8 +4261,8 @@ class ArticleController extends \yii\rest\Controller
           $time_hash = date("YmdHis");
           $file_name = $id_user_actor . "-" . $file->baseName . "-" . $time_hash . "." . $file->extension;
 
-          ini_set("display_errors", 1);
-          error_reporting(E_ALL);
+          /* ini_set("display_errors", 1); */
+          /* error_reporting(E_ALL); */
 
           if($file->saveAs($path . $file_name) == true)
           {
@@ -4522,6 +4554,49 @@ class ArticleController extends \yii\rest\Controller
       ];
     }
   }
+
+  // Mengambil informasi detail terkait suatu record artikel.
+  //
+  private function GetParentThread($id_thread)
+  {
+    $thread = ForumThread::findOne($id_thread);
+
+    $client = $this->SetupGuzzleClient();
+    $jira_conf = Yii::$app->restconf->confs['confluence'];
+
+    $res = $client->request(
+      'GET',
+      "/rest/questions/1.0/question/{$thread["linked_id_question"]}",
+      [
+        /* 'sink' => Yii::$app->basePath . "/guzzledump.txt", */
+        /* 'debug' => true, */
+        'http_errors' => false,
+        'headers' => [
+          "Content-Type" => "application/json",
+          "accept" => "application/json",
+        ],
+        'auth' => [
+          $jira_conf["user"],
+          $jira_conf["password"]
+        ],
+        'query' => [
+          'spaceKey' => 'PS',
+          'expand' => 'history,body.view'
+        ],
+      ]
+    );
+
+    $response_payload = $res->getBody();
+    $response_payload = Json::decode($response_payload);
+
+    $hasil["status"] = "ok";
+    $hasil["judul"] = $response_payload["title"];
+    $hasil["konten"] = html_entity_decode($response_payload["body"]["content"], ENT_QUOTES);
+
+    //  kembalikan hasilnya
+    return $hasil;
+  }
+  
 
   // Mengambil informasi detail terkait suatu record artikel.
   //

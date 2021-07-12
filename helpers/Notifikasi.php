@@ -32,6 +32,7 @@
       try
       {
         //Server settings
+        // DEBUG_OFF, _CLIENT, _SERVER, _CONNECTION, _LOWLEVEL
         $mail->SMTPDebug = SMTP::DEBUG_OFF;
 
         /* $mail->isSMTP();                              // Send using SMTP */
@@ -71,7 +72,6 @@
               "Frans Indroyono"
             );
 
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/artikel_baru",
@@ -98,7 +98,6 @@
               "fasisi2003@yahoo.com",
               "Frans Indroyono"
             );
-
 
             // Content
             $html = Yii::$app->controller->renderPartial(
@@ -127,7 +126,6 @@
               "Frans Indroyono"
             );
 
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/artikel_unpublish",
@@ -154,7 +152,6 @@
               "fasisi2003@yahoo.com",
               "Frans Indroyono"
             );
-
 
             // Content
             $html = Yii::$app->controller->renderPartial(
@@ -183,7 +180,6 @@
               "Frans Indroyono"
             );
 
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_baru",
@@ -210,7 +206,6 @@
               "fasisi2003@yahoo.com",
               "Frans Indroyono"
             );
-
 
             // Content
             $html = Yii::$app->controller->renderPartial(
@@ -239,7 +234,6 @@
               "Frans Indroyono"
             );
 
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_unpublish",
@@ -267,7 +261,6 @@
               "Frans Indroyono"
             );
 
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_reject",
@@ -294,7 +287,6 @@
               "fasisi2003@yahoo.com",
               "Frans Indroyono"
             );
-
 
             // Content
             $html = Yii::$app->controller->renderPartial(
@@ -324,17 +316,41 @@
               "Frans Indroyono"
             );
 
-            $mail->addAddress(
-              "frans.indroyono@gmail.com",
-              "Frans Indroyono"
-            );
-
             // Content
             $html = Yii::$app->controller->renderPartial(
               "@app/modules/general/views/general/emails/notifikasi/topik_puas",
               [
                 "thread" => $params["thread"],
                 "detail_thread" => $params["detail_thread"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "rangkum_create" :
+
+            $mail->Subject = 'Notifikasi rangkuman sedang dibuat : ';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/rangkum_create",
+              [
+                "thread" => $params["thread"],
+                "detail_thread" => $params["detail_thread"],
+                "detail_artikel" => $params["detail_artikel"],
               ]
             );
 
