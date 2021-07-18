@@ -387,7 +387,7 @@
 
           case $params["type"] == "pic_tiket_baru" :
 
-            $mail->Subject = 'Notifikasi tiket baru : ';
+            $mail->Subject = 'Notifikasi tiket baru';
 
             foreach($params["daftar_email"] as $send_item)
             {
@@ -404,10 +404,117 @@
 
             // Content
             $html = Yii::$app->controller->renderPartial(
-              "@app/modules/general/views/general/emails/notifikasi/pic_topik_baru",
+              "@app/modules/general/views/general/emails/notifikasi/pic_tiket_baru",
               [
-                "thread" => $params["thread"],
-                "detail_thread" => $params["detail_thread"],
+                "tiket" => $params["tiket"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "sme_tiket_progress" :
+
+            $mail->Subject = 'Notifikasi tiket progress';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/sme_tiket_progress",
+              [
+                "tiket" => $params["tiket"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "sme_tiket_waiting" :
+
+            $mail->Subject = 'Notifikasi tiket waiting';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/sme_tiket_waiting",
+              [
+                "tiket" => $params["tiket"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "sme_tiket_disposisi" :
+
+            $mail->Subject = 'Notifikasi disposisi tiket';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/sme_disposisi_tiket",
+              [
+                "tiket" => $params["tiket"],
+              ]
+            );
+
+            break;
+
+          case $params["type"] == "sme_tiket_close" :
+
+            $mail->Subject = 'Notifikasi tiket ditutup';
+
+            foreach($params["daftar_email"] as $send_item)
+            {
+              $mail->addAddress(
+                $send_item["email"],
+                $send_item["nama"]
+              );
+            }
+
+            $mail->addAddress(
+              "fasisi2003@yahoo.com",
+              "Frans Indroyono"
+            );
+
+            // Content
+            $html = Yii::$app->controller->renderPartial(
+              "@app/modules/general/views/general/emails/notifikasi/sme_tiket_close",
+              [
+                "tiket" => $params["tiket"],
               ]
             );
 
@@ -415,7 +522,7 @@
 
           case $params["type"] == "pic_tiket_complete" :
 
-            $mail->Subject = 'Notifikasi tiket complete : ';
+            $mail->Subject = 'Notifikasi tiket complete';
 
             foreach($params["daftar_email"] as $send_item)
             {
@@ -432,7 +539,7 @@
 
             // Content
             $html = Yii::$app->controller->renderPartial(
-              "@app/modules/general/views/general/emails/notifikasi/pic_topik_complete",
+              "@app/modules/general/views/general/emails/notifikasi/pic_tiket_complete",
               [
                 "tiket" => $params["tiket"],
               ]

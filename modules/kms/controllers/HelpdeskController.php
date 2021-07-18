@@ -2156,7 +2156,7 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["hd_issue"] = $issue;
               $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
               $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
-              // $hasil["user_create"] = $user;
+              $temp["user_create"] = $user;
               $temp["servicedesk"]["status"] = "not ok";
               $temp["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
               $temp["servicedesk"]["konten"] = $response_payload["requestFieldValues"][1]["value"];
@@ -2187,31 +2187,115 @@ class HelpdeskController extends \yii\rest\Controller
         // list_mode = 's'
 
 
-        //  lakukan query dari tabel hd_issue
-        $q = new Query();
-        $test = $q->select("i.*")
-          ->from("hd_issue i")
-          ->join("JOIN", "hd_issue_solver s", "s.id_issue = i.id")
-          ->where(
-            [
-              "and",
-              "s.id_user = :id_solver",
-              "i.is_delete = 0",
-              ["in", "id_kategori", $payload["idkategori"]],
-              ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
-            ],
-            [
-              ":id_solver" => $payload["id_user"],
-            ]
-          )
-          ->all();
-        $total_rows = count($test);
+        // ambil daftar issue bagi user tipe 'solver'.
+        // ambil daftar issue dengan kriteria berikut:
+        // 1. user merupakan solver issue tersebut.
+        // 2. user pernah menjadi solver terhadap issue tersebut.
 
-        $list_issue = 
-          $q->orderBy("i.time_create desc")
-            ->offset( $payload["items_per_page"] * ($payload["page_no"] - 1) )
-            ->limit( $payload["items_per_page"] )
+        // =========================================
+        // daftar issue dimana si user adalah solver
+        // =========================================
+
+          $where1 = [
+            "and",
+            "s.id_user = :id_solver",
+            "i.is_delete = 0",
+            ["in", "id_kategori", $payload["idkategori"]],
+            ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
+          ];
+          $params1[':id_solver'] = $payload['id_user'];
+
+        // =========================================
+        // daftar issue dimana si user adalah solver
+        // =========================================
+
+
+
+
+
+        // ===========================================================
+        // daftar issue dimana si user terlibat dalam rantai disposisi
+        // ===========================================================
+
+          $where2 = [
+            "and",
+            "i.is_delete = 0",
+            ["in", "id_kategori", $payload["idkategori"]],
+            ["in", "status", $payload['status']],   // -1=draft; 1=open; 2=progress; 3=waiting; 4=closed; 5=complete
+          ];
+          $params2 = [];
+
+        // ===========================================================
+        // daftar issue dimana si user terlibat dalam rantai disposisi
+        // ===========================================================
+
+        if( $payload['is_only_disposisi'] == true )
+        {
+          $where1[] = "i.is_disposisi = 1";
+          $where2[] = "i.is_disposisi = 1";
+        }
+
+        // ===================================================
+        // gabungkan test dan test2 menjadi 1 list lewat UNION
+        // ===================================================
+
+          $q = new Query();
+          $test = $q->select("i.id, i.time_create")
+            ->from("hd_issue i")
+            ->join("JOIN", "hd_issue_solver s", "s.id_issue = i.id")
+            ->where(
+              $where1,
+              $params1
+            )
+            ->orderBy('i.time_create desc')
             ->all();
+
+          $q2 = new Query();
+          $test2 = $q2->select("i.id, i.time_create")
+            ->from("hd_issue i")
+            ->join("JOIN", "hd_issue_disposisi d", "d.id_issue = i.id")
+            ->where(
+              $where2,
+              $params2
+            )
+            ->orderBy('i.time_create desc')
+            ->all();
+
+          $q->union(
+            $q2,
+            FALSE
+          );
+
+          Yii::info(
+            "Executing UNION query..."
+          );
+          $q3 = new Query();
+          $temp = $q3
+            ->select("a.*")
+            ->from(
+              [
+                "a" => $q
+              ]
+            )
+            ->orderBy("time_create desc")
+            ->all();
+
+        // ===================================================
+        // gabungkan test dan test2 menjadi 1 list lewat UNION
+        // ===================================================
+
+        $list_issue = [];
+        foreach($temp as $item)
+        {
+          $temp_issue = HdIssue::findOne( $item['id'] );
+          $list_issue[] = $temp_issue;
+        }
+
+        $list_issue = array_slice(
+          $list_issue,
+          $payload["items_per_page"] * ($payload["page_no"] - 1) ,
+          $payload["items_per_page"] 
+        );
 
         //  lakukan query dari Confluence
         $jira_conf = Yii::$app->restconf->confs['jira'];
@@ -2225,6 +2309,18 @@ class HelpdeskController extends \yii\rest\Controller
             "id_issue" => $issue["id"],
             "is_delete" => 0
           ]);
+
+          $solver = HdIssueSolver::find()
+            ->where(
+              "
+                id_issue = :id_issue
+              ",
+              [
+                ":id_issue" => $issue['id'],
+              ]
+            )
+            ->one();
+          $user_solver = User::findOne( $solver['id_user'] );
 
           $res = $client->request(
             'GET',
@@ -2261,6 +2357,7 @@ class HelpdeskController extends \yii\rest\Controller
               $temp["category_path"] = KmsKategori::CategoryPath($issue["id_kategori"]);
               $temp["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
               $temp["user_create"] = $user;
+              $temp["user_solver"] = $user_solver;
               $temp["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]);
               $temp["jawaban"]["count"] = count($jawaban);
               $temp["servicedesk"]["status"] = "ok";
@@ -2374,6 +2471,17 @@ class HelpdeskController extends \yii\rest\Controller
       //  lakukan query dari tabel kms_artikel
       $issue = HdIssue::findOne($payload["id_issue"]);
       $user_creator = User::findOne($issue["id_user_create"]);
+      $solver = HdIssueSolver::find()
+        ->where(
+          "id_issue = :id_issue AND
+           id_user = :id_user
+          ",
+          [
+            ":id_issue" => $issue['id'],
+            ":id_user" => $payload['id_user_actor'],
+          ]
+        )
+        ->one();
 
       /* $temp_list_komentar = HdIssueComment::find() */
       /*   ->where("id_issue = :id", [":id" => $payload["id_issue"]]) */
@@ -2459,6 +2567,38 @@ class HelpdeskController extends \yii\rest\Controller
           ];
         }
 
+        // ========================================
+        // ambil rantai disposisi
+        // ========================================
+          $temp_disposisi = HdIssueDisposisi::find()
+            ->where(
+              "
+                id_issue = :id_issue
+              ",
+              [
+                ":id_issue" => $payload['id_issue'],
+              ]
+            )
+            ->orderBy("time_create asc")
+            ->all();
+
+          $daftar_disposisi = [];
+          foreach( $temp_disposisi as $item )
+          {
+            $from = User::findOne( $item['id_sme_out'] );
+            $to = User::findOne( $item['id_sme_in'] );
+
+            $temp = [];
+            $temp['HdIssueDisposisi'] = $item;
+            $temp['from'] = $from;
+            $temp['to'] = $to;
+
+            $daftar_disposisi[] = $temp;
+          }
+        // ========================================
+        // ambil rantai disposisi
+        // ========================================
+
         $temp_files = HdIssueFile::findAll(["id_issue" => $payload["id_issue"]]);
         $files = [];
         foreach( $temp_files as $a_file )
@@ -2516,6 +2656,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           /* $hasil["record"]["user_actor_status"] = HdIssueUserAction::GetUserAction($payload["id_issue"], $payload["id_user_actor"]); */
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+          $hasil["record"]["daftar_disposisi"] = $daftar_disposisi;
           $hasil["record"]["servicedesk"]["status"] = "ok";
           $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"];
           $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"];
@@ -2524,6 +2665,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["jawaban"]["records"] = $jawaban;
           $hasil["files"] = $files;
           $hasil["is_pic"] = HdKategoriPic::IsPic($payload["id_user_actor"], $issue["id_kategori"]);
+          $hasil['is_solver'] = ( is_null($solver) == true ? false : true );
 
         //   $this->IssueLog($issue["id"], $payload["id_user_actor"], 2, -1);
           break;
@@ -2536,6 +2678,7 @@ class HelpdeskController extends \yii\rest\Controller
           $hasil["record"]["user_create"] = $user;
           $hasil["record"]["user_solver"] = HdIssueSolver::GetSolver($issue["id"]);
           $hasil["record"]["tags"] = HdIssueTag::GetIssueTags($issue["id"]);
+          $hasil["record"]["daftar_disposisi"] = $daftar_disposisi;
           $hasil["record"]["confluence"]["status"] = "not ok";
           /* $hasil["record"]["servicedesk"]["linked_id_issue"] = $response_payload["issueId"]; */
           /* $hasil["record"]["servicedesk"]["judul"] = $response_payload["requestFieldValues"][0]["value"]; */
@@ -3067,6 +3210,9 @@ class HelpdeskController extends \yii\rest\Controller
 
                 // tulis log
                 $this->IssueLog($id_issue, $payload["id_user"], 1, $payload["status"]);
+
+                // kirim notifikasi
+                $this->KirimNotifikasi($issue, $payload['status']);
               }
               else
               {
@@ -3112,6 +3258,89 @@ class HelpdeskController extends \yii\rest\Controller
         "status" => "not ok",
         "pesan" => "Parameter yang diperlukan tidak ada: id_issue (array), status",
       ];
+    }
+  }
+
+  private function GetDaftarEmail($tiket)
+  {
+    $hasil = [];
+
+    // email si pembuat tiket
+    $user = User::findOne($tiket['id_user_create']);
+    $temp = [];
+    $temp['email'] = $user['email'];
+    $temp['nama'] = $user['nama'];
+    $hasil[] = $temp;
+
+    // email PIC kategori
+    $daftar_pic = $this->GetPIC($tiket['id'], $tiket['id_user_create']);
+    foreach($daftar_pic as $pic)
+    {
+      $temp = [];
+      $temp['email'] = $pic['email'];
+      $temp['nama'] = $pic['nama'];
+      $hasil[] = $temp;
+    }
+
+    // email rantai disposisi
+    $q = new Query();
+    $list_disposisi = 
+      $q->select("u.*")
+        ->from("user u")
+        ->join("join", "hd_issue_disposisi d", "d.id_sme_in = u.id")
+        ->where(
+          "
+            id_issue = :id_issue
+          ",
+          [
+            ":id_issue" => $tiket['id'],
+          ]
+        )
+        ->all();
+    foreach($list_disposisi as $user)
+    {
+      $temp = [];
+      $temp['email'] = $user['email'];
+      $temp['nama'] = $user['nama'];
+      $hasil[] = $temp;
+    }
+
+    return $hasil;
+  }
+
+  private function KirimNotifikasi($tiket, $status)
+  {
+    $daftar_email = $this->GetDaftarEmail($tiket);
+
+    $type_name = "";
+    switch($status)
+    {
+      case 2:  // on progress
+        $type_name = "sme_tiket_progress";
+        break;
+
+      case 3:  // waiting for customer
+        $type_name = "sme_tiket_waiting";
+        break;
+
+      case 4:  // close
+        $type_name = "sme_tiket_close";
+        break;
+
+      case 5:  // complete
+        break;
+
+    }
+
+    if( $type_name != "" )
+    {
+      Notifikasi::Kirim(
+        [
+          "type" => $type_name, 
+          "tiket" => $tiket,
+          "daftar_email" => $daftar_email
+        ]
+      );
     }
   }
 
@@ -5484,7 +5713,7 @@ class HelpdeskController extends \yii\rest\Controller
 
             return [
               "status" => "ok",
-              "pesan" => "Pembatalan disposis berhasil",
+              "pesan" => "Pembatalan disposisi berhasil",
               "result" => [
                 "record" => $test_issue,
               ]

@@ -45,11 +45,13 @@ class HdIssue extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['id_kategori', 'linked_id_issue', 'view', 'like', 'dislike', 'id_user_create', 'id_user_update', 'id_user_delete', 'id_user_publish', 'is_delete', 'is_publish', 'status'], 'integer'],
-            [['linked_id_issue', 'id_user_create', 'time_create'], 'required'],
-            [['konten'], 'string'],
-            [['time_create', 'time_update', 'time_delete', 'time_publish'], 'safe'],
-            [['judul'], 'string', 'max' => 500],
+          [['id_kategori', 'linked_id_issue', 'view', 'like', 'dislike', 
+            'id_user_create', 'id_user_update', 'id_user_delete', 'id_user_publish', 
+            'is_delete', 'is_publish', 'status', 'is_disposisi'], 'integer'],
+          [['linked_id_issue', 'id_user_create', 'time_create'], 'required'],
+          [['konten'], 'string'],
+          [['time_create', 'time_update', 'time_delete', 'time_publish'], 'safe'],
+          [['judul'], 'string', 'max' => 500],
         ];
     }
 
